@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node -e \"require\\('@expo/config-plugins'\\)\")",
+      "Bash(findstr /i \"expo config-plugins\")"
+    ]
+  }
+}

@@ -1,0 +1,38 @@
+{
+  "expo": {
+    "name": "Sprout",
+    "slug": "sprout-richdmart-in",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#1a4a2e"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "sprout.richdmart.in",
+      "teamId": "YOUR_APPLE_TEAM_ID",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#1a4a2e"
+      },
+      "package": "sprout.richdmart.in"
+    },
+    "plugins": [
+      "./plugins/withWatchApp"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "96dae0a4-f0e4-4d10-b566-7d90731119c7"
+      }
+    },
+    "owner": "toast.dev"
+  }
+}
