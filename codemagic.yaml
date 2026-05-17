@@ -9,6 +9,7 @@ workflows:
       cocoapods: default
       vars:
         WATCH_PROVISIONING_PROFILE: watch_appstore
+        MAIN_PROVISIONING_PROFILE: Sprout
         TEAM_ID: 66A37BK2N7
       groups:
         - ios_signing   # DIST_CERT_BASE64, DIST_CERT_PASSWORD
@@ -25,10 +26,19 @@ workflows:
 
       - name: Import certificate and provisioning profiles
         script: |
-          # Decode the distribution certificate from env var
           echo "$DIST_CERT_BASE64" | base64 --decode > /tmp/dist.p12
-          keychain initialize
-          keychain add-certificate --certificate /tmp/dist.p12 --password "$DIST_CERT_PASSWORD"
+
+          # Create a dedicated signing keychain with a known password
+          security create-keychain -p "" build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p "" build.keychain
+          security import /tmp/dist.p12 -k build.keychain -P "$DIST_CERT_PASSWORD" \
+            -T /usr/bin/codesign -T /usr/bin/security
+          security set-key-partition-list -S apple-tool:,apple: -s -k "" build.keychain
+          security list-keychains -d user -s build.keychain ~/Library/Keychains/login.keychain-db
+
+          # Verify private key was imported (fail fast if not)
+          security find-identity -v -p codesigning build.keychain
 
           # Install provisioning profiles (committed in certs/)
           PROFILES="$HOME/Library/MobileDevice/Provisioning Profiles"

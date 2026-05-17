@@ -299,6 +299,17 @@ function modifyProject(cfg) {
   // Fix: read ios.teamId from app.json and stamp it directly into the watch
   // target's build settings here.  The user must add "teamId" to app.json → ios.
   const teamId = cfg.ios?.teamId;
+
+  // For non-EAS CI (e.g. Codemagic): stamp PROVISIONING_PROFILE_SPECIFIER onto
+  // the main target so xcodebuild can match the profile without EAS's xcargs injection.
+  const mainProfileSpecifier = process.env.MAIN_PROVISIONING_PROFILE;
+  if (mainProfileSpecifier) {
+    applyBuildSettings(project, mainUuid, {
+      CODE_SIGN_STYLE: '"Manual"',
+      PROVISIONING_PROFILE_SPECIFIER: `"${mainProfileSpecifier}"`,
+    });
+  }
+
   // EAS Fastlane passes PROVISIONING_PROFILE_SPECIFIER only for sdk=iphoneos*
   // targets. The watchos target gets no specifier, so Xcode can't match a profile
   // in manual signing mode. Setting it in the pbxproj here is not overridden by
