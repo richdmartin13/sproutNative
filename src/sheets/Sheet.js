@@ -50,8 +50,8 @@ export default function Sheet({ title, subtitle, onClose, children }) {
           borderColor: theme.border,
           maxHeight: H * 0.92,
           paddingBottom: insets.bottom + 16,
-          shadowColor: '#000', shadowOffset: { width: 0, height: -8 },
-          shadowOpacity: 0.22, shadowRadius: 24, elevation: 24,
+          shadowColor: '#000', shadowOffset: { width: 0, height: -4 },
+          shadowOpacity: theme.isDark ? 0.28 : 0.14, shadowRadius: 20, elevation: 24,
         }}>
           {/* Grab handle */}
           <View style={{ alignItems: 'center', paddingTop: 10, paddingBottom: 2 }}>

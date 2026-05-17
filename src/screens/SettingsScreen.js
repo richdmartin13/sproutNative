@@ -1,12 +1,13 @@
-import React, { useState } from 'react';
-import { View, Text, Pressable, ScrollView, Alert, Image } from 'react-native';
+import React, { useState, useRef } from 'react';
+import { View, Text, Pressable, ScrollView, Image } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import * as DocumentPicker from 'expo-document-picker';
-import { ChevronRight, Download, Upload, Trash2, Palette, LayoutGrid, PenLine, BarChart3, Database, ScrollText, List, Grid, Clock, Undo2 } from '../components/Icon.js';
+import { ChevronRight, Download, Upload, Trash2, Palette, LayoutGrid, PenLine, BarChart3, Database, ScrollText, List, Grid, Clock, Undo2, Archive, FlaskConical } from '../components/Icon.js';
 import { useApp } from '../context/AppContext.js';
 import GlassCard from '../components/GlassCard.js';
+import AppModal from '../components/AppModal.js';
 import { SCHEMES } from '../lib/theme.js';
 import { exportJson, importJson } from '../lib/storage.js';
 import Sheet from '../sheets/Sheet.js';
@@ -27,9 +28,32 @@ function MRow({ label, sub, value, onChange }) {
   );
 }
 
-const APP_VERSION = '1.0.9';
+const APP_VERSION = '1.0.11';
+const APP_BUILD  = 12;
 
 const CHANGELOG = [
+  {
+    version: '1.0.11',
+    changes: [
+      'Design: removed catch-light (1px top border artifact) from all cards, modals, and FAB',
+      'Design: accent stripes on habit cards now always glow regardless of shadow settings',
+      'Design: active filter chips now always glow — solid-fill colored elements glow unconditionally',
+      'Design: modal and sheet shadows changed to neutral black (no longer accent-colored)',
+      'Design: modal action buttons (confirm/destructive) now always glow',
+      'Design: selector active state border softened to 0.5px tactile raise instead of 1px outline',
+      'Analytics: Day/All toggle is now icon-only, matches Grid/List selector style exactly',
+      'Analytics: All-time icon changed from Σ to ∞ (Infinity)',
+      'Dev: Liquid Glass toggle in Developer settings — activates @callstack/liquid-glass on cards, nav, and FAB on iOS 26+ native builds',
+    ],
+  },
+  {
+    version: '1.0.10',
+    changes: [
+      'Tap: fixed phantom log bug — "Log with Details" no longer pre-creates a log; cancelling the edit sheet leaves no orphan entry',
+      'Nav: removed gray top line from bottom nav in light mode (now uses near-white border, matching the cards fix from 1.0.9)',
+      'Settings: Archived Habits moved to its own modal (appears in Preferences when at least one habit is archived)',
+    ],
+  },
   {
     version: '1.0.9',
     changes: [
@@ -289,13 +313,57 @@ const CHANGELOG = [
     ],
   },
 ];
-export default function SettingsScreen() {
-  const { data, theme, setPrefs, setData, restoreHabit } = useApp();
-  const insets = useSafeAreaInsets();
-  const prefs = data?.prefs || {};
-  const [modal, setModal] = useState(null);
 
-  const setP = updates => setPrefs({ ...prefs, ...updates });
+const SECTIONS = [
+  ['heatmap','Heatmap'],
+  ['hourly','By Hour'],
+  ['trends','Last 30 Days'],
+  ['spider','Spider'],
+  ['rankings','Rankings'],
+  ['correlations','Patterns'],
+  ['mood','Mood & Energy'],
+  ['time','Day of Week'],
+  ['tags','Tags'],
+  ['resist','Resistance'],
+];
+const SECTIONS_MAP           = Object.fromEntries(SECTIONS.map(([k,l]) => [k,l]));
+const DEFAULT_SECTIONS_ORDER = SECTIONS.map(([k]) => k);
+
+export default function SettingsScreen() {
+  const { data, theme, setPrefs, setData, restoreHabit, deleteHabit } = useApp();
+  const insets = useSafeAreaInsets();
+  const prefs  = data?.prefs || {};
+  const [modal,           setModal]        = useState(null);
+  const [sectionsEdit,    setSectionsEdit] = useState(false);
+  const [localSectOrder,  setLocalSectOrder] = useState(null);
+  const [tapHint,         setTapHint]      = useState('');
+  const [settAlert,       setSettAlert]    = useState(null); // { title, message, buttons }
+
+  const tapRef   = useRef(0);
+  const timerRef = useRef(null);
+
+  const setP   = updates => setPrefs({ ...prefs, ...updates });
+  const setDev = updates => setPrefs({ ...prefs, dev: { ...prefs.dev, ...updates } });
+
+  // 7-tap dev unlock — placed on version text in About modal
+  const handleVersionTap = () => {
+    tapRef.current += 1;
+    clearTimeout(timerRef.current);
+    const n = tapRef.current;
+    if (n >= 7) {
+      tapRef.current = 0;
+      setTapHint('');
+      if (prefs.devUnlocked) {
+        setSettAlert({ title:'Developer options', message:'Already unlocked. Find it in Settings.', buttons:[{ text:'OK', onPress:()=>setSettAlert(null) }] });
+      } else {
+        setPrefs({ ...prefs, devUnlocked: true });
+        setSettAlert({ title:'You are now a developer', message:'Developer options are now visible in Settings.', buttons:[{ text:'OK', onPress:()=>setSettAlert(null) }] });
+      }
+      return;
+    }
+    if (n >= 3) setTapHint(`${7 - n} more tap${7 - n !== 1 ? 's' : ''} to unlock developer options`);
+    timerRef.current = setTimeout(() => { tapRef.current = 0; setTapHint(''); }, 2000);
+  };
 
   // ── Export ──
   const doExport = async () => {
@@ -309,10 +377,10 @@ export default function SettingsScreen() {
       if (await Sharing.isAvailableAsync()) {
         await Sharing.shareAsync(path, { mimeType: 'application/json', dialogTitle: 'Export Sprout data' });
       } else {
-        Alert.alert('Export', 'Sharing is not available on this device.');
+        setSettAlert({ title:'Export', message:'Sharing is not available on this device.', buttons:[{ text:'OK', onPress:()=>setSettAlert(null) }] });
       }
     } catch (e) {
-      Alert.alert('Export failed', String(e));
+      setSettAlert({ title:'Export failed', message:String(e), buttons:[{ text:'OK', onPress:()=>setSettAlert(null) }] });
     }
   };
 
@@ -331,46 +399,59 @@ export default function SettingsScreen() {
       const { data: next, summary } = importJson(text, data);
       setData(next);
       setModal(null);
-      Alert.alert('Import complete', `${summary.newHabits} new habits, ${summary.newLogs} new logs added.`);
+      setSettAlert({ title:'Import complete', message:`${summary.newHabits} new habits, ${summary.newLogs} new logs added.`, buttons:[{ text:'OK', onPress:()=>setSettAlert(null) }] });
     } catch (e) {
       console.error('Import error:', e);
-      Alert.alert('Import failed', `Could not parse file: ${String(e.message || e)}`);
+      setSettAlert({ title:'Import failed', message:`Could not parse file: ${String(e.message || e)}`, buttons:[{ text:'OK', onPress:()=>setSettAlert(null) }] });
     }
   };
 
   // ── Clear all ──
   const doClear = () => {
-    setModal(null);
-    Alert.alert(
-      'Clear all data',
-      'This will permanently delete all your habits and logs. This cannot be undone.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Clear everything', style: 'destructive',
-          onPress: () => setData({ ...data, habits: [] }) },
-      ]
-    );
+    setSettAlert({
+      title: 'Clear all data',
+      message: 'This will permanently delete all your habits and logs. This cannot be undone.',
+      buttons: [
+        { text: 'Cancel', style: 'cancel', onPress: () => setSettAlert(null) },
+        { text: 'Clear everything', style: 'destructive', onPress: () => { setData({ ...data, habits: [] }); setSettAlert(null); setModal(null); } },
+      ],
+    });
   };
 
+  // ── Analytics section order ──
+  const sectionsOrder = prefs.sectionsOrder || DEFAULT_SECTIONS_ORDER;
+  const moveSection = (key, dir) => {
+    const arr  = [...sectionsOrder];
+    const idx  = arr.indexOf(key);
+    if (idx < 0) return;
+    const next = idx + dir;
+    if (next < 0 || next >= arr.length) return;
+    [arr[idx], arr[next]] = [arr[next], arr[idx]];
+    setPrefs({ ...prefs, sectionsOrder: arr });
+  };
+
+  const archivedHabits = (data?.habits || []).filter(h => h.archived);
+
   const GROUPS = [
-    { id:'appearance', label:'Appearance',        sub:'Theme and accent color',          Icon:Palette },
-    { id:'behavior',   label:'Layout & Behavior',  sub:'Card density, tap behavior',      Icon:LayoutGrid },
-    { id:'fields',     label:'Logging Fields',     sub:'Which fields appear when logging', Icon:PenLine },
-    { id:'sections',   label:'Analytics Sections', sub:'Which insights to show',          Icon:BarChart3 },
-    { id:'watch',      label:'Apple Watch',        sub:'Dismiss timing, haptics, stats',  Icon:Clock },
-    { id:'data',       label:'Data',               sub:'Backup, restore, and clear',      Icon:Database },
-    { id:'changelog',  label:'Changelog',          sub:"What's new",                      Icon:ScrollText },
+    { id:'appearance', label:'Appearance',         sub:'Theme and accent color',              Icon:Palette },
+    { id:'behavior',   label:'Layout & Behavior',  sub:'Card density, sort, tap behavior',    Icon:LayoutGrid },
+    { id:'fields',     label:'Logging Fields',     sub:'Which fields appear when logging',    Icon:PenLine },
+    { id:'sections',   label:'Analytics Sections', sub:'Which insights to show and their order', Icon:BarChart3 },
+    { id:'watch',      label:'Apple Watch',        sub:'Dismiss timing, haptics, stats',      Icon:Clock },
+    ...(archivedHabits.length ? [{ id:'archived', label:'Archived Habits', sub:`${archivedHabits.length} hidden habit${archivedHabits.length !== 1 ? 's' : ''}`, Icon:Archive }] : []),
+    { id:'data',       label:'Data',               sub:'Backup, restore, and clear',          Icon:Database },
+    ...(prefs.devUnlocked ? [{ id:'dev', label:'Developer', sub:'Experimental features & debug', Icon:FlaskConical }] : []),
+    { id:'about',      label:'About',              sub:'App info and changelog',               Icon:ScrollText },
   ];
 
-  const TRACKS   = [['mood','Mood'],['energy','Energy'],['ease','Ease (stars)'],['duration','Duration'],['resist','Resistance outcome'],['trigger','Trigger'],['context','Context'],['tags','Tags'],['notes','Notes']];
-  const SECTIONS = [['heatmap','Heatmap'],['hourly','By Hour'],['trends','Last 30 Days'],['spider','Spider'],['rankings','Rankings'],['mood','Mood & Energy'],['time','Day of Week'],['tags','Tags'],['resist','Resistance']];
+  const TRACKS = [['mood','Mood'],['energy','Energy'],['ease','Ease (stars)'],['duration','Duration'],['resist','Resistance outcome'],['trigger','Trigger'],['context','Context'],['tags','Tags'],['notes','Notes']];
 
   return (
     <View style={{ flex:1, backgroundColor:theme.bg }}>
       <View style={{ paddingHorizontal:20, paddingTop:insets.top+10, paddingBottom:16 }}>
-          <Text style={{ fontSize:30, fontWeight:'700', color:theme.text,
-            fontFamily:FONTS.heading, letterSpacing:-0.025 }}>Settings</Text>
-        </View>
+        <Text style={{ fontSize:30, fontWeight:'700', color:theme.text,
+          fontFamily:FONTS.heading, letterSpacing:-0.025 }}>Settings</Text>
+      </View>
       <ScrollView contentContainerStyle={{ paddingHorizontal:20, paddingBottom:120 }}
         showsVerticalScrollIndicator={false}>
         <GlassCard style={{ marginBottom:16 }} radius={20} variant="section">
@@ -398,51 +479,6 @@ export default function SettingsScreen() {
             </Pressable>
           ))}
         </GlassCard>
-        {/* ── Archived Habits ── */}
-        {(data?.habits || []).some(h => h.archived) && (
-          <GlassCard style={{ marginBottom:16 }} radius={20} variant="section">
-            <Text style={{ fontSize:11, fontWeight:'700', color:theme.muted,
-              textTransform:'uppercase', letterSpacing:0.8, padding:16, paddingBottom:10 }}>
-              Archived Habits
-            </Text>
-            {(data?.habits || []).filter(h => h.archived).map(h => (
-              <View key={h.id} style={{ flexDirection:'row', alignItems:'center', gap:12,
-                paddingHorizontal:16, paddingVertical:12,
-                borderTopWidth:1, borderTopColor:theme.border }}>
-                <View style={{ width:34, height:34, borderRadius:9,
-                  backgroundColor:theme.surface2, alignItems:'center', justifyContent:'center' }}>
-                  <Undo2 size={16} strokeWidth={2} color={theme.muted} />
-                </View>
-                <View style={{ flex:1 }}>
-                  <Text style={{ fontSize:15, fontWeight:'500', color:theme.text }}>{h.name}</Text>
-                  {h.category ? <Text style={{ fontSize:12, color:theme.muted, marginTop:1 }}>{h.category}</Text> : null}
-                </View>
-                <Pressable onPress={() => restoreHabit(h.id)}
-                  style={{ paddingHorizontal:12, paddingVertical:6, borderRadius:10,
-                    backgroundColor:theme.accentDim, borderWidth:1, borderColor:theme.accentBorder }}>
-                  <Text style={{ fontSize:12, fontWeight:'600', color:theme.accent }}>Restore</Text>
-                </Pressable>
-              </View>
-            ))}
-          </GlassCard>
-        )}
-
-        {/* ── About ── */}
-        <GlassCard style={{ marginBottom:8, padding:18 }} radius={20} variant="flat">
-          <View style={{ flexDirection:'row', alignItems:'center', gap:14, marginBottom:12 }}>
-            <View style={{ shadowColor:theme.accent, shadowOffset:{width:0,height:3}, shadowOpacity:0.3, shadowRadius:8 }}>
-              <Image source={require('../../assets/icon.png')}
-                style={{ width:46, height:46, borderRadius:13 }} />
-            </View>
-            <View>
-              <Text style={{ fontSize:17, fontWeight:'700', color:theme.text, fontFamily:FONTS.heading }}>Sprout</Text>
-              <Text style={{ fontSize:12, color:theme.muted, marginTop:2 }}>Version {APP_VERSION} (build 9)</Text>
-            </View>
-          </View>
-          <Text style={{ fontSize:13, color:theme.muted, lineHeight:19 }}>
-            A lightweight habit tracker for iOS and Apple Watch. All data lives on your device — no accounts, no servers.
-          </Text>
-        </GlassCard>
 
         <Text style={{ fontSize:11, color:theme.muted, textAlign:'center', marginBottom:24, marginTop:8 }}>
           richdmart.in
@@ -452,8 +488,12 @@ export default function SettingsScreen() {
       {/* ── Appearance Modal ── */}
       {modal === 'appearance' && (
         <Sheet title="Appearance" onClose={() => setModal(null)}>
-          <MRow label="Dark mode" sub={prefs.dark ? 'On' : 'Off'}
-            value={prefs.dark} onChange={v => setP({ dark: v })} />
+          <MRow label="Follow device" sub="Match iOS dark/light mode automatically"
+            value={prefs.dark == null} onChange={v => setP({ dark: v ? null : theme.isDark })} />
+          {prefs.dark != null && (
+            <MRow label="Dark mode" sub={prefs.dark ? 'On' : 'Off'}
+              value={!!prefs.dark} onChange={v => setP({ dark: v })} />
+          )}
           <View style={{ paddingVertical:14 }}>
             <View style={{ marginBottom:10 }}>
               <Text style={{ fontSize:14, fontWeight:'600', color:theme.text }}>Color scheme</Text>
@@ -461,28 +501,26 @@ export default function SettingsScreen() {
                 {SCHEMES[prefs.scheme]?.label || 'Sprout'}
               </Text>
             </View>
-            {/* Swatch row — single accent colour in current mode */}
             <View style={{ flexDirection:'row', flexWrap:'wrap', gap:8 }}>
               {Object.entries(SCHEMES).map(([key, sc]) => {
                 const isActive = prefs.scheme === key;
                 const accentCol = sc.accent;
                 return (
-                  // Outer wrapper overflow:visible so glow doesn't clip
                   <View key={key} style={{ flex:1, minWidth:40, overflow:'visible' }}>
                     <Pressable onPress={() => setP({ scheme: key })}
                       title={sc.label}
                       style={({ pressed }) => ({
                         height:42, borderRadius:13,
-                        // Full accent fill — matches app colour in current mode
                         backgroundColor: accentCol,
                         borderWidth: isActive ? 2.5 : 1.5,
                         borderColor: isActive ? theme.text : 'transparent',
-                        // Glow
-                        shadowColor: accentCol,
-                        shadowOffset:{width:0,height:0},
-                        shadowOpacity: isActive ? (theme.isDark?0.70:0.40) : 0,
-                        shadowRadius: isActive ? 12 : 0,
-                        elevation: isActive ? 6 : 0,
+                        ...(isActive && theme.shadowsOn ? {
+                          shadowColor: accentCol,
+                          shadowOffset: {width:0,height:0},
+                          shadowOpacity: theme.isDark ? 0.70 : 0.14,
+                          shadowRadius: 12,
+                          elevation: 6,
+                        } : {}),
                         transform:[{scale: pressed?0.94:isActive?1.05:1}],
                       })} />
                   </View>
@@ -500,14 +538,13 @@ export default function SettingsScreen() {
             value={prefs.showStreak} onChange={v => setP({ showStreak: v })} />
           <MRow label="Compact cards" sub="Tighter padding on habit cards"
             value={prefs.compact} onChange={v => setP({ compact: v })} />
-          {/* Default view — label+sub on left, seg control on right, matches web MRow */}
+          {/* Default view */}
           <View style={{ flexDirection:'row', alignItems:'center', gap:10,
             paddingVertical:10, borderBottomWidth:1, borderBottomColor:theme.border }}>
             <View style={{ flex:1 }}>
               <Text style={{ fontSize:15, fontWeight:'500', color:theme.text }}>Default view</Text>
               <Text style={{ fontSize:11.5, color:theme.muted, marginTop:1 }}>Habits list shape on launch</Text>
             </View>
-            {/* Inline .seg control */}
             <View style={{ flexDirection:'row', backgroundColor:theme.surface2,
               borderWidth:1, borderColor:theme.border, borderRadius:10,
               padding:2, gap:1 }}>
@@ -522,6 +559,24 @@ export default function SettingsScreen() {
                     color: prefs.viewMode===v ? theme.text : theme.muted }}>{lbl}</Text>
                 </Pressable>
               ))}
+            </View>
+          </View>
+          {/* Sort habits */}
+          <View style={{ paddingVertical:14, borderBottomWidth:1, borderBottomColor:theme.border }}>
+            <Text style={{ fontSize:15, fontWeight:'500', color:theme.text, marginBottom:3 }}>Sort habits</Text>
+            <Text style={{ fontSize:11.5, color:theme.muted, marginBottom:10 }}>Order habits appear in the list</Text>
+            <View style={{ flexDirection:'row', gap:8, flexWrap:'wrap' }}>
+              {[['mostLogged','Taps'],['name','A–Z'],['type','Type'],['recent','Recent']].map(([v,lbl]) => {
+                const active = (prefs.habitsSort || 'mostLogged') === v;
+                return (
+                  <Pressable key={v} onPress={() => setP({ habitsSort: v })}
+                    style={{ paddingHorizontal:14, paddingVertical:8, borderRadius:11,
+                      backgroundColor: active ? theme.accent : theme.surface2,
+                      borderWidth:1.5, borderColor: active ? theme.accent : theme.border }}>
+                    <Text style={{ fontSize:13, fontWeight:'600', color: active ? '#fff' : theme.text }}>{lbl}</Text>
+                  </Pressable>
+                );
+              })}
             </View>
           </View>
           <MRow label="Repeat last by default" sub="Auto-fill most recent log's details on tap"
@@ -574,20 +629,102 @@ export default function SettingsScreen() {
       )}
 
       {/* ── Analytics Sections Modal ── */}
-      {modal === 'sections' && (
-        <Sheet title="Analytics Sections" onClose={() => setModal(null)}>
-          {SECTIONS.map(([k, l]) => (
-            <MRow key={k} label={l}
-              value={prefs.sections?.[k] !== false}
-              onChange={() => setPrefs({ ...prefs, sections: { ...prefs.sections, [k]: !prefs.sections?.[k] } })} />
-          ))}
-        </Sheet>
-      )}
+      {modal === 'sections' && !sectionsEdit && (() => {
+        const visible = sectionsOrder.filter(k => prefs.sections?.[k] !== false);
+        const hidden  = sectionsOrder.filter(k => prefs.sections?.[k] === false);
+        const toggleSection = k => setPrefs({ ...prefs, sections: { ...prefs.sections, [k]: !(prefs.sections?.[k] !== false) } });
+        const renderRow = (k, isHidden) => (
+          <Pressable key={k} onPress={() => toggleSection(k)}
+            style={({ pressed }) => ({
+              flexDirection:'row', alignItems:'center', paddingVertical:12,
+              borderBottomWidth:1, borderBottomColor:theme.border,
+              opacity: pressed ? 0.7 : isHidden ? 0.45 : 1,
+            })}>
+            <View style={{ width:22, height:22, borderRadius:11, marginRight:12,
+              backgroundColor: isHidden ? theme.surface2 : theme.accent,
+              borderWidth: isHidden ? 1.5 : 0, borderColor: theme.border,
+              alignItems:'center', justifyContent:'center' }}>
+              {!isHidden && <Text style={{ fontSize:13, color:'#fff', fontWeight:'700', lineHeight:16 }}>✓</Text>}
+            </View>
+            <Text style={{ flex:1, fontSize:15, fontWeight:'500', color:theme.text }}>
+              {SECTIONS_MAP[k] || k}
+            </Text>
+          </Pressable>
+        );
+        return (
+          <Sheet title="Analytics Sections" onClose={() => setModal(null)}>
+            {visible.map(k => renderRow(k, false))}
+            {hidden.length > 0 && (
+              <>
+                <Text style={{ fontSize:11, fontWeight:'700', color:theme.muted, textTransform:'uppercase',
+                  letterSpacing:0.7, paddingTop:16, paddingBottom:6 }}>Hidden</Text>
+                {hidden.map(k => renderRow(k, true))}
+              </>
+            )}
+            <Pressable onPress={() => setSectionsEdit(true)}
+              style={({ pressed }) => ({
+                flexDirection:'row', alignItems:'center', justifyContent:'center', gap:8,
+                marginTop:18, paddingVertical:12, borderRadius:14,
+                borderWidth:1, borderColor:theme.border,
+                backgroundColor: pressed ? theme.surface2 : 'transparent',
+              })}>
+              <Text style={{ fontSize:14, fontWeight:'600', color:theme.text }}>Reorder Sections</Text>
+            </Pressable>
+          </Sheet>
+        );
+      })()}
+
+      {/* ── Sections Reorder ── */}
+      {modal === 'sections' && sectionsEdit && (() => {
+        const order = localSectOrder || sectionsOrder;
+        const move = (k, dir) => {
+          const arr = [...order];
+          const idx = arr.indexOf(k);
+          const nxt = idx + dir;
+          if (nxt < 0 || nxt >= arr.length) return;
+          [arr[idx], arr[nxt]] = [arr[nxt], arr[idx]];
+          setLocalSectOrder(arr);
+        };
+        return (
+          <Sheet title="Reorder Sections"
+            onClose={() => { setSectionsEdit(false); setLocalSectOrder(null); }}>
+            {order.map((k, idx) => (
+              <View key={k} style={{ flexDirection:'row', alignItems:'center', paddingVertical:10,
+                borderBottomWidth:1, borderBottomColor:theme.border }}>
+                <Text style={{ flex:1, fontSize:15, fontWeight:'500', color:theme.text }}>
+                  {SECTIONS_MAP[k] || k}
+                </Text>
+                <View style={{ flexDirection:'row', gap:2 }}>
+                  <Pressable onPress={() => move(k, -1)} disabled={idx === 0}
+                    style={{ padding:8, opacity: idx === 0 ? 0.25 : 1 }}>
+                    <Text style={{ fontSize:19, color:theme.text }}>↑</Text>
+                  </Pressable>
+                  <Pressable onPress={() => move(k, 1)} disabled={idx === order.length - 1}
+                    style={{ padding:8, opacity: idx === order.length - 1 ? 0.25 : 1 }}>
+                    <Text style={{ fontSize:19, color:theme.text }}>↓</Text>
+                  </Pressable>
+                </View>
+              </View>
+            ))}
+            <Pressable onPress={() => {
+              setPrefs({ ...prefs, sectionsOrder: order });
+              setSectionsEdit(false);
+              setLocalSectOrder(null);
+            }}
+              style={({ pressed }) => ({
+                marginTop:18, paddingVertical:13, borderRadius:14,
+                backgroundColor: theme.accent, alignItems:'center',
+                opacity: pressed ? 0.85 : 1,
+              })}>
+              <Text style={{ fontSize:14, fontWeight:'700', color:'#fff' }}>Save Order</Text>
+            </Pressable>
+          </Sheet>
+        );
+      })()}
 
       {/* ── Data Modal ── */}
       {modal === 'data' && (
         <Sheet title="Data" onClose={() => setModal(null)}>
-          {/* Matches web: settings-modal-row with icon inline in label */}
           <Pressable onPress={doExport}
             style={({ pressed }) => ({
               flexDirection:'row', alignItems:'center', gap:10,
@@ -638,19 +775,161 @@ export default function SettingsScreen() {
         </Sheet>
       )}
 
-      {/* ── Changelog Modal ── */}
-      {modal === 'changelog' && (
-        <Sheet title="Changelog" onClose={() => setModal(null)}>
-          {CHANGELOG.map(b => (
-            <View key={b.version} style={{ marginBottom:20 }}>
-              <Text style={{ fontSize:12, fontWeight:'700', color:theme.accent,
-                marginBottom:8, fontFamily:FONTS.mono }}>{b.version}</Text>
-              {b.changes.map((c, i) => (
-                <Text key={i} style={{ fontSize:12.5, color:theme.text2, lineHeight:20,
-                  paddingLeft:10, marginBottom:4 }}>· {c}</Text>
-              ))}
+      {/* ── Archived Habits Modal ── */}
+      {modal === 'archived' && (
+        <Sheet title="Archived Habits" onClose={() => setModal(null)}>
+          {archivedHabits.length === 0 ? (
+            <Text style={{ fontSize:14, color:theme.muted, textAlign:'center', paddingVertical:24 }}>
+              No archived habits.
+            </Text>
+          ) : archivedHabits.map(h => (
+            <View key={h.id} style={{ flexDirection:'row', alignItems:'center', gap:10,
+              paddingVertical:12, borderBottomWidth:1, borderBottomColor:theme.border }}>
+              <View style={{ width:34, height:34, borderRadius:9,
+                backgroundColor:theme.surface2, alignItems:'center', justifyContent:'center' }}>
+                <Undo2 size={16} strokeWidth={2} color={theme.muted} />
+              </View>
+              <View style={{ flex:1 }}>
+                <Text style={{ fontSize:15, fontWeight:'500', color:theme.text }}>{h.name}</Text>
+                {h.category ? <Text style={{ fontSize:12, color:theme.muted, marginTop:1 }}>{h.category}</Text> : null}
+              </View>
+              <Pressable onPress={() => restoreHabit(h.id)}
+                style={{ paddingHorizontal:12, paddingVertical:6, borderRadius:10,
+                  backgroundColor:theme.accentDim, borderWidth:1, borderColor:theme.accentBorder }}>
+                <Text style={{ fontSize:12, fontWeight:'600', color:theme.accent }}>Restore</Text>
+              </Pressable>
+              <Pressable onPress={() => setSettAlert({
+                title: 'Delete habit',
+                message: `Permanently delete "${h.name}" and all its logs?`,
+                buttons: [
+                  { text:'Cancel', style:'cancel', onPress:()=>setSettAlert(null) },
+                  { text:'Delete', style:'destructive', onPress:()=>{ deleteHabit(h.id); setSettAlert(null); } },
+                ],
+              })}
+                style={{ paddingHorizontal:12, paddingVertical:6, borderRadius:10,
+                  backgroundColor: theme.typeSt + '22', borderWidth:1, borderColor: theme.typeSt + '44' }}>
+                <Text style={{ fontSize:12, fontWeight:'600', color:theme.typeSt }}>Delete</Text>
+              </Pressable>
             </View>
           ))}
+        </Sheet>
+      )}
+
+      {/* ── Developer Modal ── */}
+      {modal === 'dev' && (
+        <Sheet title="Developer" onClose={() => setModal(null)}>
+          <MRow label="Use Test Dataset"
+            sub="Show demo habits instead of your real data. Your data is always preserved."
+            value={!!prefs.dev?.useTestData}
+            onChange={v => setDev({ useTestData: v })} />
+          <MRow label="Show Lift Scores"
+            sub="Display raw lift multiplier alongside co-occurrence % in Patterns"
+            value={!!prefs.dev?.showLift}
+            onChange={v => setDev({ showLift: v })} />
+          <MRow label="Reduced Motion"
+            sub="Skip tab-switch crossfade (0ms transition)"
+            value={!!prefs.dev?.reducedMotion}
+            onChange={v => setDev({ reducedMotion: v })} />
+          <MRow label="Show Habit IDs"
+            sub="Display habit.id in small text on each card"
+            value={!!prefs.dev?.showIds}
+            onChange={v => setDev({ showIds: v })} />
+          {/* Card Shadows — multi-select which modes get glow shadows */}
+          <View style={{ paddingVertical:13, borderBottomWidth:1, borderBottomColor:theme.border }}>
+            <Text style={{ fontSize:15, fontWeight:'500', color:theme.text, marginBottom:3 }}>Card Shadows</Text>
+            <Text style={{ fontSize:11.5, color:theme.muted, marginBottom:10 }}>Glow shadows on cards, tap zones, and buttons</Text>
+            <View style={{ flexDirection:'row', gap:8 }}>
+              {[['dark','Dark mode'],['light','Light mode']].map(([mode, lbl]) => {
+                const shadowModes = prefs.dev?.shadowModes ?? ['dark'];
+                const active = shadowModes.includes(mode);
+                return (
+                  <Pressable key={mode}
+                    onPress={() => {
+                      const cur = prefs.dev?.shadowModes ?? ['dark'];
+                      const next = active ? cur.filter(m => m !== mode) : [...cur, mode];
+                      setDev({ shadowModes: next });
+                    }}
+                    style={{ paddingHorizontal:14, paddingVertical:7, borderRadius:20,
+                      backgroundColor: active ? theme.accent : theme.surface2,
+                      borderWidth:1, borderColor: active ? theme.accent : theme.border }}>
+                    <Text style={{ fontSize:13, fontWeight:'600', color: active ? '#fff' : theme.text2 }}>{lbl}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
+          <MRow label="Liquid Glass"
+            sub="iOS 26+ glass on cards and nav. Install @callstack/liquid-glass and update src/lib/liquidGlass.js to activate."
+            value={!!prefs.dev?.liquidGlass}
+            onChange={v => setDev({ liquidGlass: v })} />
+          <Pressable
+            onPress={() => setSettAlert({
+              title: 'Disable developer options?',
+              message: 'The dev panel will be hidden. Tap the version number 7 times in About to re-enable.',
+              buttons: [
+                { text:'Cancel', style:'cancel', onPress:()=>setSettAlert(null) },
+                { text:'Disable', style:'destructive', onPress:()=>{ setPrefs({ ...prefs, devUnlocked: false }); setSettAlert(null); setModal(null); } },
+              ],
+            })}
+            style={({ pressed }) => ({
+              marginTop:20, paddingVertical:13, borderRadius:14,
+              borderWidth:1, borderColor: theme.typeSt + '55', alignItems:'center',
+              opacity: pressed ? 0.7 : 1,
+            })}>
+            <Text style={{ fontSize:14, fontWeight:'600', color:theme.typeSt }}>Disable Developer Options</Text>
+          </Pressable>
+        </Sheet>
+      )}
+
+      {/* ── Themed alert dialog ── */}
+      <AppModal
+        visible={!!settAlert}
+        title={settAlert?.title}
+        message={settAlert?.message}
+        buttons={settAlert?.buttons ?? []}
+        onDismiss={() => setSettAlert(null)}
+      />
+
+      {/* ── About Modal ── */}
+      {modal === 'about' && (
+        <Sheet title="About" onClose={() => { setModal(null); setTapHint(''); tapRef.current = 0; }}>
+          <View style={{ flexDirection:'row', alignItems:'center', gap:14, paddingVertical:16,
+            borderBottomWidth:1, borderBottomColor:theme.border }}>
+            <View style={{ shadowColor:theme.accent, shadowOffset:{width:0,height:3}, shadowOpacity:0.3, shadowRadius:8 }}>
+              <Image source={require('../../assets/icon.png')}
+                style={{ width:52, height:52, borderRadius:14 }} />
+            </View>
+            <View style={{ flex:1 }}>
+              <Text style={{ fontSize:18, fontWeight:'700', color:theme.text, fontFamily:FONTS.heading }}>Sprout</Text>
+              <Pressable onPress={handleVersionTap} hitSlop={10}>
+                <Text style={{ fontSize:13, color:theme.muted, marginTop:2 }}>
+                  Version {APP_VERSION} (build {APP_BUILD})
+                </Text>
+              </Pressable>
+              {tapHint ? (
+                <Text style={{ fontSize:11, color:theme.accent, marginTop:3 }}>{tapHint}</Text>
+              ) : null}
+            </View>
+          </View>
+          <Text style={{ fontSize:13, color:theme.muted, lineHeight:20, paddingVertical:14,
+            borderBottomWidth:1, borderBottomColor:theme.border }}>
+            A lightweight habit tracker for iOS and Apple Watch. All data lives on your device — no accounts, no servers.
+          </Text>
+          {/* Changelog inline */}
+          <View style={{ paddingTop:16 }}>
+            <Text style={{ fontSize:11, fontWeight:'700', color:theme.muted,
+              textTransform:'uppercase', letterSpacing:0.7, marginBottom:14 }}>Changelog</Text>
+            {CHANGELOG.map(b => (
+              <View key={b.version} style={{ marginBottom:18 }}>
+                <Text style={{ fontSize:12, fontWeight:'700', color:theme.accent,
+                  marginBottom:6, fontFamily:FONTS.mono }}>{b.version}</Text>
+                {b.changes.map((c, i) => (
+                  <Text key={i} style={{ fontSize:12.5, color:theme.text2, lineHeight:19,
+                    paddingLeft:10, marginBottom:3 }}>· {c}</Text>
+                ))}
+              </View>
+            ))}
+          </View>
         </Sheet>
       )}
     </View>

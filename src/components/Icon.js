@@ -9,20 +9,27 @@ import {
   Home, BarChart3, Settings, Plus,
   ChevronLeft, ChevronRight,
   Flame, Clock, Sigma,
+  Infinity as InfinityIcon,
   Pencil, Trash2, Star,
   X, Download, Upload,
   Undo2, Repeat, MoreHorizontal,
   List, Grid, Palette, LayoutGrid, PenLine, Database, ScrollText,
   TrendingUp, TrendingDown, Minus,
+  Archive,
+  Zap, ArrowRight, ArrowLeftRight,
+  FlaskConical,
 } from 'lucide-react-native';
 
 export {
   Home, BarChart3, Settings, Plus,
   ChevronLeft, ChevronRight,
-  Flame, Clock, Sigma,
+  Flame, Clock, Sigma, InfinityIcon,
   Pencil, Trash2, Star,
   X, Download, Upload,
   Undo2, Repeat, MoreHorizontal,
   List, Grid, Palette, LayoutGrid, PenLine, Database, ScrollText,
   TrendingUp, TrendingDown, Minus,
+  Archive,
+  Zap, ArrowRight, ArrowLeftRight,
+  FlaskConical,
 };

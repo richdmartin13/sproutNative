@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { View, Text, ScrollView, Pressable } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Clock, Sigma, ChevronLeft, ChevronRight } from '../components/Icon.js';
+import { Clock, InfinityIcon, ChevronLeft, ChevronRight, ArrowRight, ArrowLeftRight, Minus, Zap } from '../components/Icon.js';
 import SpiderChart from '../components/SpiderChart.js';
 import GlassCard from '../components/GlassCard.js';
 import { useApp } from '../context/AppContext.js';
@@ -10,12 +10,15 @@ import {
   totalCountFor, tagFrequency, dayOfWeekBuckets, trendsFor,
   moodCounts, energyCounts, hourlyBucketsFor, tagFrequencyForHabit,
   coOccurrenceFor, resistRate, easeAvgs, timeOfDayBuckets,
+  significantCorrelations, stopInfluences,
 } from '../lib/stats.js';
 import { heatColor, TYPE_COLORS } from '../lib/theme.js';
 import { FONTS } from '../lib/fonts.js';
 
+const DEFAULT_SECTION_ORDER = ['heatmap','hourly','trends','spider','rankings','correlations','mood','time','tags'];
+
 // ─── Glass card matching web .section ───────────────────────────────────────
-function Section({ title, subtitle, children }) {
+const Section = React.memo(function Section({ title, subtitle, children }) {
   const { theme } = useApp();
   return (
     <GlassCard style={{ padding: 16, marginBottom: 14 }} radius={20}>
@@ -26,6 +29,34 @@ function Section({ title, subtitle, children }) {
       </View>
       {children}
     </GlassCard>
+  );
+});
+
+// ─── Hourly (day-mode only) ───────────────────────────────────────────────────
+function HourlySection({ filtered, date }) {
+  const { theme } = useApp();
+  const buckets = useMemo(() => hourlyBucketsFor(filtered, date), [filtered, date]);
+  const hMax = Math.max(1, ...buckets.map(b => b.go + b.st + b.ne));
+  return (
+    <Section title="By Hour">
+      <View style={{ flexDirection:'row', alignItems:'flex-end', height:80, gap:2, marginBottom:4 }}>
+        {buckets.map((b, i) => {
+          const tot = b.go + b.st + b.ne;
+          if (!tot) return <View key={i} style={{ flex:1, height:3, backgroundColor:theme.solid3, borderRadius:1 }} />;
+          const h = (tot / hMax) * 80;
+          return (
+            <View key={i} style={{ flex:1, height:h, borderRadius:3, overflow:'hidden', flexDirection:'column-reverse' }}>
+              {b.go > 0 && <View style={{ flex:b.go, backgroundColor:theme.typeGo }} />}
+              {b.st > 0 && <View style={{ flex:b.st, backgroundColor:theme.typeSt }} />}
+              {b.ne > 0 && <View style={{ flex:b.ne, backgroundColor:theme.typeNe }} />}
+            </View>
+          );
+        })}
+      </View>
+      <View style={{ flexDirection:'row', justifyContent:'space-between' }}>
+        {['12a','6a','12p','6p','11p'].map(l => <Text key={l} style={{ fontSize:10, color:theme.muted }}>{l}</Text>)}
+      </View>
+    </Section>
   );
 }
 
@@ -40,15 +71,16 @@ function FilterBar({ habits, category, setCategory, types, setTypes }) {
       <Pressable onPress={onPress}
         style={{
           paddingHorizontal:14, paddingVertical:7, borderRadius:20,
-          backgroundColor: active ? (color || theme.accent) : theme.surface2,
+          backgroundColor: active ? (color || theme.accent) : theme.solid2,
           borderWidth: 1,
           borderColor: active ? (color || theme.accent) : theme.border,
-          // Subtle shadow glow — lives on the Pressable itself
-          shadowColor: active ? (color || theme.accent) : 'transparent',
-          shadowOffset: { width:0, height:0 },
-          shadowOpacity: active ? 0.45 : 0,
-          shadowRadius: active ? 8 : 0,
-          elevation: 0, // elevation clips on Android — use iOS shadow only
+          ...(active ? {
+            shadowColor: color || theme.accent,
+            shadowOffset: { width:0, height:0 },
+            shadowOpacity: theme.isDark ? 0.55 : 0.28,
+            shadowRadius: 10,
+          } : {}),
+          elevation: 0,
         }}>
         <Text style={{ fontSize:14, fontWeight:'600', color: active ? '#fff' : theme.text2 }}>
           {label}
@@ -232,8 +264,12 @@ function SpiderSection({ filtered, allHabits, dateFilter }) {
           <Pressable key={v} onPress={()=>setView(v)}
             style={{ paddingHorizontal:12, paddingVertical:6, borderRadius:9,
               backgroundColor:view===v?theme.solid:'transparent',
-              shadowColor:view===v?'#000':'transparent',
-              shadowOffset:{width:0,height:1}, shadowOpacity:0.15, shadowRadius:3 }}>
+              ...(view===v ? {
+                shadowColor: '#000',
+                shadowOffset: {width:0,height:1},
+                shadowOpacity: theme.isDark ? 0.20 : 0.06,
+                shadowRadius: 3,
+              } : {}) }}>
             <Text style={{ fontSize:12, fontWeight:'600',
               color:view===v?theme.text:theme.muted }}>{lbl}</Text>
           </Pressable>
@@ -406,11 +442,126 @@ function TimePatternsCard({ habits, dateFilter }) {
   );
 }
 
+// ─── Patterns (lift-based co-occurrence + count-based stop influences) ────────
+function TypeDot({ type }) {
+  const { theme } = useApp();
+  const color = type === 'go' ? theme.typeGo : type === 'st' ? theme.typeSt : theme.typeNe;
+  return <View style={{ width:7, height:7, borderRadius:4, backgroundColor:color, flexShrink:0 }} />;
+}
+
+function CorrelationsSection({ habits }) {
+  const { data, theme } = useApp();
+  const showLift = data?.prefs?.dev?.showLift;
+
+  const pairs      = useMemo(() => significantCorrelations(habits).slice(0, 5), [habits]);
+  const influences = useMemo(() => {
+    // Deduplicate symmetric stop-stop pairs: keep unique unordered pairs
+    const seen = new Set();
+    return stopInfluences(habits).filter(r => {
+      const key = [r.a.id, r.b.id].sort().join('|');
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    }).slice(0, 5);
+  }, [habits]);
+
+  if (!pairs.length && !influences.length) return null;
+
+  let rowIdx = 0;
+
+  return (
+    <Section title="Patterns" subtitle="signal strength">
+      {/* Count-based stop influences — shown first (most actionable) */}
+      {influences.map(({ a, b, direction, ratio }) => {
+        const reduces   = direction === 'reduces';
+        const pct       = Math.round(Math.abs(1 - ratio) * 100);
+        const color     = reduces ? theme.typeGo : theme.typeSt;
+        const idx       = rowIdx++;
+        return (
+          <View key={`si_${a.id}_${b.id}`} style={{
+            flexDirection:'row', alignItems:'center', paddingVertical:10,
+            borderTopWidth: idx === 0 ? 0 : 1, borderTopColor: theme.border,
+          }}>
+            <View style={{ flex:1, flexDirection:'row', alignItems:'center', gap:5, flexWrap:'nowrap' }}>
+              <TypeDot type={a.type} />
+              <Text numberOfLines={1} style={{ flexShrink:1, fontSize:13.5, fontWeight:'600', color:theme.text }}>
+                {a.name}
+              </Text>
+              <Text style={{ fontSize:13, color, fontWeight:'700', flexShrink:0 }}>
+                {reduces ? '↓' : '↑'}
+              </Text>
+              <TypeDot type={b.type} />
+              <Text numberOfLines={1} style={{ flexShrink:1, fontSize:13.5, fontWeight:'600', color:theme.text }}>
+                {b.name}
+              </Text>
+            </View>
+            <View style={{ marginLeft:8, paddingHorizontal:9, paddingVertical:4,
+              borderRadius:9, backgroundColor:color+'22', flexShrink:0 }}>
+              <Text style={{ fontSize:13, fontWeight:'700', color }}>
+                {reduces ? '−' : '+'}{pct}%
+              </Text>
+            </View>
+          </View>
+        );
+      })}
+
+      {/* Lift-based co-occurrence pairs */}
+      {pairs.map(({ a, b, rateAB, rateBA, direction, polarity, lift }) => {
+        const isNeg  = polarity === 'negative';
+        const [primary, secondary, rate] = direction === 'BA' ? [b, a, rateBA] : [a, b, rateAB];
+        const isMutual   = direction === 'mutual';
+        const pct        = Math.round(rate * 100);
+        const badgeColor = isNeg ? theme.muted : pct >= 75 ? theme.typeGo : pct >= 50 ? theme.accent : theme.muted;
+        const arrowColor = isNeg ? theme.muted : theme.accent;
+        const idx        = rowIdx++;
+        return (
+          <View key={`${a.id}-${b.id}`} style={{
+            flexDirection:'row', alignItems:'center', paddingVertical:10,
+            borderTopWidth: idx === 0 ? 0 : 1, borderTopColor: theme.border,
+          }}>
+            <View style={{ flex:1, flexDirection:'row', alignItems:'center', gap:5, flexWrap:'nowrap' }}>
+              <TypeDot type={primary.type} />
+              <Text numberOfLines={1} style={{ flexShrink:1, fontSize:13.5, fontWeight:'600', color:theme.text }}>
+                {primary.name}
+              </Text>
+              {isNeg
+                ? <Minus         size={12} strokeWidth={2.5} color={arrowColor} />
+                : isMutual
+                  ? <ArrowLeftRight size={12} strokeWidth={2}   color={arrowColor} />
+                  : <ArrowRight     size={12} strokeWidth={2}   color={arrowColor} />
+              }
+              <TypeDot type={secondary.type} />
+              <Text numberOfLines={1} style={{ flexShrink:1, fontSize:13.5, fontWeight:'600', color:theme.text }}>
+                {secondary.name}
+              </Text>
+            </View>
+            <View style={{ marginLeft:8, alignItems:'flex-end', gap:2 }}>
+              <View style={{ paddingHorizontal:9, paddingVertical:4,
+                borderRadius:9, backgroundColor:badgeColor+'22' }}>
+                <Text style={{ fontSize:13, fontWeight:'700', color:badgeColor }}>{pct}%</Text>
+              </View>
+              {showLift && (
+                <Text style={{ fontSize:10, color:theme.muted, fontFamily:FONTS.mono }}>
+                  {lift.toFixed(2)}×
+                </Text>
+              )}
+            </View>
+          </View>
+        );
+      })}
+
+      <Text style={{ fontSize:11, color:theme.muted, marginTop:6, lineHeight:16 }}>
+        ↓↑ = change in stop habit rate · % = co-occurrence overlap · sorted by signal
+      </Text>
+    </Section>
+  );
+}
+
 // ─── Main screen ─────────────────────────────────────────────────────────────
 export default function AnalyticsScreen() {
   const insets = useSafeAreaInsets();
-  const { data, theme } = useApp();
-  const allHabits = (data?.habits || []).filter(h => !h.archived);
+  const { habits: habitsRaw, data, theme } = useApp();
+  const allHabits = habitsRaw.filter(h => !h.archived);
   const prefs     = data?.prefs  || {};
 
   const [mode,     setMode]     = useState(prefs.insDay?'day':'all');
@@ -429,6 +580,51 @@ export default function AnalyticsScreen() {
   const df = mode==='day' ? date : null;
   const totalLogs = useMemo(()=>filtered.reduce((s,h)=>s+(df?h.logs.filter(l=>l.date===df).length:h.logs.length),0),[filtered,df]);
 
+  const sectionOrder = useMemo(() => {
+    const saved = prefs.sectionsOrder;
+    if (!saved) return DEFAULT_SECTION_ORDER;
+    const extra = DEFAULT_SECTION_ORDER.filter(k => !saved.includes(k));
+    return [...saved, ...extra];
+  }, [prefs.sectionsOrder]);
+
+  const renderSection = (key) => {
+    if (prefs.sections?.[key] === false) return null;
+    switch (key) {
+      case 'heatmap':
+        if (!filtered.length) return null;
+        return (
+          <Section key="heatmap" title="Activity Heatmap" subtitle="tap a day to focus it">
+            <Heatmap habits={filtered} prefs={prefs} onDateClick={d => { setMode('day'); setDate(d); }} />
+          </Section>
+        );
+      case 'hourly':
+        if (mode !== 'day') return null;
+        return <HourlySection key="hourly" filtered={filtered} date={date} />;
+      case 'trends':
+        if (mode !== 'all' || !filtered.length) return null;
+        return <TrendsCard key="trends" habits={filtered} />;
+      case 'spider':
+        if (!totalLogs) return null;
+        return <SpiderSection key="spider" filtered={filtered} allHabits={allHabits} dateFilter={df} />;
+      case 'rankings':
+        if (!totalLogs) return null;
+        return <RankingsSection key="rankings" filtered={filtered} dateFilter={df} />;
+      case 'correlations':
+        if (mode !== 'all' || filtered.length < 2) return null;
+        return <CorrelationsSection key="correlations" habits={filtered} />;
+      case 'mood':
+        if (!totalLogs) return null;
+        return <MoodEnergySection key="mood" filtered={filtered} dateFilter={df} />;
+      case 'time':
+        if (mode !== 'all' || !totalLogs) return null;
+        return <TimePatternsCard key="time" habits={filtered} dateFilter={df} />;
+      case 'tags':
+        return <TagsSection key="tags" filtered={filtered} dateFilter={df} />;
+      default:
+        return null;
+    }
+  };
+
   return (
     <View style={{ flex:1, backgroundColor:theme.bg }}>
       {/* Topbar — matches web */}
@@ -436,19 +632,27 @@ export default function AnalyticsScreen() {
         paddingHorizontal:20, paddingTop:insets.top+10, paddingBottom:16 }}>
           <Text style={{ flex:1, fontSize:30, fontWeight:'700', color:theme.text,
             fontFamily:FONTS.heading, letterSpacing:-0.025 }}>Analytics</Text>
-          {/* Seg control matching web */}
-          <View style={{ flexDirection:'row', backgroundColor:theme.surface2,
+          {/* Seg control — icon-only, matches grid/list toggle style */}
+          <View style={{ flexDirection:'row', backgroundColor:theme.solid2,
             borderRadius:12, borderWidth:1, borderColor:theme.border, padding:3, gap:2 }}>
-            {([['day','Day',Clock],['all','All',Sigma]]).map(([id,lbl,IconComp])=>(
+            {([['day',Clock],['all',InfinityIcon]]).map(([id,IconComp])=>{
+              const active = mode === id;
+              return (
               <Pressable key={id} onPress={()=>setMode(id)}
-                style={{ flexDirection:'row', alignItems:'center', gap:5,
-                  paddingHorizontal:11, paddingVertical:7,
-                  borderRadius:9, backgroundColor:mode===id?theme.solid:'transparent' }}>
-                <IconComp size={14} strokeWidth={2} color={mode===id?theme.text:theme.muted} />
-                <Text style={{ fontSize:13, fontWeight:'600',
-                  color:mode===id?theme.text:theme.muted }}>{lbl}</Text>
+                style={{
+                  padding:7, borderRadius:9,
+                  backgroundColor: active ? theme.solid : 'transparent',
+                  borderWidth: active ? 0.5 : 0,
+                  borderColor: active ? theme.accentBorder : 'transparent',
+                  ...(active ? {
+                    shadowColor:theme.accent, shadowOffset:{width:0,height:1},
+                    shadowOpacity: theme.isDark ? 0.45 : 0.20, shadowRadius:6, elevation:3,
+                  } : {}),
+                }}>
+                <IconComp size={16} strokeWidth={2} color={active ? theme.accent : theme.muted} />
               </Pressable>
-            ))}
+              );
+            })}
           </View>
         </View>
       {/* Date nav (day mode) */}
@@ -504,69 +708,7 @@ export default function AnalyticsScreen() {
           </GlassCard>
         )}
 
-        {/* Heatmap */}
-        {prefs.sections?.heatmap!==false && filtered.length>0 && (
-          <Section title="Activity Heatmap" subtitle="tap a day to focus it">
-            <Heatmap habits={filtered} prefs={prefs} onDateClick={d=>{setMode('day');setDate(d);}} />
-          </Section>
-        )}
-
-        {/* Hourly (day mode only) */}
-        {mode==='day' && prefs.sections?.hourly!==false && (() => {
-          const buckets=hourlyBucketsFor(filtered,date);
-          const hMax=Math.max(1,...buckets.map(b=>b.go+b.st+b.ne));
-          return (
-            <Section title="By Hour">
-              <View style={{ flexDirection:'row', alignItems:'flex-end', height:80, gap:2, marginBottom:4 }}>
-                {buckets.map((b,i)=>{
-                  const tot=b.go+b.st+b.ne;
-                  if(!tot) return <View key={i} style={{ flex:1, height:3, backgroundColor:theme.solid3, borderRadius:1 }}/>;
-                  const h=(tot/hMax)*80;
-                  return (
-                    <View key={i} style={{ flex:1, height:h, borderRadius:3, overflow:'hidden', flexDirection:'column-reverse' }}>
-                      {b.go>0&&<View style={{ flex:b.go, backgroundColor:theme.typeGo }}/>}
-                      {b.st>0&&<View style={{ flex:b.st, backgroundColor:theme.typeSt }}/>}
-                      {b.ne>0&&<View style={{ flex:b.ne, backgroundColor:theme.typeNe }}/>}
-                    </View>
-                  );
-                })}
-              </View>
-              <View style={{ flexDirection:'row', justifyContent:'space-between' }}>
-                {['12a','6a','12p','6p','11p'].map(l=><Text key={l} style={{ fontSize:10, color:theme.muted }}>{l}</Text>)}
-              </View>
-            </Section>
-          );
-        })()}
-
-        {/* Trends (all-time mode) */}
-        {mode==='all' && prefs.sections?.trends!==false && filtered.length>0 && (
-          <TrendsCard habits={filtered} />
-        )}
-
-        {/* Spider */}
-        {prefs.sections?.spider!==false && totalLogs>0 && (
-          <SpiderSection filtered={filtered} allHabits={allHabits} dateFilter={df} />
-        )}
-
-        {/* Rankings */}
-        {prefs.sections?.rankings!==false && totalLogs>0 && (
-          <RankingsSection filtered={filtered} dateFilter={df} />
-        )}
-
-        {/* Mood & Energy */}
-        {prefs.sections?.mood!==false && totalLogs>0 && (
-          <MoodEnergySection filtered={filtered} dateFilter={df} />
-        )}
-
-        {/* Time categories (TOD left + DOW right) */}
-        {mode==='all' && prefs.sections?.time!==false && totalLogs>0 && (
-          <TimePatternsCard habits={filtered} dateFilter={df} />
-        )}
-
-        {/* Tags */}
-        {prefs.sections?.tags!==false && (
-          <TagsSection filtered={filtered} dateFilter={df} />
-        )}
+        {sectionOrder.map(renderSection)}
 
       </ScrollView>
     </View>

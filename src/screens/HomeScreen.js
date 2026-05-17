@@ -1,10 +1,10 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { View, Text, FlatList, ScrollView, Pressable, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { List, Grid, Flame, Clock } from '../components/Icon.js';
 import { useApp } from '../context/AppContext.js';
 import GlassCard from '../components/GlassCard.js';
-import { totalCountFor, streakFor, todayCountFor, daysSinceLastFor, dailyCountsFor } from '../lib/stats.js';
+import { totalCountFor, streakFor, todayCountFor, daysSinceLastFor, dailyCountsFor, lastLog } from '../lib/stats.js';
 import { TYPE_COLORS, TYPE_LABELS } from '../lib/theme.js';
 import { FONTS } from '../lib/fonts.js';
 
@@ -17,13 +17,15 @@ function Filters({ habits, category, setCategory, types, setTypes }) {
       <Pressable onPress={onPress}
         style={{
           paddingHorizontal:14, paddingVertical:7, borderRadius:20,
-          backgroundColor: active ? (color || theme.accent) : theme.surface2,
+          backgroundColor: active ? (color || theme.accent) : theme.solid2,
           borderWidth: 1,
           borderColor: active ? (color || theme.accent) : theme.border,
-          shadowColor: active ? (color || theme.accent) : 'transparent',
-          shadowOffset: { width:0, height:0 },
-          shadowOpacity: active ? 0.45 : 0,
-          shadowRadius: active ? 8 : 0,
+          ...(active ? {
+            shadowColor: color || theme.accent,
+            shadowOffset: { width:0, height:0 },
+            shadowOpacity: theme.isDark ? 0.55 : 0.28,
+            shadowRadius: 10,
+          } : {}),
           elevation: 0,
         }}>
         <Text style={{ fontSize:14, fontWeight:'600', color: active ? '#fff' : theme.text2 }}>
@@ -52,8 +54,9 @@ function Filters({ habits, category, setCategory, types, setTypes }) {
   );
 }
 
-function HabitCard({ habit, onPress, onLong, viewMode, compact }) {
-  const { theme } = useApp();
+const HabitCard = React.memo(function HabitCard({ habit, onPress, onLong, viewMode, compact }) {
+  const { theme, data } = useApp();
+  const showIds = data?.prefs?.dev?.showIds;
   const tc       = TYPE_COLORS[habit.type] || theme.accent;
   const today    = todayCountFor(habit);
   const total    = totalCountFor(habit);
@@ -70,24 +73,33 @@ function HabitCard({ habit, onPress, onLong, viewMode, compact }) {
   const BadgeIcon = isStop ? null : Flame;
   const badgeTip  = isStop ? 'd free' : '';
 
+  // Shared stripe style — sits OUTSIDE GlassCard so its shadow can escape overflow:hidden
+  const stripe = (top, bottom, width = 3.5) => ({
+    position:'absolute', left:0, top, bottom, width,
+    borderRadius:3, backgroundColor:tc, zIndex:2,
+    shadowColor:tc, shadowOffset:{width:0,height:0},
+    shadowOpacity: theme.isDark ? 0.80 : 0.45, shadowRadius:8,
+  });
+
   if (isGrid) {
     return (
       <Pressable onPress={() => onPress(habit)} onLongPress={() => onLong(habit)} delayLongPress={400}
-        style={({ pressed }) => ({ flex: 1, opacity: pressed ? 0.92 : 1 })}>
-        <GlassCard style={{ padding: 14, flex:1 }} radius={20} variant="card">
-          <View style={{ position:'absolute', left:0, top:'12%', bottom:'12%', width:3.5, borderRadius:3, backgroundColor:tc,
-          shadowColor:tc, shadowOffset:{width:0,height:0}, shadowOpacity:0.70, shadowRadius:6, elevation:4 }} />
-          <Text style={{ fontSize: 15, fontWeight: '700', color: theme.text, marginBottom: 6 }} numberOfLines={2}>{habit.name}</Text>
-          <Text style={{ fontSize: 36, fontWeight: '800', color: today > 0 ? tc : theme.muted, letterSpacing: -2, marginBottom: 8 }}>{today}</Text>
-          {!compact && (
-            <View style={{ flexDirection:'row', alignItems:'flex-end', height:28, gap:1, marginBottom:6 }}>
-              {sparks.map((s,i)=>(
-                <View key={i} style={{ flex:1, height:Math.max(2,(s.count/maxSp)*28), borderRadius:2, backgroundColor:s.count>0?tc:theme.solid3 }}/>
-              ))}
-            </View>
-          )}
-          <Text style={{ fontSize: 11.5, color: theme.muted }}>{total} taps · {habit.category}</Text>
-        </GlassCard>
+        style={({ pressed }) => ({ flex:1, opacity: pressed ? 0.90 : 1, transform:[{scale: pressed ? 0.97 : 1}] })}>
+        <View style={{ flex:1 }}>
+          <View style={stripe('12%','12%')} />
+          <GlassCard style={{ padding:14, paddingLeft:16, flex:1 }} radius={20} variant="card" glow={tc}>
+            <Text style={{ fontSize:15, fontWeight:'700', color:theme.text, marginBottom:6 }} numberOfLines={2}>{habit.name}</Text>
+            <Text style={{ fontSize:36, fontWeight:'800', color:today>0?tc:theme.muted, letterSpacing:-2, marginBottom:8 }}>{today}</Text>
+            {!compact && (
+              <View style={{ flexDirection:'row', alignItems:'flex-end', height:28, gap:1, marginBottom:6 }}>
+                {sparks.map((s,i)=>(
+                  <View key={i} style={{ flex:1, height:Math.max(2,(s.count/maxSp)*28), borderRadius:2, backgroundColor:s.count>0?tc:theme.solid3 }}/>
+                ))}
+              </View>
+            )}
+            <Text style={{ fontSize:11.5, color:theme.muted }}>{total} taps · {habit.category}</Text>
+          </GlassCard>
+        </View>
       </Pressable>
     );
   }
@@ -96,32 +108,35 @@ function HabitCard({ habit, onPress, onLong, viewMode, compact }) {
   if (compact) {
     return (
       <Pressable onPress={() => onPress(habit)} onLongPress={() => onLong(habit)} delayLongPress={400}
-        style={({ pressed }) => ({ opacity: pressed?0.92:1 })}>
-        <GlassCard style={{ paddingVertical:14, paddingHorizontal:14, paddingLeft:18 }} radius={18} variant="card">
-          <View style={{ position:'absolute', left:0, top:'14%', bottom:'14%', width:3, borderRadius:3, backgroundColor:tc }} />
-          <View style={{ flexDirection:'row', alignItems:'center', gap:8 }}>
-            <View style={{ flex:1 }}>
-              <Text style={{ fontSize:15, fontWeight:'600', color:theme.text, letterSpacing:-0.3 }} numberOfLines={1}>{habit.name}</Text>
-              {habit.category ? <Text style={{ fontSize:11, color:theme.muted, marginTop:1 }}>{habit.category}</Text> : null}
-            </View>
-            {badgeVal !== null && (
-              <View style={{ flexDirection:'row', alignItems:'center', gap:2 }}>
-                {isStop
-                  ? <Clock size={11} strokeWidth={2} color={tc} />
-                  : <Flame size={11} strokeWidth={2} color={tc} />}
-                <Text style={{ fontSize:11, fontWeight:'700', color:theme.muted }}>
-                  {isStop ? `${badgeVal}d` : badgeVal}
+        style={({ pressed }) => ({ opacity: pressed?0.90:1, transform:[{scale:pressed?0.99:1}] })}>
+        <View>
+          <View style={stripe('14%','14%',3)} />
+          <GlassCard style={{ paddingVertical:14, paddingHorizontal:14, paddingLeft:18 }} radius={18} variant="card" glow={tc}>
+            <View style={{ flexDirection:'row', alignItems:'center', gap:8 }}>
+              <View style={{ flex:1 }}>
+                <Text style={{ fontSize:15, fontWeight:'600', color:theme.text, letterSpacing:-0.3 }} numberOfLines={1}>{habit.name}</Text>
+                {habit.category ? <Text style={{ fontSize:11, color:theme.muted, marginTop:1 }}>{habit.category}</Text> : null}
+              </View>
+              {badgeVal !== null && (
+                <View style={{ flexDirection:'row', alignItems:'center', gap:2 }}>
+                  {isStop
+                    ? <Clock size={11} strokeWidth={2} color={tc} />
+                    : <Flame size={11} strokeWidth={2} color={tc} />}
+                  <Text style={{ fontSize:11, fontWeight:'700', color:theme.muted }}>
+                    {isStop ? `${badgeVal}d` : badgeVal}
+                  </Text>
+                </View>
+              )}
+              <View style={{ paddingHorizontal:9, paddingVertical:3, borderRadius:9,
+                backgroundColor: today>0 ? tc : theme.solid2, borderWidth:1,
+                borderColor: today>0 ? tc : theme.border }}>
+                <Text style={{ fontSize:12, fontWeight:'700', color: today>0?'#fff':theme.muted }}>
+                  {today > 0 ? today : '—'}
                 </Text>
               </View>
-            )}
-            <View style={{ paddingHorizontal:9, paddingVertical:3, borderRadius:9,
-              backgroundColor: today>0 ? tc : theme.surface2, borderWidth: today>0?0:1, borderColor:theme.border }}>
-              <Text style={{ fontSize:12, fontWeight:'700', color: today>0?'#fff':theme.muted }}>
-                {today > 0 ? today : '—'}
-              </Text>
             </View>
-          </View>
-        </GlassCard>
+          </GlassCard>
+        </View>
       </Pressable>
     );
   }
@@ -129,87 +144,129 @@ function HabitCard({ habit, onPress, onLong, viewMode, compact }) {
   // Full list card
   return (
     <Pressable onPress={() => onPress(habit)} onLongPress={() => onLong(habit)} delayLongPress={400}
-      style={({ pressed }) => ({ opacity: pressed?0.92:1 })}>
-      <GlassCard style={{ padding:15, paddingLeft:18 }} radius={22} variant="card">
-        <View style={{ position:'absolute', left:0, top:'16%', bottom:'16%', width:3.5, borderRadius:3, backgroundColor:tc,
-        shadowColor:tc, shadowOffset:{width:0,height:0}, shadowOpacity:0.70, shadowRadius:6, elevation:4 }} />
-        {/* Head row */}
-        <View style={{ flexDirection:'row', alignItems:'center', marginBottom:6 }}>
-          <Text style={{ flex:1, fontSize:16.5, fontWeight:'700', color:theme.text, letterSpacing:-0.02 }} numberOfLines={1}>{habit.name}</Text>
-          <View style={{ paddingHorizontal:10, paddingVertical:4, borderRadius:11,
-            backgroundColor: today>0 ? tc : theme.surface2, borderWidth: today>0?0:1, borderColor:theme.border,
-            shadowColor: today>0?tc:'transparent', shadowOffset:{width:0,height:0},
-            shadowOpacity: today>0?0.45:0, shadowRadius:8, elevation: today>0?4:0 }}>
-            <Text style={{ fontSize:12, fontWeight:'700', color: today>0?'#fff':theme.muted }}>
-              {today > 0 ? `${today} today` : 'tap to log'}
-            </Text>
-          </View>
-        </View>
-        {/* Badge row */}
-        <View style={{ flexDirection:'row', flexWrap:'wrap', gap:5, marginBottom:9 }}>
-          <View style={{ paddingHorizontal:8, paddingVertical:3, borderRadius:8, backgroundColor:theme.surface2, borderWidth:1, borderColor:theme.border }}>
-            <Text style={{ fontSize:11, fontWeight:'600', color:tc }}>{TYPE_LABELS[habit.type]}</Text>
-          </View>
-          {habit.category ? (
-            <View style={{ paddingHorizontal:8, paddingVertical:3, borderRadius:8, backgroundColor:theme.surface2, borderWidth:1, borderColor:theme.border }}>
-              <Text style={{ fontSize:11, fontWeight:'600', color:theme.text2 }}>{habit.category}</Text>
-            </View>
-          ) : null}
-          {/* Streak (go/ne) or days-since (st) */}
-          {badgeVal !== null && (
-            <View style={{ flexDirection:'row', alignItems:'center', gap:3, paddingHorizontal:8, paddingVertical:3, borderRadius:8, backgroundColor:theme.surface2, borderWidth:1, borderColor:theme.border }}>
-              {isStop
-                ? <Clock size={11} strokeWidth={2} color={tc} />
-                : <Flame size={11} strokeWidth={2} color={tc} />}
-              <Text style={{ fontSize:11, fontWeight:'600', color:theme.text2 }}>
-                {isStop ? `${badgeVal}d` : badgeVal}
+      style={({ pressed }) => ({ opacity: pressed?0.90:1, transform:[{scale:pressed?0.99:1}] })}>
+      <View>
+        <View style={stripe('15%','15%')} />
+        <GlassCard style={{ padding:15, paddingLeft:18 }} radius={22} variant="card" glow={tc}>
+          {/* Head row */}
+          <View style={{ flexDirection:'row', alignItems:'center', marginBottom:6 }}>
+            <Text style={{ flex:1, fontSize:16.5, fontWeight:'700', color:theme.text, letterSpacing:-0.02 }} numberOfLines={1}>{habit.name}</Text>
+            <View style={{ paddingHorizontal:10, paddingVertical:4, borderRadius:11,
+              backgroundColor: today>0 ? tc : theme.solid2, borderWidth:1,
+              borderColor: today>0 ? tc : theme.border }}>
+              <Text style={{ fontSize:12, fontWeight:'700', color: today>0?'#fff':theme.muted }}>
+                {today > 0 ? `${today} today` : 'tap to log'}
               </Text>
             </View>
+          </View>
+          {/* Badge row — type chip uses type color; others neutral */}
+          <View style={{ flexDirection:'row', flexWrap:'wrap', gap:5, marginBottom:9 }}>
+            <View style={{ paddingHorizontal:8, paddingVertical:3, borderRadius:8,
+              backgroundColor: tc + '28', borderWidth:1, borderColor: tc + '66' }}>
+              <Text style={{ fontSize:11, fontWeight:'700', color:tc }}>{TYPE_LABELS[habit.type]}</Text>
+            </View>
+            {habit.category ? (
+              <View style={{ paddingHorizontal:8, paddingVertical:3, borderRadius:8,
+                backgroundColor:theme.solid2, borderWidth:1, borderColor:theme.border }}>
+                <Text style={{ fontSize:11, fontWeight:'600', color:theme.text2 }}>{habit.category}</Text>
+              </View>
+            ) : null}
+            {badgeVal !== null && (
+              <View style={{ flexDirection:'row', alignItems:'center', gap:3, paddingHorizontal:8, paddingVertical:3, borderRadius:8,
+                backgroundColor: tc + '1A', borderWidth:1, borderColor: tc + '44' }}>
+                {isStop
+                  ? <Clock size={11} strokeWidth={2} color={tc} />
+                  : <Flame size={11} strokeWidth={2} color={tc} />}
+                <Text style={{ fontSize:11, fontWeight:'600', color:theme.text2 }}>
+                  {isStop ? `${badgeVal}d` : badgeVal}
+                </Text>
+              </View>
+            )}
+          </View>
+          {/* Spark bars */}
+          <View style={{ flexDirection:'row', alignItems:'flex-end', height:22, gap:1.5, marginBottom:5 }}>
+            {sparks.map((s,i)=>(
+              <View key={i} style={{ flex:1, height:Math.max(2,(s.count/maxSp)*22), borderRadius:2, backgroundColor:s.count>0?tc:theme.solid3 }}/>
+            ))}
+          </View>
+          <Text style={{ fontSize:11.5, color:theme.muted }}>{total} total taps</Text>
+          {showIds && (
+            <Text style={{ fontSize:9, color:theme.muted, marginTop:3, fontFamily:FONTS.mono }}>{habit.id}</Text>
           )}
-        </View>
-        {/* Spark bars */}
-        <View style={{ flexDirection:'row', alignItems:'flex-end', height:22, gap:1.5, marginBottom:5 }}>
-          {sparks.map((s,i)=>(
-            <View key={i} style={{ flex:1, height:Math.max(2,(s.count/maxSp)*22), borderRadius:2, backgroundColor:s.count>0?tc:theme.solid3 }}/>
-          ))}
-        </View>
-        <Text style={{ fontSize:11.5, color:theme.muted }}>{total} total taps</Text>
-      </GlassCard>
+        </GlassCard>
+      </View>
     </Pressable>
   );
-}
+});
 
 export default function HomeScreen({ onOpenHabit, onLongPressHabit, onNewHabit }) {
-  const { data, theme, setPrefs } = useApp();
+  const { habits: habitsRaw, data, theme, setPrefs } = useApp();
   const insets = useSafeAreaInsets();
-  const habits = data?.habits || [];
+  const habits = habitsRaw;
   const prefs  = data?.prefs  || {};
   const [category, setCategory] = useState('');
   const [types,    setTypes]    = useState([]);
 
   const filtered = useMemo(() => {
     let l = habits.filter(h => !h.archived);
-    if (category)    l = l.filter(h => h.category === category);
+    if (category)     l = l.filter(h => h.category === category);
     if (types.length) l = l.filter(h => types.includes(h.type));
-    return l.sort((a,b) => totalCountFor(b) - totalCountFor(a));
-  }, [habits, category, types]);
+    const sort = prefs.habitsSort || 'mostLogged';
+    if (sort === 'name') {
+      l = [...l].sort((a,b) => a.name.localeCompare(b.name));
+    } else if (sort === 'type') {
+      const ord = { go:0, st:1, ne:2 };
+      l = [...l].sort((a,b) => (ord[a.type]??2) - (ord[b.type]??2));
+    } else if (sort === 'recent') {
+      l = [...l].sort((a,b) => {
+        const ta = lastLog(a)?.ts ?? '';
+        const tb = lastLog(b)?.ts ?? '';
+        return tb < ta ? -1 : tb > ta ? 1 : 0;
+      });
+    } else {
+      l = [...l].sort((a,b) => totalCountFor(b) - totalCountFor(a));
+    }
+    return l;
+  }, [habits, category, types, prefs.habitsSort]);
 
   const { width } = useWindowDimensions();
   const isTablet = width >= 768;
   const grid = prefs.viewMode === 'grid';
   const cols = grid ? (isTablet ? 3 : 2) : 1;
 
+  const renderItem = useCallback(({ item }) => {
+    if (item._spacer) return <View style={{ flex:1 }} />;
+    return (
+      <View style={{ flex: grid ? 1 : undefined }}>
+        <HabitCard habit={item} onPress={onOpenHabit} onLong={onLongPressHabit}
+          viewMode={prefs.viewMode || 'list'} compact={prefs.compact} />
+      </View>
+    );
+  }, [grid, onOpenHabit, onLongPressHabit, prefs.viewMode, prefs.compact]);
+
   return (
     <View style={{ flex:1, backgroundColor:theme.bg }}>
       <View style={{ flexDirection:'row', alignItems:'center', paddingHorizontal:20, paddingTop:insets.top+10, paddingBottom:16 }}>
           <Text style={{ flex:1, fontSize:30, fontWeight:'700', color:theme.text, fontFamily:FONTS.heading, letterSpacing:-0.025 }}>Habits</Text>
-          <View style={{ flexDirection:'row', backgroundColor:theme.surface2, borderRadius:12, borderWidth:1, borderColor:theme.border, padding:3, gap:2 }}>
-            {[['list',List],['grid',Grid]].map(([id,Icon]) => (
+          <View style={{ flexDirection:'row', backgroundColor:theme.solid2, borderRadius:12, borderWidth:1, borderColor:theme.border, padding:3, gap:2 }}>
+            {[['list',List],['grid',Grid]].map(([id,Icon]) => {
+              const active = prefs.viewMode === id;
+              return (
               <Pressable key={id} onPress={() => setPrefs({...prefs, viewMode:id})}
-                style={{ padding:7, borderRadius:9, backgroundColor:prefs.viewMode===id?theme.solid:'transparent' }}>
-                <Icon size={16} strokeWidth={2} color={prefs.viewMode===id?theme.text:theme.muted} />
+                style={{
+                  padding:7, borderRadius:9,
+                  backgroundColor: active ? theme.solid : 'transparent',
+                  borderWidth: active ? 0.5 : 0,
+                  borderColor: active ? theme.accentBorder : 'transparent',
+                  ...(active ? {
+                    shadowColor:theme.accent, shadowOffset:{width:0,height:1},
+                    shadowOpacity: theme.isDark ? 0.45 : 0.20, shadowRadius:6, elevation:3,
+                  } : {}),
+                }}>
+                <Icon size={16} strokeWidth={2} color={active ? theme.accent : theme.muted} />
               </Pressable>
-            ))}
+              );
+            })}
           </View>
         </View>
       <Filters habits={habits} category={category} setCategory={setCategory} types={types} setTypes={setTypes} />
@@ -225,22 +282,18 @@ export default function HomeScreen({ onOpenHabit, onLongPressHabit, onNewHabit }
         </GlassCard>
       ) : (
         <FlatList
-          data={grid && filtered.length % cols === 1 ? [...filtered, ...(cols===3&&filtered.length%3===1?[{id:'__s1__',_spacer:true},{id:'__s2__',_spacer:true}]:[{id:'__spacer__',_spacer:true}])] : filtered}
+          data={grid && filtered.length % cols !== 0 ? [...filtered, ...(cols===3&&filtered.length%3===1?[{id:'__s1__',_spacer:true},{id:'__s2__',_spacer:true}]:[{id:'__spacer__',_spacer:true}])] : filtered}
           key={`${grid?'g':'l'}${cols}`}
           numColumns={cols}
           keyExtractor={h=>h.id}
           contentContainerStyle={{ paddingHorizontal:20, paddingBottom:140, paddingTop:8, gap:10 }}
           columnWrapperStyle={grid?{gap:10}:undefined}
           showsVerticalScrollIndicator={false}
-          renderItem={({item}) => {
-            if (item._spacer) return <View style={{ flex:1 }} />;
-            return (
-              <View style={{ flex:grid?1:undefined }}>
-                <HabitCard habit={item} onPress={onOpenHabit} onLong={onLongPressHabit}
-                  viewMode={prefs.viewMode||'list'} compact={prefs.compact} cols={cols} />
-              </View>
-            );
-          }}
+          removeClippedSubviews
+          maxToRenderPerBatch={10}
+          initialNumToRender={10}
+          windowSize={7}
+          renderItem={renderItem}
         />
       )}
     </View>

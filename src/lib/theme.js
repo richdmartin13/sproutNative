@@ -14,9 +14,14 @@ const LIGHT = { bg:'#f4f0e8', bg2:'#ece8df', surface:'rgba(255,255,255,0.90)', s
 export const TYPE_COLORS = { go:'#34d399', st:'#fb7185', ne:'#60a5fa' };
 export const TYPE_LABELS  = { go:'Start', st:'Stop', ne:'Neutral' };
 
-export function getTheme(prefs = {}) {
-  const dark = prefs.dark !== false;
+export function getTheme(prefs = {}, systemDark = true) {
+  // null/undefined → follow system; explicit true/false → override
+  const dark = prefs.dark != null ? !!prefs.dark : systemDark;
   const s = SCHEMES[prefs.scheme] || SCHEMES.sprout;
+  // shadowModes: which modes have card/element glow shadows enabled
+  // default ['dark'] — light mode off, dark mode on
+  const shadowModes = prefs.dev?.shadowModes ?? ['dark'];
+  const shadowsOn = dark ? shadowModes.includes('dark') : shadowModes.includes('light');
   function hexA(hex, a) {
     const h = hex.replace('#','');
     return `rgba(${parseInt(h.slice(0,2),16)},${parseInt(h.slice(2,4),16)},${parseInt(h.slice(4,6),16)},${a})`;
@@ -45,8 +50,12 @@ export function getTheme(prefs = {}) {
     navInnerBottom: dark ? 'rgba(255,255,255,0.04)' : LIGHT.navInnerBottom,
     accent: s.accent, accentSoft: s.accentSoft,
     accentDim:    hexA(s.accent, 0.18),
+    accentSubtle: hexA(s.accent, 0.28),
     accentBorder: hexA(s.accent, 0.40),
+    accentMid:    hexA(s.accent, 0.55),
     accentGlow: s.glow, grad: s.grad, heat: s.heat,
+    shadowsOn,
+    liquidGlassOn: !!prefs?.dev?.liquidGlass,
     typeGo: TYPE_COLORS.go, typeSt: TYPE_COLORS.st, typeNe: TYPE_COLORS.ne,
   };
 }

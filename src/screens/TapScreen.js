@@ -1,17 +1,18 @@
 import React, { useState, useRef, useCallback, useMemo } from 'react';
-import { View, Text, Pressable, ScrollView, Animated, Alert } from 'react-native';
+import { View, Text, Pressable, ScrollView, Animated } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
-import { ChevronLeft, Settings, Undo2, Repeat, MoreHorizontal, Pencil, Trash2 } from '../components/Icon.js';
+import { ChevronLeft, Settings, Undo2, Repeat, MoreHorizontal, Pencil, Trash2, ArrowRight, Minus, Zap } from '../components/Icon.js';
 import SpiderChart from '../components/SpiderChart.js';
 import GlassCard from '../components/GlassCard.js';
+import AppModal from '../components/AppModal.js';
 import { useApp } from '../context/AppContext.js';
 import { TYPE_COLORS, TYPE_LABELS } from '../lib/theme.js';
 import { todayStr, fmtDateLong, fmtTime, uid, normLog } from '../lib/util.js';
 import {
   todayCountFor, totalCountFor, streakFor, daysSinceLastFor,
   lastLog, lastLogToday, tagFrequencyForHabit, coOccurrenceFor,
-  moodCounts, energyCounts, resistRate,
+  moodCounts, energyCounts, resistRate, correlationsFor, stopInfluences,
 } from '../lib/stats.js';
 import { FONTS } from '../lib/fonts.js';
 
@@ -141,7 +142,7 @@ function LogRowNative({ log, habit, onEdit, onDelete }) {
   );
 }
 
-export default function TapScreen({ habit, habits, onBack, onLog, onEditLog, onDeleteLog, onOptions }) {
+export default function TapScreen({ habit, habits, onBack, onLog, onNewLog, onEditLog, onDeleteLog, onOptions }) {
   const { theme, data } = useApp();
   const insets = useSafeAreaInsets();
   const prefs     = data?.prefs || {};
@@ -149,14 +150,28 @@ export default function TapScreen({ habit, habits, onBack, onLog, onEditLog, onD
   const scaleAnim  = useRef(new Animated.Value(1)).current;
   const countScale = useRef(new Animated.Value(1)).current;
   const [spiderMode, setSpiderMode] = useState('tags');
+  const [tapAlert,   setTapAlert]   = useState(null); // { title, message, buttons }
 
   const todayCount = todayCountFor(habit);
   const total      = totalCountFor(habit);
   const streak     = streakFor(habit);
   const daysSince  = daysSinceLastFor(habit);
 
-  const sortedLogs = useMemo(()=>[...habit.logs].sort((a,b)=>a.ts<b.ts?1:-1),[habit.logs]);
-  const spiderData = useMemo(()=>buildSpiderData(habit,habits,spiderMode,theme.accent),[habit,habits,spiderMode,theme.accent]);
+  const sortedLogs    = useMemo(()=>[...habit.logs].sort((a,b)=>a.ts<b.ts?1:-1),[habit.logs]);
+  const spiderData    = useMemo(()=>buildSpiderData(habit,habits,spiderMode,theme.accent),[habit,habits,spiderMode,theme.accent]);
+  // Regular lift-based correlations (go/neutral focal habits)
+  const liftConns     = useMemo(()=>correlationsFor(habit, habits).slice(0,4),[habit,habits]);
+  // Count-based stop-habit influences (works for high-frequency vices too)
+  const allInfluences = useMemo(()=>stopInfluences(habits),[habits]);
+  const stopConns     = useMemo(()=>{
+    if (habit.type === 'st') {
+      // When viewing a stop habit: what other habits reduce/increase it?
+      return allInfluences.filter(r => r.b.id === habit.id).slice(0, 4);
+    }
+    // When viewing a go/neutral habit: what stop habits does it influence?
+    return allInfluences.filter(r => r.a.id === habit.id).slice(0, 3);
+  },[allInfluences, habit]);
+  const showConnections = liftConns.length > 0 || stopConns.length > 0;
 
   const middleLabel = habit.type==='st' ? 'Days Since' : 'Streak';
   const middleValue = habit.type==='st' ? (daysSince===null?'—':`${daysSince}`) : (streak||'—');
@@ -193,14 +208,14 @@ export default function TapScreen({ habit, habits, onBack, onLog, onEditLog, onD
   const doUndo = useCallback(async () => {
     try { await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } catch (_) {}
     const tl=habit.logs.filter(l=>l.date===todayStr()).sort((a,b)=>a.ts<b.ts?1:-1);
-    if (!tl.length) { Alert.alert('Nothing to undo','No taps logged today.'); return; }
+    if (!tl.length) { setTapAlert({ title:'Nothing to undo', message:'No taps logged today.', buttons:[{ text:'OK', onPress:()=>setTapAlert(null) }] }); return; }
     onDeleteLog(habit.id, tl[0].id);
   }, [habit.logs,onDeleteLog,habit.id]);
 
   const doRepeat = useCallback(async () => {
     try { await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } catch (_) {}
     const last = lastLog(habit);
-    if (!last) { Alert.alert('Nothing to repeat','No previous taps yet.'); return; }
+    if (!last) { setTapAlert({ title:'Nothing to repeat', message:'No previous taps yet.', buttons:[{ text:'OK', onPress:()=>setTapAlert(null) }] }); return; }
     const {id,date,ts,...copy} = last;
     onLog(habit.id, normLog({...copy, id:uid('l'), date:todayStr(), ts:new Date().toISOString()}));
   }, [habit,onLog]);
@@ -208,9 +223,8 @@ export default function TapScreen({ habit, habits, onBack, onLog, onEditLog, onD
   const doDetails = useCallback(() => {
     const log = normLog({ id:uid('l'), date:todayStr(), ts:new Date().toISOString(),
       ...(habit.type==='st'?{resist:'no'}:{}) });
-    onLog(habit.id, log);
-    setTimeout(()=>onEditLog(habit,log), 80);
-  }, [habit,onLog,onEditLog]);
+    onNewLog(habit, log);
+  }, [habit,onNewLog]);
 
   const SPIDER_PLACEHOLDER_HINTS = {
     tags:'Log with tags to see your tag pattern here.',
@@ -260,9 +274,8 @@ export default function TapScreen({ habit, habits, onBack, onLog, onEditLog, onD
             <View style={{
               paddingVertical:40, paddingHorizontal:24, alignItems:'center',
               borderRadius:28, borderWidth:2, borderColor:tc,
-              backgroundColor:theme.surface2,
-              shadowColor:tc, shadowOffset:{width:0,height:0},
-              shadowOpacity:0.35, shadowRadius:18, elevation:10,
+              backgroundColor:theme.solid,
+              ...(theme.shadowsOn ? { shadowColor:tc, shadowOffset:{width:0,height:0}, shadowOpacity: theme.isDark ? 0.45 : 0.22, shadowRadius:20, elevation:10 } : {}),
             }}>
               <Text style={{ fontSize:13, fontWeight:'700', color:theme.muted,
                 letterSpacing:0.2, textTransform:'uppercase' }}>
@@ -300,8 +313,74 @@ export default function TapScreen({ habit, habits, onBack, onLog, onEditLog, onD
           ))}
         </View>
 
+        {/* Connections — lift-based correlations + count-based stop-habit influences */}
+        {showConnections && (
+          <GlassCard style={{ padding:16 }} radius={20} glow={tc}>
+            <Text style={{ fontSize:13, fontWeight:'700', color:theme.muted,
+              textTransform:'uppercase', letterSpacing:0.8, marginBottom:10 }}>
+              Connections
+            </Text>
+            {/* Count-based stop influences (most reliable signal) */}
+            {stopConns.map(({ a, b, direction, ratio }, idx) => {
+              const reduces  = direction === 'reduces';
+              const pct      = Math.round(Math.abs(1 - ratio) * 100);
+              const color    = reduces ? theme.typeGo : theme.typeSt;
+              // Focal is stop? show "OtherHabit reduces/increases this"
+              // Focal is go?   show "This reduces/increases StopHabit"
+              const other    = habit.type === 'st' ? a : b;
+              const typeColor = other.type === 'go' ? theme.typeGo : other.type === 'st' ? theme.typeSt : theme.typeNe;
+              return (
+                <View key={`si_${a.id}_${b.id}`} style={{
+                  flexDirection:'row', alignItems:'center', paddingVertical:9,
+                  borderTopWidth: idx === 0 ? 0 : 1, borderTopColor: theme.border,
+                }}>
+                  {/* Type dot */}
+                  <View style={{ width:7, height:7, borderRadius:4, backgroundColor:typeColor, marginRight:8, flexShrink:0 }} />
+                  <Text numberOfLines={1} style={{ flex:1, fontSize:13.5, fontWeight:'500', color:theme.text }}>
+                    {other.name}
+                  </Text>
+                  <View style={{ paddingHorizontal:8, paddingVertical:3,
+                    borderRadius:8, backgroundColor:color+'22', marginLeft:8 }}>
+                    <Text style={{ fontSize:12, fontWeight:'700', color }}>
+                      {reduces ? '↓' : '↑'} {pct}%
+                    </Text>
+                  </View>
+                </View>
+              );
+            })}
+            {/* Lift-based co-occurrence / avoidance */}
+            {liftConns.map(({ habit: other, rate, polarity }, idx) => {
+              const isNeg      = polarity === 'negative';
+              const pct        = Math.round(rate * 100);
+              const badgeColor = isNeg ? theme.muted : pct >= 75 ? theme.typeGo : pct >= 50 ? theme.accent : theme.muted;
+              const iconColor  = isNeg ? theme.muted  : theme.accent;
+              const typeColor  = other.type === 'go' ? theme.typeGo : other.type === 'st' ? theme.typeSt : theme.typeNe;
+              const baseIdx    = stopConns.length + idx;
+              return (
+                <View key={other.id} style={{
+                  flexDirection:'row', alignItems:'center', paddingVertical:9,
+                  borderTopWidth: baseIdx === 0 ? 0 : 1, borderTopColor: theme.border,
+                }}>
+                  <View style={{ width:7, height:7, borderRadius:4, backgroundColor:typeColor, marginRight:8, flexShrink:0 }} />
+                  {isNeg
+                    ? <Minus      size={12} strokeWidth={2.5} color={iconColor} style={{ marginRight:6 }} />
+                    : <ArrowRight size={12} strokeWidth={2}   color={iconColor} style={{ marginRight:6 }} />
+                  }
+                  <Text numberOfLines={1} style={{ flex:1, fontSize:13.5, fontWeight:'500', color:theme.text }}>
+                    {other.name}
+                  </Text>
+                  <View style={{ paddingHorizontal:8, paddingVertical:3,
+                    borderRadius:8, backgroundColor:badgeColor+'22', marginLeft:8 }}>
+                    <Text style={{ fontSize:12, fontWeight:'700', color:badgeColor }}>{pct}%</Text>
+                  </View>
+                </View>
+              );
+            })}
+          </GlassCard>
+        )}
+
         {/* Patterns (Spider) — always shown, placeholder when no data */}
-        <GlassCard style={{ padding:16 }} radius={20}>
+        <GlassCard style={{ padding:16 }} radius={20} glow={tc}>
           <Text style={{ fontSize:13, fontWeight:'700', color:theme.muted,
             textTransform:'uppercase', letterSpacing:0.8, marginBottom:12 }}>
             Patterns
@@ -340,7 +419,7 @@ export default function TapScreen({ habit, habits, onBack, onLog, onEditLog, onD
         </GlassCard>
 
         {/* Log section — matches web */}
-        <GlassCard style={{ padding:16 }} radius={20}>
+        <GlassCard style={{ padding:16 }} radius={20} glow={tc}>
           <View style={{ flexDirection:'row', alignItems:'center', marginBottom:12 }}>
             <Text style={{ flex:1, fontSize:13, fontWeight:'700', color:theme.muted,
               textTransform:'uppercase', letterSpacing:0.8 }}>
@@ -356,10 +435,14 @@ export default function TapScreen({ habit, habits, onBack, onLog, onEditLog, onD
                 <LogRowNative key={l.id} log={l} habit={habit}
                   onEdit={log=>onEditLog(habit,log)}
                   onDelete={log=>{
-                    Alert.alert('Delete log','Remove this log entry?',[
-                      {text:'Cancel',style:'cancel'},
-                      {text:'Delete',style:'destructive',onPress:()=>onDeleteLog(habit.id,log.id)},
-                    ]);
+                    setTapAlert({
+                      title:'Delete log',
+                      message:'Remove this log entry?',
+                      buttons:[
+                        { text:'Cancel', style:'cancel', onPress:()=>setTapAlert(null) },
+                        { text:'Delete', style:'destructive', onPress:()=>{ onDeleteLog(habit.id,log.id); setTapAlert(null); } },
+                      ],
+                    });
                   }}
                 />
               ))
@@ -371,6 +454,14 @@ export default function TapScreen({ habit, habits, onBack, onLog, onEditLog, onD
           )}
         </GlassCard>
       </ScrollView>
+
+      <AppModal
+        visible={!!tapAlert}
+        title={tapAlert?.title}
+        message={tapAlert?.message}
+        buttons={tapAlert?.buttons ?? []}
+        onDismiss={() => setTapAlert(null)}
+      />
     </View>
   );
 }

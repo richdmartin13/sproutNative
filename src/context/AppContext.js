@@ -1,10 +1,11 @@
-import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
-import { Linking, Alert, Platform } from 'react-native';
+import React, { createContext, useContext, useEffect, useState, useCallback, useMemo } from 'react';
+import { Linking, Platform, useColorScheme } from 'react-native';
 import { File as ExpoFile } from 'expo-file-system';
 import { loadData, saveData, importJson } from '../lib/storage.js';
 import { getTheme } from '../lib/theme.js';
 import { normLog, todayStr } from '../lib/util.js';
 import { useWatchSync } from '../watch/useWatchSync.js';
+import { TEST_HABITS } from '../lib/testData.js';
 
 const Ctx = createContext(null);
 
@@ -12,6 +13,8 @@ export function AppProvider({ children }) {
   const [data, setData] = useState(null);
   const [ready, setReady] = useState(false);
   const [pendingImportUrl, setPendingImportUrl] = useState(null);
+  const [sysAlert, setSysAlert] = useState(null); // { title, message }
+  const clearSysAlert = useCallback(() => setSysAlert(null), []);
   // Capture file:// URLs from Share Sheet (cold-start and while running)
   useEffect(() => {
     if (Platform.OS !== 'ios') return;
@@ -30,12 +33,12 @@ export function AppProvider({ children }) {
         const text = await new ExpoFile(url).text();
         const { data: next, summary } = importJson(text, data);
         setData(next);
-        Alert.alert(
-          'Import complete',
-          `Added ${summary.newHabits} habit${summary.newHabits !== 1 ? 's' : ''} and ${summary.newLogs} log${summary.newLogs !== 1 ? 's' : ''}.`,
-        );
+        setSysAlert({
+          title: 'Import complete',
+          message: `Added ${summary.newHabits} habit${summary.newHabits !== 1 ? 's' : ''} and ${summary.newLogs} log${summary.newLogs !== 1 ? 's' : ''}.`,
+        });
       } catch (e) {
-        Alert.alert('Import failed', 'The file could not be read or is not valid Sprout data.');
+        setSysAlert({ title: 'Import failed', message: 'The file could not be read or is not valid Sprout data.' });
       }
     })();
   }, [pendingImportUrl, data, ready]);
@@ -113,10 +116,17 @@ export function AppProvider({ children }) {
   // Keep Apple Watch in sync whenever habits or watch prefs change
   useWatchSync(data?.habits ?? [], data?.prefs ?? {}, handleWatchLog, handleWatchUndo, handleWatchResist);
 
-  const theme = getTheme(data?.prefs);
+  const systemColorScheme = useColorScheme();
+  const theme = getTheme(data?.prefs, systemColorScheme === 'dark');
+
+  // habits: test dataset when dev.useTestData is on, otherwise real habits
+  const habits = useMemo(
+    () => data?.prefs?.dev?.useTestData ? TEST_HABITS : (data?.habits ?? []),
+    [data?.habits, data?.prefs?.dev?.useTestData],
+  );
 
   return (
-    <Ctx.Provider value={{ data, ready, theme, setPrefs, upsertHabit, deleteHabit, archiveHabit, restoreHabit, addLog, updateLog, deleteLog, setData }}>
+    <Ctx.Provider value={{ data, ready, theme, habits, setPrefs, upsertHabit, deleteHabit, archiveHabit, restoreHabit, addLog, updateLog, deleteLog, setData, sysAlert, clearSysAlert }}>
       {children}
     </Ctx.Provider>
   );
