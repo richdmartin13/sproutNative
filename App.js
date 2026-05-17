@@ -113,7 +113,7 @@ function AnimatedScreen({ screenKey, children }) {
 }
 
 function Main() {
-  const { data, theme, ready, upsertHabit, deleteHabit, addLog, updateLog, deleteLog } = useApp();
+  const { data, theme, ready, upsertHabit, deleteHabit, archiveHabit, addLog, updateLog, deleteLog } = useApp();
   const { width } = useWindowDimensions();
   const isTablet = width >= 768;
 
@@ -134,13 +134,17 @@ function Main() {
   const onOptions = useCallback(h=>{
     Alert.alert(h.name,'What would you like to do?',[
       {text:'Edit',onPress:()=>setSheet({kind:'habit',habit:h})},
+      {text:'Archive',onPress:()=>Alert.alert('Archive habit',`"${h.name}" will be hidden from your habits and excluded from stats. You can restore it later in Settings.`,[
+        {text:'Cancel',style:'cancel'},
+        {text:'Archive',onPress:()=>{ archiveHabit(h.id); goBack(); }},
+      ])},
       {text:'Delete',style:'destructive',onPress:()=>Alert.alert('Delete habit',`Permanently delete "${h.name}" and all its logs?`,[
         {text:'Cancel',style:'cancel'},
         {text:'Delete',style:'destructive',onPress:()=>{ deleteHabit(h.id); goBack(); }},
       ])},
       {text:'Cancel',style:'cancel'},
     ]);
-  },[deleteHabit,goBack]);
+  },[deleteHabit,archiveHabit,goBack]);
 
   const openNewHabit = useCallback(()=>setSheet({kind:'habit',habit:null}),[]);
 

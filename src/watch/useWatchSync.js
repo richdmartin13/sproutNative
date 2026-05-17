@@ -1,24 +1,21 @@
 import { useEffect, useRef } from 'react';
-import { sendHabitsToWatch, onWatchLog, onWatchUndo } from './WatchBridge.js';
-import { todayStr } from '../lib/util.js';
+import { sendHabitsToWatch, onWatchLog, onWatchUndo, onWatchResist } from './WatchBridge.js';
 
 /**
  * Keeps the Apple Watch in sync with the current habits state.
- *
- * - Pushes a compact snapshot whenever `habits` changes.
- * - Listens for WatchLog events (user tapped "Log it" on watch)
- *   and calls `onLog(id)` so AppContext can record the tap.
+ * Filters out archived habits before sending to watch.
+ * Passes watch prefs (dismiss delay, haptic, showStats) alongside habits.
  */
-export function useWatchSync(habits, onLog, onUndo) {
-  // Push habits whenever the array changes (debounced 400 ms)
+export function useWatchSync(habits, prefs, onLog, onUndo, onResist) {
   const timer = useRef(null);
+
   useEffect(() => {
     clearTimeout(timer.current);
     timer.current = setTimeout(() => {
       const today = todayStr();
-      const payload = habits.map(h => {
+      const active = habits.filter(h => !h.archived);
+      const payload = active.map(h => {
         const todayCount = h.logs.filter(l => l.date === today).length;
-        // streak: consecutive days logged up to today
         let streak = 0;
         const sorted = [...new Set(h.logs.map(l => l.date))].sort().reverse();
         let cursor = today;
@@ -26,12 +23,10 @@ export function useWatchSync(habits, onLog, onUndo) {
           if (d === cursor) { streak++; cursor = prevDay(cursor); }
           else break;
         }
-        // days since last log (for stop habits)
         const last = sorted[0];
         const daysSince = last
           ? Math.floor((Date.parse(today) - Date.parse(last)) / 86400000)
           : null;
-
         return {
           id:         h.id,
           name:       h.name,
@@ -42,23 +37,28 @@ export function useWatchSync(habits, onLog, onUndo) {
           daysSince:  h.type === 'st' ? daysSince : null,
         };
       });
-      sendHabitsToWatch(payload);
+
+      const watchPrefs = {
+        dismissDelay: prefs?.watchDismiss ?? 2,
+        haptic:       prefs?.watchHaptic !== false,
+        showStats:    prefs?.watchShowStats !== false,
+      };
+
+      sendHabitsToWatch(payload, watchPrefs);
     }, 400);
     return () => clearTimeout(timer.current);
-  }, [habits]);
+  }, [habits, prefs?.watchDismiss, prefs?.watchHaptic, prefs?.watchShowStats]);
 
-  // Listen for watch-initiated logs
-  useEffect(() => {
-    return onWatchLog(id => onLog(id));
-  }, [onLog]);
-
-  // Listen for watch-initiated undos
-  useEffect(() => {
-    if (!onUndo) return;
-    return onWatchUndo(id => onUndo(id));
-  }, [onUndo]);
+  useEffect(() => { return onWatchLog(id => onLog(id)); }, [onLog]);
+  useEffect(() => { if (!onUndo) return; return onWatchUndo(id => onUndo(id)); }, [onUndo]);
+  useEffect(() => { if (!onResist) return; return onWatchResist(id => onResist(id)); }, [onResist]);
 }
 
+function todayStr() {
+  const d = new Date();
+  return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`;
+}
+function p(n) { return String(n).padStart(2, '0'); }
 function prevDay(dateStr) {
   const d = new Date(dateStr);
   d.setDate(d.getDate() - 1);

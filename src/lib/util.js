@@ -140,5 +140,6 @@ export function normHabit(h) {
     type: nt(h.type),
     created: h.created || todayStr(),
     logs: Array.isArray(h.logs) ? h.logs.map(normLog) : [],
+    ...(h.archived ? { archived: true } : {}),
   };
 }

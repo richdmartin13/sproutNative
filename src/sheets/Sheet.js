@@ -48,7 +48,6 @@ export default function Sheet({ title, subtitle, onClose, children }) {
           borderTopLeftRadius: 28, borderTopRightRadius: 28,
           borderTopWidth: 1, borderLeftWidth: 1, borderRightWidth: 1,
           borderColor: theme.border,
-          minHeight: H * 0.60,
           maxHeight: H * 0.92,
           paddingBottom: insets.bottom + 16,
           shadowColor: '#000', shadowOffset: { width: 0, height: -8 },

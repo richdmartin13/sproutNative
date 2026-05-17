@@ -1,7 +1,8 @@
-import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
 import { Linking, Alert, Platform } from 'react-native';
 import { File as ExpoFile } from 'expo-file-system';
 import { loadData, saveData, importJson } from '../lib/storage.js';
+import { saveToCloud, loadFromCloud } from '../cloud/CloudBridge.js';
 import { getTheme } from '../lib/theme.js';
 import { normLog, todayStr } from '../lib/util.js';
 import { useWatchSync } from '../watch/useWatchSync.js';
@@ -12,6 +13,7 @@ export function AppProvider({ children }) {
   const [data, setData] = useState(null);
   const [ready, setReady] = useState(false);
   const [pendingImportUrl, setPendingImportUrl] = useState(null);
+  const cloudTimer = useRef(null);
 
   // Capture file:// URLs from Share Sheet (cold-start and while running)
   useEffect(() => {
@@ -50,14 +52,26 @@ export function AppProvider({ children }) {
         await new Promise(r => setTimeout(r, 200));
         d = await loadData();
       }
+      // On fresh install (no local habits), try to restore from iCloud
+      if (!d.habits.length) {
+        const cloudJson = await loadFromCloud();
+        if (cloudJson) {
+          try { d = JSON.parse(cloudJson); } catch {}
+        }
+      }
       setData(d);
       setReady(true);
     }
     load();
   }, []);
 
-  // Persist on every data change, but only once ready
-  useEffect(() => { if (data && ready) saveData(data); }, [data]);
+  // Persist locally on every change; debounced cloud backup every 2s
+  useEffect(() => {
+    if (!data || !ready) return;
+    saveData(data);
+    clearTimeout(cloudTimer.current);
+    cloudTimer.current = setTimeout(() => saveToCloud(JSON.stringify(data)), 2000);
+  }, [data]);
 
   const setPrefs = useCallback(p => setData(d => ({...d, prefs:p})), []);
 
@@ -66,7 +80,9 @@ export function AppProvider({ children }) {
     return { ...d, habits: exists ? d.habits.map(h => h.id===next.id ? next : h) : [...d.habits, next] };
   }), []);
 
-  const deleteHabit = useCallback(id => setData(d => ({...d, habits: d.habits.filter(h => h.id!==id)})), []);
+  const deleteHabit  = useCallback(id => setData(d => ({...d, habits: d.habits.filter(h => h.id!==id)})), []);
+  const archiveHabit = useCallback(id => setData(d => ({...d, habits: d.habits.map(h => h.id===id ? {...h, archived:true}  : h)})), []);
+  const restoreHabit = useCallback(id => setData(d => ({...d, habits: d.habits.map(h => h.id===id ? {...h, archived:false} : h)})), []);
 
   const addLog = useCallback((habitId, log) => {
     const n = normLog(log);
@@ -87,6 +103,11 @@ export function AppProvider({ children }) {
     addLog(habitId, { date: todayStr(), tags: [], notes: '' });
   }, [addLog]);
 
+  // Watch resist handler: logs with resist='watch' marker
+  const handleWatchResist = useCallback((habitId) => {
+    addLog(habitId, { date: todayStr(), tags: [], notes: '', resist: 'watch' });
+  }, [addLog]);
+
   // Watch undo handler: removes the most recent today-log for the habit
   const handleWatchUndo = useCallback((habitId) => {
     const today = todayStr();
@@ -102,13 +123,13 @@ export function AppProvider({ children }) {
     }));
   }, []);
 
-  // Keep Apple Watch in sync whenever habits change
-  useWatchSync(data?.habits ?? [], handleWatchLog, handleWatchUndo);
+  // Keep Apple Watch in sync whenever habits or watch prefs change
+  useWatchSync(data?.habits ?? [], data?.prefs ?? {}, handleWatchLog, handleWatchUndo, handleWatchResist);
 
   const theme = getTheme(data?.prefs);
 
   return (
-    <Ctx.Provider value={{ data, ready, theme, setPrefs, upsertHabit, deleteHabit, addLog, updateLog, deleteLog, setData }}>
+    <Ctx.Provider value={{ data, ready, theme, setPrefs, upsertHabit, deleteHabit, archiveHabit, restoreHabit, addLog, updateLog, deleteLog, setData }}>
       {children}
     </Ctx.Provider>
   );

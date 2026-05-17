@@ -12,8 +12,15 @@ struct WatchHabit: Identifiable, Codable, Hashable {
     let category: String
 }
 
+struct WatchPrefs: Codable {
+    var dismissDelay: Double = 2.0
+    var haptic: Bool = true
+    var showStats: Bool = true
+}
+
 class WatchDataModel: NSObject, ObservableObject {
     @Published var habits: [WatchHabit] = []
+    @Published var watchPrefs = WatchPrefs()
     @Published var isReachable = false
     @Published var isLoading = true
 
@@ -26,22 +33,20 @@ class WatchDataModel: NSObject, ObservableObject {
 
     func requestUpdate() {
         guard WCSession.default.activationState == .activated else { return }
-        // Apply any cached context immediately
         applyContext(WCSession.default.receivedApplicationContext)
-        // Then request a fresh snapshot from the phone
         guard WCSession.default.isReachable else {
             DispatchQueue.main.async { self.isLoading = false }
             return
         }
         WCSession.default.sendMessage(["action": "getHabits"], replyHandler: { reply in
-            self.handleHabitsPayload(reply)
+            self.handlePayload(reply)
         }, errorHandler: { _ in
             DispatchQueue.main.async { self.isLoading = false }
         })
     }
 
     func logHabit(_ id: String) {
-        WKInterfaceDevice.current().play(.click)
+        if watchPrefs.haptic { WKInterfaceDevice.current().play(.click) }
         guard WCSession.default.isReachable else { return }
         WCSession.default.sendMessage(
             ["action": "logHabit", "id": id],
@@ -50,8 +55,18 @@ class WatchDataModel: NSObject, ObservableObject {
         )
     }
 
+    func resistHabit(_ id: String) {
+        if watchPrefs.haptic { WKInterfaceDevice.current().play(.success) }
+        guard WCSession.default.isReachable else { return }
+        WCSession.default.sendMessage(
+            ["action": "resistHabit", "id": id],
+            replyHandler: { [weak self] _ in self?.requestUpdate() },
+            errorHandler: nil
+        )
+    }
+
     func undoHabit(_ id: String) {
-        WKInterfaceDevice.current().play(.click)
+        if watchPrefs.haptic { WKInterfaceDevice.current().play(.click) }
         guard WCSession.default.isReachable else { return }
         WCSession.default.sendMessage(
             ["action": "undoHabit", "id": id],
@@ -60,18 +75,23 @@ class WatchDataModel: NSObject, ObservableObject {
         )
     }
 
-    private func handleHabitsPayload(_ payload: [String: Any]) {
-        guard let data = payload["habits"] as? Data,
-              let decoded = try? JSONDecoder().decode([WatchHabit].self, from: data) else { return }
-        DispatchQueue.main.async {
-            self.habits = decoded
-            self.isLoading = false
+    private func handlePayload(_ payload: [String: Any]) {
+        if let data = payload["habits"] as? Data,
+           let decoded = try? JSONDecoder().decode([WatchHabit].self, from: data) {
+            DispatchQueue.main.async {
+                self.habits = decoded
+                self.isLoading = false
+            }
+        }
+        if let pd = payload["watchPrefs"] as? Data,
+           let decoded = try? JSONDecoder().decode(WatchPrefs.self, from: pd) {
+            DispatchQueue.main.async { self.watchPrefs = decoded }
         }
     }
 
     private func applyContext(_ ctx: [String: Any]) {
         guard !ctx.isEmpty else { return }
-        handleHabitsPayload(ctx)
+        handlePayload(ctx)
     }
 }
 
@@ -94,6 +114,6 @@ extension WatchDataModel: WCSessionDelegate {
 
     func session(_ session: WCSession,
                  didReceiveMessage message: [String: Any]) {
-        handleHabitsPayload(message)
+        handlePayload(message)
     }
 }

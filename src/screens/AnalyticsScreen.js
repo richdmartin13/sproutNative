@@ -410,7 +410,7 @@ function TimePatternsCard({ habits, dateFilter }) {
 export default function AnalyticsScreen() {
   const insets = useSafeAreaInsets();
   const { data, theme } = useApp();
-  const allHabits = data?.habits || [];
+  const allHabits = (data?.habits || []).filter(h => !h.archived);
   const prefs     = data?.prefs  || {};
 
   const [mode,     setMode]     = useState(prefs.insDay?'day':'all');

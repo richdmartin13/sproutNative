@@ -5,9 +5,12 @@ struct QuickLogView: View {
     @EnvironmentObject var model: WatchDataModel
     let habit: WatchHabit
 
-    @State private var logged = false
+    // nil = no action yet | "logged" = gave in / logged | "resisted" = resisted
+    @State private var logAction: String? = nil
     @State private var dismissWork: DispatchWorkItem?
     @Environment(\.dismiss) private var dismiss
+
+    private var isStop: Bool { habit.type == "st" }
 
     private var typeColor: Color {
         switch habit.type {
@@ -21,20 +24,18 @@ struct QuickLogView: View {
         VStack(spacing: 0) {
 
             // ── Full-screen tap zone ────────────────────────────────────
-            Button(action: tapToLog) {
+            Button(action: primaryTap) {
                 VStack(spacing: 8) {
                     Spacer(minLength: 0)
 
                     ZStack {
                         Circle()
-                            .fill(logged ? Color.green.opacity(0.25) : typeColor.opacity(0.18))
+                            .fill(circleColor.opacity(0.20))
                             .frame(width: 54, height: 54)
-                        Image(systemName: logged
-                              ? "checkmark.circle.fill"
-                              : (habit.type == "st" ? "xmark.circle.fill" : "plus.circle.fill"))
+                        Image(systemName: circleIcon)
                             .font(.system(size: 30))
-                            .foregroundStyle(logged ? Color.green : typeColor)
-                            .animation(.spring(duration: 0.3), value: logged)
+                            .foregroundStyle(circleColor)
+                            .animation(.spring(duration: 0.3), value: logAction)
                     }
 
                     Text(habit.name)
@@ -42,12 +43,12 @@ struct QuickLogView: View {
                         .multilineTextAlignment(.center)
                         .lineLimit(2)
 
-                    if logged {
-                        Text(habit.type == "st" ? "Resisted ✓" : "Logged! ✓")
+                    if let action = logAction {
+                        Text(action == "resisted" ? "Resisted ✓" : (isStop ? "Gave in ✓" : "Logged! ✓"))
                             .font(.system(size: 13, weight: .medium))
-                            .foregroundStyle(.green)
+                            .foregroundStyle(action == "resisted" ? Color.green : (isStop ? Color.orange : Color.green))
                             .transition(.scale.combined(with: .opacity))
-                    } else {
+                    } else if model.watchPrefs.showStats {
                         statsRow
                             .transition(.opacity)
                     }
@@ -59,8 +60,8 @@ struct QuickLogView: View {
             }
             .buttonStyle(.plain)
 
-            // ── Option buttons ─────────────────────────────────────────
-            if logged {
+            // ── Bottom action buttons ──────────────────────────────────
+            if logAction != nil {
                 Button(action: undoLog) {
                     Label("Undo", systemImage: "arrow.uturn.backward")
                         .font(.system(size: 12, weight: .medium))
@@ -68,10 +69,18 @@ struct QuickLogView: View {
                 .buttonStyle(.bordered)
                 .tint(.orange)
                 .padding(.bottom, 2)
+            } else if isStop {
+                // Stop habits: primary tap = "Gave in", button = "Resisted"
+                Button(action: resistTap) {
+                    Label("Resisted", systemImage: "hand.raised.fill")
+                        .font(.system(size: 13, weight: .semibold))
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(.green)
+                .padding(.bottom, 2)
             } else {
-                Button(action: tapToLog) {
-                    Label(habit.type == "st" ? "Resisted" : "Log it",
-                          systemImage: habit.type == "st" ? "hand.raised.fill" : "checkmark")
+                Button(action: primaryTap) {
+                    Label("Log it", systemImage: "checkmark")
                         .font(.system(size: 13, weight: .semibold))
                 }
                 .buttonStyle(.borderedProminent)
@@ -84,14 +93,28 @@ struct QuickLogView: View {
         .navigationBarTitleDisplayMode(.inline)
     }
 
-    // ── Helpers ────────────────────────────────────────────────────────
+    // ── Computed icon / color based on state ───────────────────────────
+
+    private var circleIcon: String {
+        guard let action = logAction else {
+            return isStop ? "xmark.circle.fill" : "plus.circle.fill"
+        }
+        return action == "resisted" ? "hand.raised.circle.fill" : "checkmark.circle.fill"
+    }
+
+    private var circleColor: Color {
+        guard let action = logAction else { return typeColor }
+        return action == "resisted" ? Color.green : (isStop ? Color.orange : Color.green)
+    }
+
+    // ── Stats row ──────────────────────────────────────────────────────
 
     @ViewBuilder private var statsRow: some View {
         HStack(spacing: 12) {
             if habit.todayCount > 0 {
                 statPill(value: "\(habit.todayCount)", label: "today")
             }
-            if habit.type == "st", let d = habit.daysSince {
+            if isStop, let d = habit.daysSince {
                 statPill(value: "\(d)d", label: "free", color: .orange)
             } else if habit.streak > 1 {
                 statPill(value: "\(habit.streak)d", label: "streak", color: .orange)
@@ -101,19 +124,24 @@ struct QuickLogView: View {
 
     private func statPill(value: String, label: String, color: Color = .primary) -> some View {
         VStack(spacing: 1) {
-            Text(value)
-                .font(.system(size: 15, weight: .bold))
-                .foregroundStyle(color)
-            Text(label)
-                .font(.system(size: 9))
-                .foregroundStyle(.secondary)
+            Text(value).font(.system(size: 15, weight: .bold)).foregroundStyle(color)
+            Text(label).font(.system(size: 9)).foregroundStyle(.secondary)
         }
     }
 
-    private func tapToLog() {
+    // ── Actions ────────────────────────────────────────────────────────
+
+    private func primaryTap() {
         dismissWork?.cancel()
-        withAnimation(.spring(duration: 0.3)) { logged = true }
+        withAnimation(.spring(duration: 0.3)) { logAction = "logged" }
         model.logHabit(habit.id)
+        scheduleDismiss()
+    }
+
+    private func resistTap() {
+        dismissWork?.cancel()
+        withAnimation(.spring(duration: 0.3)) { logAction = "resisted" }
+        model.resistHabit(habit.id)
         scheduleDismiss()
     }
 
@@ -124,8 +152,10 @@ struct QuickLogView: View {
     }
 
     private func scheduleDismiss() {
+        let delay = model.watchPrefs.dismissDelay
+        guard delay > 0 else { return }
         let work = DispatchWorkItem { dismiss() }
         dismissWork = work
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0, execute: work)
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: work)
     }
 }

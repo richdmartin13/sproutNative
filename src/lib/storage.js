@@ -13,6 +13,9 @@ export const DEF_PREFS = {
   repeatLastDefault: false,
   repeatLastMoodEnergy: false,
   autoTagRecentHabits: false,
+  watchDismiss: 2,
+  watchHaptic: true,
+  watchShowStats: true,
   sections: {
     spider: true, hourly: true, heatmap: true, trends: true,
     rankings: true, mood: true, time: true, tags: true,

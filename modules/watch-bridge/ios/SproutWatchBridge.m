@@ -12,7 +12,7 @@ RCT_EXPORT_MODULE(SproutWatchBridge);
 + (BOOL)requiresMainQueueSetup { return NO; }
 
 - (NSArray<NSString *> *)supportedEvents {
-    return @[@"WatchLog", @"WatchUndo", @"WatchReachability"];
+    return @[@"WatchLog", @"WatchUndo", @"WatchResist", @"WatchReachability"];
 }
 
 - (void)startObserving { _hasListeners = YES; }
@@ -31,17 +31,20 @@ RCT_EXPORT_MODULE(SproutWatchBridge);
 
 // ── JS-callable method ─────────────────────────────────────────────────────────
 
-/// Called from JS with a JSON string of the current habits array.
+/// Called from JS with a JSON string of the current habits array and optional watch prefs.
 /// Pushes via Application Context (background-safe) and direct message (instant).
-RCT_EXPORT_METHOD(sendHabits:(NSString *)habitsJSON) {
+RCT_EXPORT_METHOD(sendHabits:(NSString *)habitsJSON prefs:(NSString *)prefsJSON) {
     NSData *data = [habitsJSON dataUsingEncoding:NSUTF8StringEncoding];
     if (!data) return;
     _latestPayload = data;
-    [WCSession.defaultSession updateApplicationContext:@{@"habits": data} error:nil];
+    NSMutableDictionary *ctx = [NSMutableDictionary dictionaryWithObject:data forKey:@"habits"];
+    if (prefsJSON) {
+        NSData *pd = [prefsJSON dataUsingEncoding:NSUTF8StringEncoding];
+        if (pd) ctx[@"watchPrefs"] = pd;
+    }
+    [WCSession.defaultSession updateApplicationContext:ctx error:nil];
     if (WCSession.defaultSession.isReachable) {
-        [WCSession.defaultSession sendMessage:@{@"habits": data}
-                                 replyHandler:nil
-                                 errorHandler:nil];
+        [WCSession.defaultSession sendMessage:ctx replyHandler:nil errorHandler:nil];
     }
 }
 
@@ -81,6 +84,9 @@ didReceiveMessage:(NSDictionary<NSString *, id> *)message
         replyHandler(@{@"ok": @YES});
     } else if ([action isEqualToString:@"undoHabit"] && message[@"id"]) {
         [self emitName:@"WatchUndo" body:@{@"id": message[@"id"]}];
+        replyHandler(@{@"ok": @YES});
+    } else if ([action isEqualToString:@"resistHabit"] && message[@"id"]) {
+        [self emitName:@"WatchResist" body:@{@"id": message[@"id"]}];
         replyHandler(@{@"ok": @YES});
     } else {
         replyHandler(@{});

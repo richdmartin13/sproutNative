@@ -4,11 +4,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import * as DocumentPicker from 'expo-document-picker';
-import { ChevronRight, Download, Upload, Trash2, Palette, LayoutGrid, PenLine, BarChart3, Database, ScrollText, List, Grid } from '../components/Icon.js';
+import { ChevronRight, Download, Upload, Trash2, Palette, LayoutGrid, PenLine, BarChart3, Database, ScrollText, List, Grid, Clock, Undo2 } from '../components/Icon.js';
 import { useApp } from '../context/AppContext.js';
 import GlassCard from '../components/GlassCard.js';
 import { SCHEMES } from '../lib/theme.js';
 import { exportJson, importJson } from '../lib/storage.js';
+import { loadFromCloud } from '../cloud/CloudBridge.js';
 import Sheet from '../sheets/Sheet.js';
 import { Toggle } from '../components/Themed.js';
 import { FONTS } from '../lib/fonts.js';
@@ -27,9 +28,24 @@ function MRow({ label, sub, value, onChange }) {
   );
 }
 
+const APP_VERSION = '1.0.7';
+
 const CHANGELOG = [
   {
-    version: 'sprout_2026.05.17.28',
+    version: '1.0.7',
+    changes: [
+      'Watch: "Gave in" / "Resisted" buttons for stop habits — Resisted logs with resistance marker',
+      'Watch: configurable auto-dismiss timing, haptic feedback, and stats display in Settings',
+      'Archive: long-press any habit → Archive to hide from tracking; restore anytime in Settings',
+      'iCloud: automatic backup to iCloud Documents; merge-restore available in Settings → Data',
+      'Settings: About section with app info; Apple Watch settings section',
+      'Modals: removed minimum height constraint — sheets now size to their content',
+      'Tablet: 3-column grid layout on iPad',
+      'Versioning: version now matches build number (1.0.7 = build 7)',
+    ],
+  },
+  {
+    version: '1.0.6',
     changes: [
       'Apple Watch: full-screen tap logs habit; Undo button appears post-log; auto-dismisses after 2s',
       'Apple Watch: Undo wired through native bridge — removes most recent today-log on iPhone',
@@ -258,7 +274,7 @@ const CHANGELOG = [
   },
 ];
 export default function SettingsScreen() {
-  const { data, theme, setPrefs, setData } = useApp();
+  const { data, theme, setPrefs, setData, restoreHabit } = useApp();
   const insets = useSafeAreaInsets();
   const prefs = data?.prefs || {};
   const [modal, setModal] = useState(null);
@@ -271,7 +287,7 @@ export default function SettingsScreen() {
       const json = exportJson(data);
       const now = new Date();
       const p = n => String(n).padStart(2,'0');
-      const filename = `sproutData_${now.getFullYear()}.${p(now.getMonth()+1)}.${p(now.getDate())}.${p(now.getHours())}.${p(now.getMinutes())}.json`;
+      const filename = `sprout_v${APP_VERSION}_${now.getFullYear()}.${p(now.getMonth()+1)}.${p(now.getDate())}.json`;
       const path = FileSystem.cacheDirectory + filename;
       await FileSystem.writeAsStringAsync(path, json, { encoding: FileSystem.EncodingType.UTF8 });
       if (await Sharing.isAvailableAsync()) {
@@ -306,6 +322,20 @@ export default function SettingsScreen() {
     }
   };
 
+  // ── Restore from iCloud ──
+  const doCloudRestore = async () => {
+    try {
+      const json = await loadFromCloud();
+      if (!json) { Alert.alert('Not found', 'No iCloud backup found for this device.'); return; }
+      const { data: next, summary } = importJson(json, data);
+      setData(next);
+      setModal(null);
+      Alert.alert('Restored', `Added ${summary.newHabits} habits and ${summary.newLogs} logs from iCloud.`);
+    } catch (e) {
+      Alert.alert('Restore failed', String(e.message || e));
+    }
+  };
+
   // ── Clear all ──
   const doClear = () => {
     setModal(null);
@@ -325,6 +355,7 @@ export default function SettingsScreen() {
     { id:'behavior',   label:'Layout & Behavior',  sub:'Card density, tap behavior',      Icon:LayoutGrid },
     { id:'fields',     label:'Logging Fields',     sub:'Which fields appear when logging', Icon:PenLine },
     { id:'sections',   label:'Analytics Sections', sub:'Which insights to show',          Icon:BarChart3 },
+    { id:'watch',      label:'Apple Watch',        sub:'Dismiss timing, haptics, stats',  Icon:Clock },
     { id:'data',       label:'Data',               sub:'Backup, restore, and clear',      Icon:Database },
     { id:'changelog',  label:'Changelog',          sub:"What's new",                      Icon:ScrollText },
   ];
@@ -365,8 +396,56 @@ export default function SettingsScreen() {
             </Pressable>
           ))}
         </GlassCard>
-        <Text style={{ fontSize:11, color:theme.muted, textAlign:'center', marginBottom:24 }}>
-          Sprout · all data lives locally on this device
+        {/* ── Archived Habits ── */}
+        {(data?.habits || []).some(h => h.archived) && (
+          <GlassCard style={{ marginBottom:16 }} radius={20} variant="section">
+            <Text style={{ fontSize:11, fontWeight:'700', color:theme.muted,
+              textTransform:'uppercase', letterSpacing:0.8, padding:16, paddingBottom:10 }}>
+              Archived Habits
+            </Text>
+            {(data?.habits || []).filter(h => h.archived).map(h => (
+              <View key={h.id} style={{ flexDirection:'row', alignItems:'center', gap:12,
+                paddingHorizontal:16, paddingVertical:12,
+                borderTopWidth:1, borderTopColor:theme.border }}>
+                <View style={{ width:34, height:34, borderRadius:9,
+                  backgroundColor:theme.surface2, alignItems:'center', justifyContent:'center' }}>
+                  <Undo2 size={16} strokeWidth={2} color={theme.muted} />
+                </View>
+                <View style={{ flex:1 }}>
+                  <Text style={{ fontSize:15, fontWeight:'500', color:theme.text }}>{h.name}</Text>
+                  {h.category ? <Text style={{ fontSize:12, color:theme.muted, marginTop:1 }}>{h.category}</Text> : null}
+                </View>
+                <Pressable onPress={() => restoreHabit(h.id)}
+                  style={{ paddingHorizontal:12, paddingVertical:6, borderRadius:10,
+                    backgroundColor:theme.accentDim, borderWidth:1, borderColor:theme.accentBorder }}>
+                  <Text style={{ fontSize:12, fontWeight:'600', color:theme.accent }}>Restore</Text>
+                </Pressable>
+              </View>
+            ))}
+          </GlassCard>
+        )}
+
+        {/* ── About ── */}
+        <GlassCard style={{ marginBottom:8, padding:18 }} radius={20} variant="flat">
+          <View style={{ flexDirection:'row', alignItems:'center', gap:14, marginBottom:12 }}>
+            <View style={{ width:46, height:46, borderRadius:13,
+              backgroundColor: theme.isDark ? '#1a4a2e' : '#d4edda',
+              alignItems:'center', justifyContent:'center',
+              shadowColor:theme.accent, shadowOffset:{width:0,height:3}, shadowOpacity:0.3, shadowRadius:8 }}>
+              <Text style={{ fontSize:24 }}>🌱</Text>
+            </View>
+            <View>
+              <Text style={{ fontSize:17, fontWeight:'700', color:theme.text, fontFamily:FONTS.heading }}>Sprout</Text>
+              <Text style={{ fontSize:12, color:theme.muted, marginTop:2 }}>Version {APP_VERSION} (build 7)</Text>
+            </View>
+          </View>
+          <Text style={{ fontSize:13, color:theme.muted, lineHeight:19 }}>
+            A lightweight habit tracker for iOS and Apple Watch. All data lives on your device — no accounts, no servers.
+          </Text>
+        </GlassCard>
+
+        <Text style={{ fontSize:11, color:theme.muted, textAlign:'center', marginBottom:24, marginTop:8 }}>
+          richdmart.in
         </Text>
       </ScrollView>
 
@@ -456,6 +535,33 @@ export default function SettingsScreen() {
         </Sheet>
       )}
 
+      {/* ── Watch Modal ── */}
+      {modal === 'watch' && (
+        <Sheet title="Apple Watch" onClose={() => setModal(null)}>
+          <View style={{ paddingVertical:14, borderBottomWidth:1, borderBottomColor:theme.border }}>
+            <Text style={{ fontSize:15, fontWeight:'500', color:theme.text, marginBottom:3 }}>Auto-dismiss after logging</Text>
+            <Text style={{ fontSize:11.5, color:theme.muted, marginBottom:12 }}>How long to show the confirmation before closing</Text>
+            <View style={{ flexDirection:'row', gap:8 }}>
+              {[[1,'1s'],[2,'2s'],[5,'5s'],[0,'Never']].map(([val, label]) => {
+                const active = (prefs.watchDismiss ?? 2) === val;
+                return (
+                  <Pressable key={val} onPress={() => setP({ watchDismiss: val })}
+                    style={{ flex:1, paddingVertical:9, borderRadius:11, alignItems:'center',
+                      backgroundColor: active ? theme.accent : theme.surface2,
+                      borderWidth:1.5, borderColor: active ? theme.accent : theme.border }}>
+                    <Text style={{ fontSize:13, fontWeight:'600', color: active ? '#fff' : theme.text }}>{label}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
+          <MRow label="Haptic feedback" sub="Vibrate on log, resist, and undo"
+            value={prefs.watchHaptic !== false} onChange={v => setP({ watchHaptic: v })} />
+          <MRow label="Show stats" sub="Display streak and today count on watch"
+            value={prefs.watchShowStats !== false} onChange={v => setP({ watchShowStats: v })} />
+        </Sheet>
+      )}
+
       {/* ── Logging Fields Modal ── */}
       {modal === 'fields' && (
         <Sheet title="Logging Fields" onClose={() => setModal(null)}>
@@ -510,6 +616,22 @@ export default function SettingsScreen() {
                 <Text style={{ fontSize:15, fontWeight:'500', color:theme.text }}>Import</Text>
               </View>
               <Text style={{ fontSize:12.5, color:theme.muted }}>Merge habits & logs from a JSON file</Text>
+            </View>
+            <ChevronRight size={16} strokeWidth={2} color={theme.muted} />
+          </Pressable>
+
+          <Pressable onPress={doCloudRestore}
+            style={({ pressed }) => ({
+              flexDirection:'row', alignItems:'center', gap:10,
+              paddingVertical:14, borderBottomWidth:1, borderBottomColor:theme.border,
+              opacity: pressed ? 0.7 : 1,
+            })}>
+            <View style={{ flex:1 }}>
+              <View style={{ flexDirection:'row', alignItems:'center', gap:7, marginBottom:1 }}>
+                <Undo2 size={15} strokeWidth={2} color={theme.accent} />
+                <Text style={{ fontSize:15, fontWeight:'500', color:theme.text }}>Restore from iCloud</Text>
+              </View>
+              <Text style={{ fontSize:12.5, color:theme.muted }}>Merge habits & logs from your iCloud backup</Text>
             </View>
             <ChevronRight size={16} strokeWidth={2} color={theme.muted} />
           </Pressable>

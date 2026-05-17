@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { View, Text, FlatList, ScrollView, Pressable } from 'react-native';
+import { View, Text, FlatList, ScrollView, Pressable, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { List, Grid, Flame, Clock } from '../components/Icon.js';
 import { useApp } from '../context/AppContext.js';
@@ -188,13 +188,16 @@ export default function HomeScreen({ onOpenHabit, onLongPressHabit, onNewHabit }
   const [types,    setTypes]    = useState([]);
 
   const filtered = useMemo(() => {
-    let l = habits.slice();
+    let l = habits.filter(h => !h.archived);
     if (category)    l = l.filter(h => h.category === category);
     if (types.length) l = l.filter(h => types.includes(h.type));
     return l.sort((a,b) => totalCountFor(b) - totalCountFor(a));
   }, [habits, category, types]);
 
+  const { width } = useWindowDimensions();
+  const isTablet = width >= 768;
   const grid = prefs.viewMode === 'grid';
+  const cols = grid ? (isTablet ? 3 : 2) : 1;
 
   return (
     <View style={{ flex:1, backgroundColor:theme.bg }}>
@@ -222,9 +225,9 @@ export default function HomeScreen({ onOpenHabit, onLongPressHabit, onNewHabit }
         </GlassCard>
       ) : (
         <FlatList
-          data={grid && filtered.length % 2 === 1 ? [...filtered, {id:'__spacer__', _spacer:true}] : filtered}
-          key={grid?'g':'l'}
-          numColumns={grid?2:1}
+          data={grid && filtered.length % cols === 1 ? [...filtered, ...(cols===3&&filtered.length%3===1?[{id:'__s1__',_spacer:true},{id:'__s2__',_spacer:true}]:[{id:'__spacer__',_spacer:true}])] : filtered}
+          key={`${grid?'g':'l'}${cols}`}
+          numColumns={cols}
           keyExtractor={h=>h.id}
           contentContainerStyle={{ paddingHorizontal:20, paddingBottom:140, paddingTop:8, gap:10 }}
           columnWrapperStyle={grid?{gap:10}:undefined}
@@ -234,7 +237,7 @@ export default function HomeScreen({ onOpenHabit, onLongPressHabit, onNewHabit }
             return (
               <View style={{ flex:grid?1:undefined }}>
                 <HabitCard habit={item} onPress={onOpenHabit} onLong={onLongPressHabit}
-                  viewMode={prefs.viewMode||'list'} compact={prefs.compact} />
+                  viewMode={prefs.viewMode||'list'} compact={prefs.compact} cols={cols} />
               </View>
             );
           }}
