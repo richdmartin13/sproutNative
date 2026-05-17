@@ -92,7 +92,7 @@ export function AppProvider({ children }) {
 
   // Watch resist handler: logs with resist='watch' marker
   const handleWatchResist = useCallback((habitId) => {
-    addLog(habitId, { date: todayStr(), tags: [], notes: '', resist: 'watch' });
+    addLog(habitId, { date: todayStr(), tags: [], notes: '', resist: 'yes' });
   }, [addLog]);
 
   // Watch undo handler: removes the most recent today-log for the habit

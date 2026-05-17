@@ -183,9 +183,9 @@ export function resistRate(h) {
   if (h.type !== 'st') return null;
   const total = h.logs.length;
   if (!total) return null;
-  const r = h.logs.filter((l) => l.resist === 'yes').length;
+  const r = h.logs.filter((l) => l.resist === 'yes' || l.resist === 'watch').length;
   const p = h.logs.filter((l) => l.resist === 'partial').length;
-  const n = h.logs.filter((l) => l.resist === 'no' || !l.resist).length;
+  const n = h.logs.filter((l) => !l.resist || l.resist === 'no').length;
   return { total, yes: r, partial: p, no: n, rate: (r + p * 0.5) / total };
 }
 

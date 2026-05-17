@@ -73,8 +73,9 @@ function LogRowNative({ log, habit, onEdit, onDelete }) {
     if (log.energy)   pills.push({ text:log.energy, color:theme.text2 });
     if (log.duration > 0) pills.push({ text:`${log.duration}m`, color:theme.text2 });
   } else if (habit.type === 'st') {
-    if (log.resist === 'yes')     pills.push({ text:'Resisted', color:theme.typeGo });
-    else if (log.resist === 'partial') pills.push({ text:'Partial', color:'#f59e0b' });
+    if (log.resist === 'yes' || log.resist === 'watch') pills.push({ text:'Resisted', color:theme.typeGo });
+    else if (log.resist === 'partial')                  pills.push({ text:'Partial', color:'#f59e0b' });
+    else                                                pills.push({ text:'Gave In', color:theme.typeSt });
     if (log.trigger)  pills.push({ text:`trig: ${log.trigger}`, color:theme.text2 });
     if (log.mood)     pills.push({ text:log.mood, color:theme.text2 });
     if (log.energy)   pills.push({ text:log.energy, color:theme.text2 });

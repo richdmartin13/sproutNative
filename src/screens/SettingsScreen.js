@@ -27,9 +27,18 @@ function MRow({ label, sub, value, onChange }) {
   );
 }
 
-const APP_VERSION = '1.0.8';
+const APP_VERSION = '1.0.9';
 
 const CHANGELOG = [
+  {
+    version: '1.0.9',
+    changes: [
+      'Glass: reverted to original background opacity; removed gray hairline from top of light-mode cards (transparent top border)',
+      'Log: stop habits now always show a resistance pill — "Resisted", "Partial", or "Gave In" — on every log entry',
+      'Analytics: resistance rate now correctly counts watch-logged "Resisted" taps; spider Resistance chart works',
+      'Watch: "Resisted" from watch now stores as canonical resist=yes, counting correctly in all analytics',
+    ],
+  },
   {
     version: '1.0.8',
     changes: [
@@ -427,7 +436,7 @@ export default function SettingsScreen() {
             </View>
             <View>
               <Text style={{ fontSize:17, fontWeight:'700', color:theme.text, fontFamily:FONTS.heading }}>Sprout</Text>
-              <Text style={{ fontSize:12, color:theme.muted, marginTop:2 }}>Version {APP_VERSION} (build 8)</Text>
+              <Text style={{ fontSize:12, color:theme.muted, marginTop:2 }}>Version {APP_VERSION} (build 9)</Text>
             </View>
           </View>
           <Text style={{ fontSize:13, color:theme.muted, lineHeight:19 }}>

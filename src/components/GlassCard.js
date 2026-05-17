@@ -17,56 +17,41 @@ export default function GlassCard({ style, radius = 20, children, variant = 'sec
   const d = theme.isDark;
   const T = 'rgba(0,0,0,0)';
 
-  const isFull = variant === 'full';
-  const isFlat = variant === 'flat';
-  const isCard = variant === 'card';
+  const isFull    = variant === 'full';
+  const isFlat    = variant === 'flat';
+  const isCard    = variant === 'card';
 
-  // ── Blur intensity ──────────────────────────────────────────────────
-  // Light mode needs higher intensity to overcome the lighter background
-  const blurIntensity = isFull ? (d ? 55 : 72)
+  // ── Intensity scaling ──────────────────────────────────────────────
+  const blurIntensity = isFull ? (d ? 55 : 40)
                       : isFlat ? 0
-                      : d ? 22 : 38;
+                      : d ? 22 : 16;
 
-  // ── BlurView background ─────────────────────────────────────────────
-  // Dark mode: near-opaque dark surface tint looks great.
-  // Light mode: was ~90% white — completely killed the blur effect.
-  // Fix: keep it translucent so the warm bg (#f4f0e8) bleeds through.
-  const blurBg = isFull
-    ? (d ? theme.surface : 'rgba(255,255,255,0.52)')
-    : (d ? theme.surface : 'rgba(255,255,255,0.28)');
-
-  // ── Sheen gradient ──────────────────────────────────────────────────
   const bright = isFull
-    ? (d ? 'rgba(255,255,255,0.20)' : 'rgba(255,255,255,0.82)')
-    : (d ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.52)');
+    ? (d ? 'rgba(255,255,255,0.20)' : 'rgba(255,255,255,0.92)')
+    : (d ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.65)');
 
   const tint = isFull
-    ? (d ? 'rgba(255,255,255,0.03)' : 'rgba(255,255,255,0.28)')
-    : (d ? 'rgba(255,255,255,0.01)' : 'rgba(255,255,255,0.14)');
+    ? (d ? 'rgba(255,255,255,0.03)' : 'rgba(255,255,255,0.48)')
+    : (d ? 'rgba(255,255,255,0.01)' : 'rgba(255,255,255,0.28)');
 
-  // Lower sheen in light so blur effect isn't hidden behind a white veil
-  const sheenOpacity = isFull
-    ? (d ? 0.70 : 0.40)
-    : (d ? 0.38 : 0.18);
+  const sheenOpacity = isFull ? 0.70 : 0.38;
 
-  // ── Bevel ───────────────────────────────────────────────────────────
   const bevelBright = isFull
-    ? (d ? 'rgba(255,255,255,0.28)' : 'rgba(255,255,255,0.90)')
-    : (d ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.68)');
+    ? (d ? 'rgba(255,255,255,0.28)' : 'rgba(255,255,255,0.95)')
+    : (d ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.60)');
   const bevelH  = isFull ? 2.5 : 1.5;
-  const bevelOp = isFull ? (d ? 0.90 : 0.72) : (d ? 0.50 : 0.42);
+  const bevelOp = isFull ? 0.90 : (d ? 0.50 : 0.28);
 
   // ── Borders ─────────────────────────────────────────────────────────
-  // Light mode: warm-neutral borders add definition without looking clinical
+  // Full: bright top bevel border + dark bottom for depth.
+  // Non-full light: transparent top avoids the gray hairline; subtle sides only.
   const borderTop = isFull
     ? (d ? 'rgba(255,255,255,0.22)' : 'rgba(255,255,255,0.95)')
-    : (d ? 'rgba(255,255,255,0.10)' : 'rgba(195,190,178,0.50)');
+    : (d ? 'rgba(255,255,255,0.10)' : 'transparent');
   const borderBot = isFull
-    ? (d ? 'rgba(0,0,0,0.35)' : 'rgba(0,0,0,0.06)')
-    : (d ? theme.border : 'rgba(175,170,158,0.30)');
-  const borderSide = d
-    ? theme.border
-    : (isFull ? 'rgba(200,195,183,0.30)' : 'rgba(188,184,172,0.28)');
+    ? (d ? 'rgba(0,0,0,0.35)' : 'rgba(0,0,0,0.08)')
+    : theme.border;
+  const borderSide = theme.border;
 
   if (isFlat) {
     return (
@@ -113,7 +98,7 @@ export default function GlassCard({ style, radius = 20, children, variant = 'sec
         style={{
           position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
           borderRadius: radius,
-          backgroundColor: blurBg,
+          backgroundColor: theme.surface,
         }}
       />
 
