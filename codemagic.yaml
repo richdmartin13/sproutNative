@@ -67,7 +67,7 @@ workflows:
       - name: Submit to TestFlight
         script: |
           IPA=$(find "$CM_BUILD_DIR/ipa" -name "*.ipa" | head -1)
-          eas submit --platform ios --path "$IPA" --profile production --non-interactive
+          npx eas-cli submit --platform ios --path "$IPA" --profile production --non-interactive
 
     artifacts:
       - $CM_BUILD_DIR/ipa/*.ipa
