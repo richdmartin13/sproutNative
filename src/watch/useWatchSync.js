@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { sendHabitsToWatch, onWatchLog } from './WatchBridge.js';
+import { sendHabitsToWatch, onWatchLog, onWatchUndo } from './WatchBridge.js';
 import { todayStr } from '../lib/util.js';
 
 /**
@@ -9,7 +9,7 @@ import { todayStr } from '../lib/util.js';
  * - Listens for WatchLog events (user tapped "Log it" on watch)
  *   and calls `onLog(id)` so AppContext can record the tap.
  */
-export function useWatchSync(habits, onLog) {
+export function useWatchSync(habits, onLog, onUndo) {
   // Push habits whenever the array changes (debounced 400 ms)
   const timer = useRef(null);
   useEffect(() => {
@@ -51,6 +51,12 @@ export function useWatchSync(habits, onLog) {
   useEffect(() => {
     return onWatchLog(id => onLog(id));
   }, [onLog]);
+
+  // Listen for watch-initiated undos
+  useEffect(() => {
+    if (!onUndo) return;
+    return onWatchUndo(id => onUndo(id));
+  }, [onUndo]);
 }
 
 function prevDay(dateStr) {

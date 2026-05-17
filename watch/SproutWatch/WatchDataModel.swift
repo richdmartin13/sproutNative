@@ -45,9 +45,17 @@ class WatchDataModel: NSObject, ObservableObject {
         guard WCSession.default.isReachable else { return }
         WCSession.default.sendMessage(
             ["action": "logHabit", "id": id],
-            replyHandler: { [weak self] _ in
-                self?.requestUpdate()
-            },
+            replyHandler: { [weak self] _ in self?.requestUpdate() },
+            errorHandler: nil
+        )
+    }
+
+    func undoHabit(_ id: String) {
+        WKInterfaceDevice.current().play(.click)
+        guard WCSession.default.isReachable else { return }
+        WCSession.default.sendMessage(
+            ["action": "undoHabit", "id": id],
+            replyHandler: { [weak self] _ in self?.requestUpdate() },
             errorHandler: nil
         )
     }

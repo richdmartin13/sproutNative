@@ -27,6 +27,17 @@ export function onWatchLog(callback) {
 }
 
 /**
+ * Subscribe to undo events triggered from the watch (user tapped Undo).
+ * @param {(id: string) => void} callback - called with the habit id
+ * @returns {() => void} unsubscribe function
+ */
+export function onWatchUndo(callback) {
+  if (!emitter) return () => {};
+  const sub = emitter.addListener('WatchUndo', ({ id }) => callback(id));
+  return () => sub.remove();
+}
+
+/**
  * Subscribe to watch reachability changes.
  * @param {(reachable: boolean) => void} callback
  * @returns {() => void} unsubscribe function

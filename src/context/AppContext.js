@@ -87,8 +87,23 @@ export function AppProvider({ children }) {
     addLog(habitId, { date: todayStr(), tags: [], notes: '' });
   }, [addLog]);
 
+  // Watch undo handler: removes the most recent today-log for the habit
+  const handleWatchUndo = useCallback((habitId) => {
+    const today = todayStr();
+    setData(d => ({
+      ...d,
+      habits: d.habits.map(h => {
+        if (h.id !== habitId) return h;
+        const todayLogs = h.logs.filter(l => l.date === today);
+        if (!todayLogs.length) return h;
+        const last = todayLogs[todayLogs.length - 1];
+        return { ...h, logs: h.logs.filter(l => l.id !== last.id) };
+      }),
+    }));
+  }, []);
+
   // Keep Apple Watch in sync whenever habits change
-  useWatchSync(data?.habits ?? [], handleWatchLog);
+  useWatchSync(data?.habits ?? [], handleWatchLog, handleWatchUndo);
 
   const theme = getTheme(data?.prefs);
 
