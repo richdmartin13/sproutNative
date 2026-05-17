@@ -1,0 +1,63 @@
+workflows:
+  ios-testflight:
+    name: iOS → TestFlight (Watch)
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+    environment:
+      node: 20.17.0
+      xcode: latest
+      cocoapods: default
+      vars:
+        WATCH_PROVISIONING_PROFILE: watch_appstore
+        TEAM_ID: 66A37BK2N7
+      groups:
+        - ios_signing   # DIST_CERT_BASE64, DIST_CERT_PASSWORD
+        - expo          # EXPO_TOKEN
+    scripts:
+      - name: Install npm packages
+        script: npm ci
+
+      - name: Expo prebuild
+        script: npx expo prebuild --no-install --platform ios
+
+      - name: Install CocoaPods
+        script: cd ios && pod install
+
+      - name: Import certificate and provisioning profiles
+        script: |
+          # Decode the distribution certificate from env var
+          echo "$DIST_CERT_BASE64" | base64 --decode > /tmp/dist.p12
+          keychain initialize
+          keychain add-certificate --certificate /tmp/dist.p12 --password "$DIST_CERT_PASSWORD"
+
+          # Install provisioning profiles (committed in certs/)
+          PROFILES="$HOME/Library/MobileDevice/Provisioning Profiles"
+          mkdir -p "$PROFILES"
+          cp certs/main_appstore.mobileprovision "$PROFILES/"
+          cp certs/watch_appstore.mobileprovision "$PROFILES/"
+
+      - name: Build archive
+        script: |
+          xcodebuild archive \
+            -workspace ios/Sprout.xcworkspace \
+            -scheme Sprout \
+            -configuration Release \
+            -archivePath "$CM_BUILD_DIR/Sprout.xcarchive" \
+            CODE_SIGN_STYLE=Manual \
+            CODE_SIGN_IDENTITY="Apple Distribution" \
+            DEVELOPMENT_TEAM="$TEAM_ID"
+
+      - name: Export IPA
+        script: |
+          xcodebuild -exportArchive \
+            -archivePath "$CM_BUILD_DIR/Sprout.xcarchive" \
+            -exportPath "$CM_BUILD_DIR/ipa" \
+            -exportOptionsPlist ExportOptions.plist
+
+      - name: Submit to TestFlight
+        script: |
+          IPA=$(find "$CM_BUILD_DIR/ipa" -name "*.ipa" | head -1)
+          eas submit --platform ios --path "$IPA" --profile production --non-interactive
+
+    artifacts:
+      - $CM_BUILD_DIR/ipa/*.ipa

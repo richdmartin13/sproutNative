@@ -13,7 +13,8 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "sprout.richdmart.in",
-      "teamId": "YOUR_APPLE_TEAM_ID",
+      "buildNumber": "5",
+      "teamId": "66A37BK2N7",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }

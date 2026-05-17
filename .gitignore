@@ -1,4 +1,8 @@
-node_modules
-certs/
+node_modules/
+ios/
+android/
+certs/*.p12
 credentials.json
 .expo/
+*.ipa
+*.xcarchive

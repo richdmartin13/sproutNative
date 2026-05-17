@@ -2,7 +2,22 @@
   "permissions": {
     "allow": [
       "Bash(node -e \"require\\('@expo/config-plugins'\\)\")",
-      "Bash(findstr /i \"expo config-plugins\")"
+      "Bash(findstr /i \"expo config-plugins\")",
+      "Bash(node -e ' *)",
+      "Bash(npx eas-cli *)",
+      "Bash(node -e \"const a=require\\('./app.json'\\); console.log\\(JSON.stringify\\({name:a.expo?.name, slug:a.expo?.slug, ios:a.expo?.ios}, null, 2\\)\\)\")",
+      "Bash(curl -L \"https://expo.dev/artifacts/eas/i4dbWq4BfieVT9bcvXg8Ui.ipa\" -o /tmp/sprout_watch.ipa --progress-bar)",
+      "Read(//tmp/**)",
+      "Bash(unzip -o sprout_watch.ipa -d sprout_watch_extracted)",
+      "Bash(plutil -p /tmp/sprout_watch_extracted/Payload/Sprout.app/Watch/SproutWatch.app/Info.plist)",
+      "Bash(lipo -info /tmp/sprout_watch_extracted/Payload/Sprout.app/Watch/SproutWatch.app/SproutWatch)",
+      "Bash(python3 -c ' *)",
+      "Bash(openssl smime *)",
+      "Bash(curl -s 'https://job-logs.eascdn.net/production/8a1e199a-9454-4140-ba9e-886c0972017d/1778968955152-0664b284-6881-4f6b-8e33-3926752b2363.txt?X-Goog-Algorithm=GOOG4-RSA-SHA256&X-Goog-Credential=www-production%40exponentjs.iam.gserviceaccount.com%2F20260516%2Fauto%2Fstorage%2Fgoog4_request&X-Goog-Date=20260516T221611Z&X-Goog-Expires=900&X-Goog-SignedHeaders=host&X-Goog-Signature=a79e0558e2d191dc8024121e8eee842045f6a233e703ee69df84a471719f2f7f1fb05b8eab59be1ab03b8c53ede5ac5e63c057602fcf5cc89a6dd17019554139c7dc71b7c85c05f851226f8a238662b7c92eb60bb5b8c2cf529cd3771548f6098a3f7662933aa9cc66bf7d799ec1400ceebda43556156a28b69395ff73e35c17d22a43eb6e726bb27f8c331b98f7cceca2c7ef9c7897014936b839fe935939536c97489d014a712d40db92ed1d2e6a4a91ad8c4d5fde0bd3b522d68f069dac9099ca2ce5911423725da8fe8df83cd710a38249ceeb4031655cec55d800a90a7748fe70a63818d3715dfbd940d8622f13ce35bb4b7b01ba0fbee46925feeb9ed2')",
+      "Bash(eas build *)",
+      "Bash(curl -sL \"https://expo.dev/artifacts/eas/nTgQFBDgBrUZQ7dFKvDiL6.ipa\" -o /tmp/store3.ipa)",
+      "Bash(unzip -o /tmp/store3.ipa -d /tmp/store3_ipa)",
+      "Bash(eas submit *)"
     ]
   }
 }

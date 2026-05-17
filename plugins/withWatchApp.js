@@ -28,7 +28,7 @@
  *   into project.hash.project.objects, with duplicate guards on every phase write.
  */
 
-const WATCH_READY = true;
+const WATCH_READY = process.env.INCLUDE_WATCH_APP !== 'false';
 
 const {
   withXcodeProject,
@@ -40,7 +40,7 @@ const fs   = require('fs');
 
 const WATCH_TARGET  = 'SproutWatch';
 const WATCH_SUFFIX  = '.watchkitapp';
-const WATCH_OS_MIN  = '8.0';
+const WATCH_OS_MIN  = '10.0';
 const SWIFT_VER     = '5.0';
 const SWIFT_SOURCES = [
   'SproutWatchApp.swift',
@@ -69,10 +69,15 @@ function addDocumentTypes(cfg) {
       {
         CFBundleTypeName:       'Sprout Data',
         CFBundleTypeRole:       'Editor',
+        LSHandlerRank:          'Owner',
         LSItemContentTypes:     ['public.json'],
         CFBundleTypeExtensions: ['json'],
       },
     ];
+  }
+  // Required alongside CFBundleDocumentTypes (Apple warning 90737)
+  if (cfg.modResults.LSSupportsOpeningDocumentsInPlace === undefined) {
+    cfg.modResults.LSSupportsOpeningDocumentsInPlace = false;
   }
   return cfg;
 }
@@ -102,8 +107,9 @@ async function copyFiles(cfg) {
     cp(path.join(watchSrc, f), path.join(watchDst, f));
   }
 
-  const bundleId = cfg.ios?.bundleIdentifier ?? 'sprout.richdmart.in';
-  fs.writeFileSync(path.join(watchDst, 'Info.plist'), watchInfoPlist(bundleId));
+  const bundleId   = cfg.ios?.bundleIdentifier ?? 'sprout.richdmart.in';
+  const buildNumber = String(cfg.ios?.buildNumber ?? '1');
+  fs.writeFileSync(path.join(watchDst, 'Info.plist'), watchInfoPlist(bundleId, buildNumber));
 
   // Asset catalog for watch app icon (fixes ASC errors 90391 / 90713).
   // The marketing icon (1024x1024) is required for App Store submission.
@@ -112,15 +118,64 @@ async function copyFiles(cfg) {
   const appiconsetDir  = path.join(xcassetsDir, 'AppIcon.appiconset');
   mkdirp(appiconsetDir);
 
+  // Complete watchOS icon set. Apple's App Store validator (error 90394/90741)
+  // requires the legacy per-role/per-subtype format covering ALL watch sizes and
+  // roles (notification center, short look, companion settings) even for modern
+  // WKApplication apps. sips resizes the 1024×1024 source to each required px.
+  const WATCH_ICON_SIZES = [
+    // Companion Settings (appears in the Watch app on paired iPhone; no subtype)
+    { px: 58,  filename: 'icon-58.png',  idiom: 'watch', role: 'companionSettings', scale: '2x', size: '29x29' },
+    { px: 87,  filename: 'icon-87.png',  idiom: 'watch', role: 'companionSettings', scale: '3x', size: '29x29' },
+    // 38mm watch (Series 1–3)
+    { px: 48,  filename: 'icon-48.png',  idiom: 'watch', role: 'notificationCenter', scale: '2x', size: '24x24',    subtype: '38mm' },
+    { px: 80,  filename: 'icon-80.png',  idiom: 'watch', role: 'appLauncher',        scale: '2x', size: '40x40',    subtype: '38mm' },
+    { px: 172, filename: 'icon-172.png', idiom: 'watch', role: 'quickLook',          scale: '2x', size: '86x86',    subtype: '38mm' },
+    // 42mm watch (Series 1–3)
+    { px: 55,  filename: 'icon-55.png',  idiom: 'watch', role: 'notificationCenter', scale: '2x', size: '27.5x27.5', subtype: '42mm' },
+    { px: 88,  filename: 'icon-88.png',  idiom: 'watch', role: 'appLauncher',        scale: '2x', size: '44x44',    subtype: '42mm' },
+    { px: 196, filename: 'icon-196.png', idiom: 'watch', role: 'quickLook',          scale: '2x', size: '98x98',    subtype: '42mm' },
+    // 40mm watch (Series 4–6) — same home-screen px as 42mm, different subtype
+    { px: 88,  filename: 'icon-88.png',  idiom: 'watch', role: 'appLauncher',        scale: '2x', size: '44x44',    subtype: '40mm' },
+    // 44mm watch (Series 4–6)
+    { px: 100, filename: 'icon-100.png', idiom: 'watch', role: 'appLauncher',        scale: '2x', size: '50x50',    subtype: '44mm' },
+    { px: 216, filename: 'icon-216.png', idiom: 'watch', role: 'quickLook',          scale: '2x', size: '108x108',  subtype: '44mm' },
+    // 41mm watch (Series 7+)
+    { px: 92,  filename: 'icon-92.png',  idiom: 'watch', role: 'appLauncher',        scale: '2x', size: '46x46',    subtype: '41mm' },
+    // 45mm watch (Series 7+)
+    { px: 102, filename: 'icon-102.png', idiom: 'watch', role: 'appLauncher',        scale: '2x', size: '51x51',    subtype: '45mm' },
+    // 49mm watch (Ultra)
+    { px: 108, filename: 'icon-108.png', idiom: 'watch', role: 'appLauncher',        scale: '2x', size: '54x54',    subtype: '49mm' },
+    // App Store / TestFlight marketing icon (required; without it actool skips the set)
+    { px: 1024, filename: 'icon.png',    idiom: 'watch-marketing',                   scale: '1x', size: '1024x1024' },
+  ];
+
+  const mainIcon = path.join(projectRoot, 'assets', 'icon.png');
+  const { execSync } = require('child_process');
+  const generated = new Set();
+  for (const entry of WATCH_ICON_SIZES) {
+    const dstFile = path.join(appiconsetDir, entry.filename);
+    if (generated.has(entry.filename)) continue; // same file referenced by multiple subtypes
+    generated.add(entry.filename);
+    if (entry.px === 1024) {
+      cp(mainIcon, dstFile);
+    } else if (process.platform === 'darwin') {
+      try {
+        execSync(`sips -z ${entry.px} ${entry.px} "${mainIcon}" --out "${dstFile}"`, { stdio: 'pipe' });
+      } catch (_) {
+        cp(mainIcon, dstFile);
+      }
+    } else {
+      cp(mainIcon, dstFile);
+    }
+  }
+
   const iconContents = JSON.stringify({
-    images: [
-      {
-        filename: 'icon.png',
-        idiom: 'watch-marketing',
-        scale: '1x',
-        size: '1024x1024',
-      },
-    ],
+    images: WATCH_ICON_SIZES.map(entry => {
+      const img = { filename: entry.filename, idiom: entry.idiom, scale: entry.scale, size: entry.size };
+      if (entry.role) img.role = entry.role;
+      if (entry.subtype) img.subtype = entry.subtype;
+      return img;
+    }),
     info: { author: 'xcode', version: 1 },
   }, null, 2);
   fs.writeFileSync(path.join(appiconsetDir, 'Contents.json'), iconContents);
@@ -131,10 +186,6 @@ async function copyFiles(cfg) {
     JSON.stringify({ info: { author: 'xcode', version: 1 } }, null, 2),
   );
 
-  // Copy the 1024×1024 icon from assets/icon.png
-  const mainIcon = path.join(projectRoot, 'assets', 'icon.png');
-  cp(mainIcon, path.join(appiconsetDir, 'icon.png'));
-
   // Fallback scheme patch: if by some Expo version the xcodeproj mod ran first,
   // the UUID will be readable here.  The idempotency guard in patchScheme makes
   // this a no-op if modifyProject already patched it.
@@ -142,6 +193,11 @@ async function copyFiles(cfg) {
   if (watchTargetUuid) {
     patchScheme(platformProjectRoot, projectName, watchTargetUuid);
   }
+
+  // EAS only installs provisioning profiles for targets it manages (the main app).
+  // Install the watch profile directly into the system store during prebuild so
+  // Xcode finds it when looking for PROVISIONING_PROFILE_SPECIFIER = "Sprout Watch".
+  installWatchProfile(projectRoot);
 
   return cfg;
 }
@@ -182,6 +238,13 @@ function modifyProject(cfg) {
   if (allTargets.some(t => t.name === WATCH_TARGET || t.name === `"${WATCH_TARGET}"`)) return cfg;
 
   const watchTarget = project.addTarget(WATCH_TARGET, 'watch2_app', WATCH_TARGET, watchId);
+
+  // addTarget('watch2_app') creates buildPhases:[] with NO Sources/Resources/Frameworks
+  // phases for the watch target itself — only "Embed Watch Content" in the parent.
+  // Without these, addToSourcesPhase silently returns early and no Swift gets compiled.
+  project.addBuildPhase([], 'PBXSourcesBuildPhase',    'Sources',    watchTarget.uuid);
+  project.addBuildPhase([], 'PBXResourcesBuildPhase',  'Resources',  watchTarget.uuid);
+  project.addBuildPhase([], 'PBXFrameworksBuildPhase', 'Frameworks', watchTarget.uuid);
 
   // Override the product type set by addTarget('watch2_app').
   // 'watch2_app' → com.apple.product-type.application.watchapp2 (legacy stub-based)
@@ -236,6 +299,11 @@ function modifyProject(cfg) {
   // Fix: read ios.teamId from app.json and stamp it directly into the watch
   // target's build settings here.  The user must add "teamId" to app.json → ios.
   const teamId = cfg.ios?.teamId;
+  // EAS Fastlane passes PROVISIONING_PROFILE_SPECIFIER only for sdk=iphoneos*
+  // targets. The watchos target gets no specifier, so Xcode can't match a profile
+  // in manual signing mode. Setting it in the pbxproj here is not overridden by
+  // EAS's iphoneos-conditional xcargs, so Xcode uses this value for the watch target.
+  const watchProfileSpecifier = process.env.WATCH_PROVISIONING_PROFILE;
   applyBuildSettings(project, watchTarget.uuid, {
     SDKROOT:                   'watchos',
     TARGETED_DEVICE_FAMILY:    '"4"',
@@ -244,17 +312,18 @@ function modifyProject(cfg) {
     PRODUCT_BUNDLE_IDENTIFIER: `"${watchId}"`,
     INFOPLIST_FILE:            `"${WATCH_TARGET}/Info.plist"`,
     PRODUCT_NAME:              '"$(TARGET_NAME)"',
-    CODE_SIGN_STYLE:                    '"Automatic"',
+    CODE_SIGN_STYLE:           '"Manual"',
+    // EAS passes CODE_SIGN_IDENTITY only for sdk=iphoneos* via xcargs;
+    // the watchos target never gets it, so Xcode falls back to "iPhone Developer".
+    // Setting it here makes Xcode use the Distribution cert that EAS imports.
+    CODE_SIGN_IDENTITY:        '"Apple Distribution"',
+    CODE_SIGNING_REQUIRED:     '"NO"',
     ASSETCATALOG_COMPILER_APPICON_NAME: '"AppIcon"',
-    // Explicit watchOS device architectures — arm64_32 (Series 4-6) and arm64
-    // (Series 7+). Without this, EAS's build environment may inherit iOS ARCHS
-    // settings and produce a binary Apple's validator rejects with error 90085.
     ARCHS:              '"arm64_32 arm64"',
     ONLY_ACTIVE_ARCH:   '"NO"',
     EXCLUDED_ARCHS:     '""',
-    // teamId is the 10-character Apple Developer Team ID (e.g. "ABC123DEF4").
-    // Without this, xcodebuild refuses to validate signing for the watch target.
     ...(teamId ? { DEVELOPMENT_TEAM: teamId } : {}),
+    ...(watchProfileSpecifier ? { PROVISIONING_PROFILE_SPECIFIER: `"${watchProfileSpecifier}"` } : {}),
   });
 
   // ── STEP 6: Patch auto-created embed phase ────────────────────────────────
@@ -482,15 +551,18 @@ function readWatchTargetUuid(platformProjectRoot, projectName) {
 }
 
 /**
- * Patch the Xcode scheme so the watch target is included in the build action.
+ * Patch the Xcode scheme so SproutWatch is included in the build action.
  *
- * xcodebuild archive only builds targets that are explicitly listed in the
- * scheme's <BuildActionEntries> — target dependencies alone are not enough.
- * This adds a BuildActionEntry for SproutWatch if one isn't already present.
+ * xcodebuild archive only builds targets explicitly listed in the scheme's
+ * <BuildActionEntries> with buildForArchiving="YES".  This adds that entry.
  *
- * Called from modifyProject (xcodeproj phase) with the UUID straight from
- * addTarget.  The scheme file already exists (Expo copies it from templates
- * before any plugin mod runs).
+ * Profile-installation note: certs/watch.mobileprovision is committed to the
+ * repo (only .p12 is gitignored), so EAS uploads it as a project file.
+ * installWatchProfile() copies it into ~/Library/MobileDevice/Provisioning
+ * Profiles/ during PREBUILD, before xcodebuild archive runs.
+ * CODE_SIGNING_REQUIRED=NO on the watch target means archive completes even
+ * if the profile isn't found; the export step re-signs using the installed
+ * profile via export_options.provisioningProfiles.
  */
 function patchScheme(platformProjectRoot, projectName, watchTargetUuid) {
   const schemesDir = path.join(
@@ -500,15 +572,12 @@ function patchScheme(platformProjectRoot, projectName, watchTargetUuid) {
     'xcschemes',
   );
 
-  // Find the scheme file — it may not be named exactly <projectName>.xcscheme
-  // if Expo generated it with a different casing or prefix.
   let schemeFile = path.join(schemesDir, `${projectName}.xcscheme`);
   if (!fs.existsSync(schemeFile)) {
-    // Try any .xcscheme in that directory
     const found = fs.existsSync(schemesDir)
       ? fs.readdirSync(schemesDir).find(f => f.endsWith('.xcscheme'))
       : null;
-    if (!found) return; // no scheme — nothing to patch
+    if (!found) return;
     schemeFile = path.join(schemesDir, found);
   }
 
@@ -517,7 +586,6 @@ function patchScheme(platformProjectRoot, projectName, watchTargetUuid) {
   // Idempotency: if SproutWatch is already in the scheme, leave it alone.
   if (xml.includes('SproutWatch')) return;
 
-  // Build the new entry.  Indentation matches what Xcode writes.
   const entry = [
     '         <BuildActionEntry',
     '            buildForTesting = "YES"',
@@ -535,25 +603,17 @@ function patchScheme(platformProjectRoot, projectName, watchTargetUuid) {
     '         </BuildActionEntry>',
   ].join('\n');
 
-  // Insert just before </BuildActionEntries>
-  if (!xml.includes('</BuildActionEntries>')) {
-    // Scheme has no BuildActionEntries section at all — wrap and inject
-    const placeholder = '<BuildAction';
-    const insertionXml = xml.replace(
-      placeholder,
-      `<BuildAction parallelizeBuildables="YES" buildImplicitDependencies="YES">\n      <BuildActionEntries>\n${entry}\n      </BuildActionEntries>\n   `,
+  if (xml.includes('</BuildActionEntries>')) {
+    xml = xml.replace('</BuildActionEntries>', `${entry}\n      </BuildActionEntries>`);
+  } else if (xml.includes('<BuildAction')) {
+    xml = xml.replace(
+      /(<BuildAction\b[^>]*>)/,
+      `$1\n      <BuildActionEntries>\n${entry}\n      </BuildActionEntries>`,
     );
-    // Only write if we actually changed something
-    if (insertionXml !== xml) {
-      fs.writeFileSync(schemeFile, insertionXml, 'utf8');
-      return;
-    }
+  } else {
+    return;
   }
 
-  xml = xml.replace(
-    '</BuildActionEntries>',
-    `${entry}\n      </BuildActionEntries>`,
-  );
   fs.writeFileSync(schemeFile, xml, 'utf8');
 }
 
@@ -573,7 +633,29 @@ function applyBuildSettings(project, targetUuid, settings) {
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-function watchInfoPlist(mainBundleId) {
+function installWatchProfile(projectRoot) {
+  if (process.platform !== 'darwin') return;
+  const profileSrc = path.join(projectRoot, 'certs', 'watch.mobileprovision');
+  if (!fs.existsSync(profileSrc)) {
+    console.warn('[withWatchApp] watch.mobileprovision not found at', profileSrc);
+    return;
+  }
+  const profilesDir = path.join(process.env.HOME, 'Library', 'MobileDevice', 'Provisioning Profiles');
+  try {
+    const { execSync } = require('child_process');
+    const xml = execSync(`security cms -D -i "${profileSrc}"`, { encoding: 'utf8' });
+    const m   = xml.match(/<key>UUID<\/key>\s*<string>([^<]+)<\/string>/);
+    if (!m?.[1]) { console.warn('[withWatchApp] Could not extract UUID from watch profile'); return; }
+    const uuid = m[1].trim();
+    mkdirp(profilesDir);
+    fs.copyFileSync(profileSrc, path.join(profilesDir, `${uuid}.mobileprovision`));
+    console.log('[withWatchApp] Installed watch provisioning profile:', uuid);
+  } catch (e) {
+    console.warn('[withWatchApp] Failed to install watch provisioning profile:', e.message);
+  }
+}
+
+function watchInfoPlist(mainBundleId, buildNumber = '1') {
   return `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -595,7 +677,7 @@ function watchInfoPlist(mainBundleId) {
 \t<key>CFBundleShortVersionString</key>
 \t<string>1.0</string>
 \t<key>CFBundleVersion</key>
-\t<string>1</string>
+\t<string>${buildNumber}</string>
 \t<key>CFBundleIconName</key>
 \t<string>AppIcon</string>
 \t<key>WKApplication</key>

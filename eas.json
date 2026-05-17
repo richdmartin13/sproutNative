@@ -15,17 +15,45 @@
     },
     "production": {
       "ios": {
+        "buildConfiguration": "Release"
+      }
+    },
+    "preview-watch": {
+      "distribution": "internal",
+      "ios": {
         "buildConfiguration": "Release",
         "credentialsSource": "local"
+      },
+      "env": {
+        "WATCH_PROVISIONING_PROFILE": "Sprout Watch"
+      }
+    },
+    "store-watch": {
+      "distribution": "store",
+      "ios": {
+        "buildConfiguration": "Release",
+        "credentialsSource": "local"
+      },
+      "env": {
+        "WATCH_PROVISIONING_PROFILE": "watch_appstore"
+      }
+    },
+    "altstore": {
+      "ios": {
+        "buildConfiguration": "Release",
+        "distribution": "internal"
+      },
+      "env": {
+        "INCLUDE_WATCH_APP": "false"
       }
     }
   },
   "submit": {
     "production": {
       "ios": {
-        "appleId": "YOUR_APPLE_ID",
-        "appleTeamId": "YOUR_APPLE_TEAM_ID",
-        "ascAppId": "YOUR_ASC_APP_ID"
+        "appleId": "richdmartin@me.com",
+        "appleTeamId": "66A37BK2N7",
+        "ascAppId": "6769972296"
       }
     }
   }
