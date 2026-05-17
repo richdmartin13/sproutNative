@@ -23,7 +23,7 @@ struct QuickLogView: View {
     var body: some View {
         VStack(spacing: 0) {
 
-            // ── Full-screen tap zone ────────────────────────────────────
+            // ── Full-screen tap zone (defaults to primary / gave-in) ────
             Button(action: primaryTap) {
                 VStack(spacing: 8) {
                     Spacer(minLength: 0)
@@ -44,7 +44,7 @@ struct QuickLogView: View {
                         .lineLimit(2)
 
                     if let action = logAction {
-                        Text(action == "resisted" ? "Resisted ✓" : (isStop ? "Gave in ✓" : "Logged! ✓"))
+                        Text(action == "resisted" ? "Resisted ✓" : (isStop ? "Gave In ✓" : "Logged! ✓"))
                             .font(.system(size: 13, weight: .medium))
                             .foregroundStyle(action == "resisted" ? Color.green : (isStop ? Color.orange : Color.green))
                             .transition(.scale.combined(with: .opacity))
@@ -62,6 +62,7 @@ struct QuickLogView: View {
 
             // ── Bottom action buttons ──────────────────────────────────
             if logAction != nil {
+                // Post-log: single Undo button
                 Button(action: undoLog) {
                     Label("Undo", systemImage: "arrow.uturn.backward")
                         .font(.system(size: 12, weight: .medium))
@@ -69,16 +70,24 @@ struct QuickLogView: View {
                 .buttonStyle(.bordered)
                 .tint(.orange)
                 .padding(.bottom, 2)
+
             } else if isStop {
-                // Stop habits: primary tap = "Gave in", button = "Resisted"
-                Button(action: resistTap) {
-                    Label("Resisted", systemImage: "hand.raised.fill")
-                        .font(.system(size: 13, weight: .semibold))
+                // Stop habits: two explicit labelled buttons
+                HStack(spacing: 6) {
+                    Button("Gave In", action: primaryTap)
+                        .buttonStyle(.borderedProminent)
+                        .tint(typeColor)
+
+                    Button("Resisted", action: resistTap)
+                        .buttonStyle(.borderedProminent)
+                        .tint(.green)
                 }
-                .buttonStyle(.borderedProminent)
-                .tint(.green)
+                .font(.system(size: 12, weight: .semibold))
+                .padding(.horizontal, 4)
                 .padding(.bottom, 2)
+
             } else {
+                // Go / neutral: single log button
                 Button(action: primaryTap) {
                     Label("Log it", systemImage: "checkmark")
                         .font(.system(size: 13, weight: .semibold))

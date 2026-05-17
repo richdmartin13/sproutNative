@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, Pressable, ScrollView, Alert } from 'react-native';
+import { View, Text, Pressable, ScrollView, Alert, Image } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
@@ -27,9 +27,18 @@ function MRow({ label, sub, value, onChange }) {
   );
 }
 
-const APP_VERSION = '1.0.7';
+const APP_VERSION = '1.0.8';
 
 const CHANGELOG = [
+  {
+    version: '1.0.8',
+    changes: [
+      'Watch: stop habits now show two explicit buttons — "Gave In" and "Resisted" — tapping the frame still defaults to Gave In',
+      'Settings: About section now shows the actual app icon instead of an emoji',
+      'Settings: Export icon is now Upload (↑), Import icon is now Download (↓)',
+      'Light mode: Liquid Glass cards now let the warm background bleed through — reduced surface opacity, higher blur intensity, lower sheen veil',
+    ],
+  },
   {
     version: '1.0.7',
     changes: [
@@ -412,15 +421,13 @@ export default function SettingsScreen() {
         {/* ── About ── */}
         <GlassCard style={{ marginBottom:8, padding:18 }} radius={20} variant="flat">
           <View style={{ flexDirection:'row', alignItems:'center', gap:14, marginBottom:12 }}>
-            <View style={{ width:46, height:46, borderRadius:13,
-              backgroundColor: theme.isDark ? '#1a4a2e' : '#d4edda',
-              alignItems:'center', justifyContent:'center',
-              shadowColor:theme.accent, shadowOffset:{width:0,height:3}, shadowOpacity:0.3, shadowRadius:8 }}>
-              <Text style={{ fontSize:24 }}>🌱</Text>
+            <View style={{ shadowColor:theme.accent, shadowOffset:{width:0,height:3}, shadowOpacity:0.3, shadowRadius:8 }}>
+              <Image source={require('../../assets/icon.png')}
+                style={{ width:46, height:46, borderRadius:13 }} />
             </View>
             <View>
               <Text style={{ fontSize:17, fontWeight:'700', color:theme.text, fontFamily:FONTS.heading }}>Sprout</Text>
-              <Text style={{ fontSize:12, color:theme.muted, marginTop:2 }}>Version {APP_VERSION} (build 7)</Text>
+              <Text style={{ fontSize:12, color:theme.muted, marginTop:2 }}>Version {APP_VERSION} (build 8)</Text>
             </View>
           </View>
           <Text style={{ fontSize:13, color:theme.muted, lineHeight:19 }}>
@@ -580,7 +587,7 @@ export default function SettingsScreen() {
             })}>
             <View style={{ flex:1 }}>
               <View style={{ flexDirection:'row', alignItems:'center', gap:7, marginBottom:1 }}>
-                <Download size={15} strokeWidth={2} color={theme.accent} />
+                <Upload size={15} strokeWidth={2} color={theme.accent} />
                 <Text style={{ fontSize:15, fontWeight:'500', color:theme.text }}>Export</Text>
               </View>
               <Text style={{ fontSize:12.5, color:theme.muted }}>Save a JSON backup of your habits & logs</Text>
@@ -596,7 +603,7 @@ export default function SettingsScreen() {
             })}>
             <View style={{ flex:1 }}>
               <View style={{ flexDirection:'row', alignItems:'center', gap:7, marginBottom:1 }}>
-                <Upload size={15} strokeWidth={2} color={theme.accent} />
+                <Download size={15} strokeWidth={2} color={theme.accent} />
                 <Text style={{ fontSize:15, fontWeight:'500', color:theme.text }}>Import</Text>
               </View>
               <Text style={{ fontSize:12.5, color:theme.muted }}>Merge habits & logs from a JSON file</Text>
