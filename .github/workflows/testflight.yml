@@ -1,0 +1,82 @@
+name: iOS → TestFlight
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-and-submit:
+    runs-on: macos-15
+    timeout-minutes: 60
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install npm packages
+        run: npm ci
+
+      - name: Expo prebuild
+        run: npx expo prebuild --no-install --platform ios
+        env:
+          WATCH_PROVISIONING_PROFILE: watch_appstore
+
+      - name: Install CocoaPods
+        run: cd ios && pod install
+
+      - name: Import certificate and profiles
+        env:
+          DIST_CERT_BASE64: ${{ secrets.DIST_CERT_BASE64 }}
+          DIST_CERT_PASSWORD: ${{ secrets.DIST_CERT_PASSWORD }}
+        run: |
+          echo "$DIST_CERT_BASE64" | base64 --decode > /tmp/dist.p12
+          security create-keychain -p "" build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p "" build.keychain
+          security import /tmp/dist.p12 -k build.keychain -P "$DIST_CERT_PASSWORD" \
+            -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -s -k "" build.keychain
+
+          PROFILES="$HOME/Library/MobileDevice/Provisioning Profiles"
+          mkdir -p "$PROFILES"
+          cp certs/main_appstore.mobileprovision "$PROFILES/"
+          cp certs/watch_appstore.mobileprovision "$PROFILES/"
+
+      - name: Build archive
+        run: |
+          xcodebuild archive \
+            -workspace ios/Sprout.xcworkspace \
+            -scheme Sprout \
+            -configuration Release \
+            -archivePath "$RUNNER_TEMP/Sprout.xcarchive" \
+            CODE_SIGN_STYLE=Manual \
+            CODE_SIGN_IDENTITY="Apple Distribution" \
+            DEVELOPMENT_TEAM=66A37BK2N7 \
+            | xcpretty
+
+      - name: Export IPA
+        run: |
+          xcodebuild -exportArchive \
+            -archivePath "$RUNNER_TEMP/Sprout.xcarchive" \
+            -exportPath "$RUNNER_TEMP/ipa" \
+            -exportOptionsPlist ExportOptions.plist \
+            | xcpretty
+
+      - name: Submit to TestFlight
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          IPA=$(find "$RUNNER_TEMP/ipa" -name "*.ipa" | head -1)
+          npx eas-cli submit --platform ios --path "$IPA" \
+            --profile production --non-interactive
+
+      - name: Upload IPA artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Sprout.ipa
+          path: ${{ runner.temp }}/ipa/*.ipa
+          retention-days: 7
