@@ -9,7 +9,6 @@ import { useApp } from '../context/AppContext.js';
 import GlassCard from '../components/GlassCard.js';
 import { SCHEMES } from '../lib/theme.js';
 import { exportJson, importJson } from '../lib/storage.js';
-import { loadFromCloud } from '../cloud/CloudBridge.js';
 import Sheet from '../sheets/Sheet.js';
 import { Toggle } from '../components/Themed.js';
 import { FONTS } from '../lib/fonts.js';
@@ -37,7 +36,6 @@ const CHANGELOG = [
       'Watch: "Gave in" / "Resisted" buttons for stop habits — Resisted logs with resistance marker',
       'Watch: configurable auto-dismiss timing, haptic feedback, and stats display in Settings',
       'Archive: long-press any habit → Archive to hide from tracking; restore anytime in Settings',
-      'iCloud: automatic backup to iCloud Documents; merge-restore available in Settings → Data',
       'Settings: About section with app info; Apple Watch settings section',
       'Modals: removed minimum height constraint — sheets now size to their content',
       'Tablet: 3-column grid layout on iPad',
@@ -322,20 +320,6 @@ export default function SettingsScreen() {
     }
   };
 
-  // ── Restore from iCloud ──
-  const doCloudRestore = async () => {
-    try {
-      const json = await loadFromCloud();
-      if (!json) { Alert.alert('Not found', 'No iCloud backup found for this device.'); return; }
-      const { data: next, summary } = importJson(json, data);
-      setData(next);
-      setModal(null);
-      Alert.alert('Restored', `Added ${summary.newHabits} habits and ${summary.newLogs} logs from iCloud.`);
-    } catch (e) {
-      Alert.alert('Restore failed', String(e.message || e));
-    }
-  };
-
   // ── Clear all ──
   const doClear = () => {
     setModal(null);
@@ -616,22 +600,6 @@ export default function SettingsScreen() {
                 <Text style={{ fontSize:15, fontWeight:'500', color:theme.text }}>Import</Text>
               </View>
               <Text style={{ fontSize:12.5, color:theme.muted }}>Merge habits & logs from a JSON file</Text>
-            </View>
-            <ChevronRight size={16} strokeWidth={2} color={theme.muted} />
-          </Pressable>
-
-          <Pressable onPress={doCloudRestore}
-            style={({ pressed }) => ({
-              flexDirection:'row', alignItems:'center', gap:10,
-              paddingVertical:14, borderBottomWidth:1, borderBottomColor:theme.border,
-              opacity: pressed ? 0.7 : 1,
-            })}>
-            <View style={{ flex:1 }}>
-              <View style={{ flexDirection:'row', alignItems:'center', gap:7, marginBottom:1 }}>
-                <Undo2 size={15} strokeWidth={2} color={theme.accent} />
-                <Text style={{ fontSize:15, fontWeight:'500', color:theme.text }}>Restore from iCloud</Text>
-              </View>
-              <Text style={{ fontSize:12.5, color:theme.muted }}>Merge habits & logs from your iCloud backup</Text>
             </View>
             <ChevronRight size={16} strokeWidth={2} color={theme.muted} />
           </Pressable>

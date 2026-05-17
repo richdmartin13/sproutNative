@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{
+  width:198px;height:242px;overflow:hidden;
+  background:radial-gradient(ellipse at 50% 30%,#1a3d28 0%,#09100c 70%);
+  color:rgba(255,255,255,.92);
+  font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;
+  border-radius:28px;
+}
+.screen{width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:12px;gap:10px;text-align:center}
+.time{position:absolute;top:10px;left:0;right:0;text-align:center;font-size:12px;font-weight:600;color:rgba(255,255,255,.55)}
+.habit-name{font-size:14px;font-weight:700;color:rgba(255,255,255,.95);line-height:1.2;margin-top:16px}
+.habit-cat{font-size:10px;color:rgba(255,255,255,.4);letter-spacing:.5px;text-transform:uppercase;margin-top:2px}
+.ring{width:72px;height:72px;border-radius:50%;border:2px solid rgba(52,211,153,.25);display:flex;align-items:center;justify-content:center;position:relative}
+.ring::before{content:'';position:absolute;inset:-5px;border-radius:50%;border:1px solid rgba(52,211,153,.1)}
+.ring-inner{width:58px;height:58px;border-radius:50%;background:radial-gradient(circle,rgba(52,211,153,.2) 0%,rgba(45,110,71,.15) 100%);border:1px solid rgba(52,211,153,.4);display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:700;color:#34d399;font-family:'Courier New',monospace;box-shadow:0 0 30px rgba(52,211,153,.2)}
+.log-btn{width:100%;padding:10px;border-radius:12px;background:linear-gradient(135deg,#2d6e47,#34d399);color:#fff;font-size:13px;font-weight:700;letter-spacing:.3px;text-align:center;box-shadow:0 4px 20px rgba(52,211,153,.3)}
+.today-lbl{font-size:10px;color:rgba(255,255,255,.4)}
+</style>
+</head>
+<body>
+<div class="screen">
+  <div class="time">9:41</div>
+  <div class="habit-name">Morning Run</div>
+  <div class="habit-cat">Fitness · Start</div>
+  <div class="ring">
+    <div class="ring-inner">1</div>
+  </div>
+  <div class="today-lbl">today</div>
+  <div class="log-btn">Log it ✓</div>
+</div>
+</body>
+</html>

@@ -34,7 +34,6 @@ const {
   withXcodeProject,
   withDangerousMod,
   withInfoPlist,
-  withEntitlementsPlist,
 } = require('@expo/config-plugins');
 const path = require('path');
 const fs   = require('fs');
@@ -55,20 +54,10 @@ const SWIFT_SOURCES = [
 
 module.exports = function withWatchApp(config) {
   config = withInfoPlist(config, addDocumentTypes);
-  config = withEntitlementsPlist(config, addICloudEntitlement);
   config = withDangerousMod(config, ['ios', copyFiles]);
   config = withXcodeProject(config, modifyProject);
   return config;
 };
-
-function addICloudEntitlement(cfg) {
-  const bundleId = cfg.ios?.bundleIdentifier ?? 'sprout.richdmart.in';
-  const e = cfg.modResults;
-  if (!e['com.apple.developer.ubiquity-container-identifiers']) {
-    e['com.apple.developer.ubiquity-container-identifiers'] = [`iCloud.${bundleId}`];
-  }
-  return cfg;
-}
 
 // ── Info.plist: accept JSON files via Share Sheet ─────────────────────────────
 function addDocumentTypes(cfg) {
@@ -106,13 +95,6 @@ async function copyFiles(cfg) {
   mkdirp(bridgeDst);
   for (const f of ['SproutWatchBridge.h', 'SproutWatchBridge.m']) {
     cp(path.join(bridgeSrc, f), path.join(bridgeDst, f));
-  }
-
-  const cloudSrc = path.join(projectRoot, 'modules', 'cloud-bridge', 'ios');
-  const cloudDst = path.join(platformProjectRoot, 'SproutCloudBridge');
-  mkdirp(cloudDst);
-  for (const f of ['SproutCloudBridge.h', 'SproutCloudBridge.m']) {
-    cp(path.join(cloudSrc, f), path.join(cloudDst, f));
   }
 
   if (!WATCH_READY) return cfg;
@@ -239,17 +221,6 @@ function modifyProject(cfg) {
     addToGroup(project, mRefId, 'SproutWatchBridge.m', bridgeGroup.uuid);
     addToSourcesPhase(project, mRefId, 'SproutWatchBridge.m', mainUuid);
     addFrameworkToTarget(project, 'WatchConnectivity.framework', mainUuid);
-  }
-
-  // ── STEP 1b: iCloud bridge → main target ──────────────────────────────────
-  const cloudGroupKey = project.findPBXGroupKey({ name: 'SproutCloudBridge' });
-  if (!cloudGroupKey) {
-    const cloudGroup = project.addPbxGroup([], 'SproutCloudBridge', 'SproutCloudBridge');
-    const chRefId = ensureFileRef(project, 'SproutCloudBridge/SproutCloudBridge.h', 'SproutCloudBridge.h', 'sourcecode.c.h');
-    addToGroup(project, chRefId, 'SproutCloudBridge.h', cloudGroup.uuid);
-    const cmRefId = ensureFileRef(project, 'SproutCloudBridge/SproutCloudBridge.m', 'SproutCloudBridge.m');
-    addToGroup(project, cmRefId, 'SproutCloudBridge.m', cloudGroup.uuid);
-    addToSourcesPhase(project, cmRefId, 'SproutCloudBridge.m', mainUuid);
   }
 
   if (!WATCH_READY) return cfg;

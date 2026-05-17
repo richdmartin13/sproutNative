@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{width:100vw;height:100vh;overflow:hidden;background:#09100c;color:rgba(255,255,255,.92);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;position:relative}
+.bg{position:absolute;inset:0;overflow:hidden;pointer-events:none}
+.blob{position:absolute;border-radius:50%;filter:blur(80px)}
+.b1{width:55vw;height:55vw;background:#2d6e47;opacity:.22;top:-10vw;right:-10vw}
+.b2{width:35vw;height:35vw;background:#1a4a2e;opacity:.18;bottom:15vh;left:-5vw}
+
+.screen{position:relative;z-index:1;height:100vh;display:flex;flex-direction:column;padding-bottom:80px;overflow-y:auto;scrollbar-width:none}
+
+.status{display:flex;justify-content:space-between;align-items:center;padding:clamp(12px,1.8vh,18px) clamp(18px,5vw,32px) 6px;font-size:clamp(13px,1.8vw,16px);font-weight:600}
+.status-right{display:flex;gap:5px;align-items:center}
+
+.header{padding:clamp(4px,.8vh,10px) clamp(18px,5vw,32px) clamp(8px,1.4vh,14px)}
+.title{font-family:'Playfair Display',Georgia,serif;font-size:clamp(26px,4.5vw,40px);font-weight:700;letter-spacing:-.5px}
+
+.section{margin:0 clamp(12px,3vw,24px) clamp(10px,1.6vh,16px);background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);border-radius:clamp(14px,2vw,20px);padding:clamp(14px,2.2vh,20px) clamp(14px,2.5vw,20px);backdrop-filter:blur(12px);position:relative;overflow:hidden}
+.section::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(255,255,255,.04),transparent 60%);pointer-events:none}
+.sec-title{font-size:clamp(11px,1.5vw,13px);font-weight:600;letter-spacing:1px;text-transform:uppercase;color:rgba(255,255,255,.4);margin-bottom:clamp(10px,1.6vh,16px)}
+
+/* ── Stats row ── */
+.stats-row{display:flex;gap:10px;margin:0 clamp(12px,3vw,24px) clamp(10px,1.6vh,16px)}
+.stat-box{flex:1;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);border-radius:clamp(12px,1.8vw,18px);padding:clamp(10px,1.6vh,16px) clamp(12px,2vw,18px);backdrop-filter:blur(12px);text-align:center}
+.stat-n{font-family:'DM Mono','SF Mono',monospace;font-size:clamp(22px,3.5vw,32px);font-weight:500;color:#34d399;line-height:1}
+.stat-l{font-size:clamp(10px,1.3vw,12px);color:rgba(255,255,255,.4);margin-top:4px}
+
+/* ── Heatmap ── */
+.heatmap{display:flex;flex-direction:column;gap:3px}
+.hm-row{display:flex;gap:3px}
+.hm-cell{flex:1;aspect-ratio:1;border-radius:2px}
+.hm0{background:rgba(255,255,255,.06)}
+.hm1{background:rgba(45,110,71,.35)}
+.hm2{background:rgba(45,110,71,.55)}
+.hm3{background:rgba(45,110,71,.75)}
+.hm4{background:#34d399}
+.hm-months{display:flex;justify-content:space-between;margin-top:4px;font-size:10px;color:rgba(255,255,255,.3)}
+
+/* ── Bar chart ── */
+.bars{display:flex;align-items:flex-end;gap:clamp(4px,1vw,8px);height:clamp(60px,10vh,90px)}
+.bar-wrap{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px}
+.bar{width:100%;border-radius:4px 4px 0 0;background:linear-gradient(to top,#2d6e47,#34d399)}
+.bar-lbl{font-size:clamp(9px,1.2vw,11px);color:rgba(255,255,255,.35);text-align:center}
+
+/* ── Line chart ── */
+.line-chart{position:relative;height:clamp(60px,10vh,90px)}
+.line-chart svg{width:100%;height:100%}
+
+/* ── Nav ── */
+.nav{position:fixed;bottom:0;left:0;right:0;background:rgba(9,16,12,.85);backdrop-filter:blur(24px);border-top:1px solid rgba(45,110,71,.18);display:flex;justify-content:space-around;padding:10px 0 clamp(14px,3vh,28px)}
+.ni{display:flex;flex-direction:column;align-items:center;gap:3px;font-size:clamp(10px,1.3vw,12px)}
+.ni svg{width:clamp(20px,3vw,26px);height:clamp(20px,3vw,26px)}
+.ni.on{color:#34d399}.ni.off{color:rgba(255,255,255,.3)}
+</style>
+</head>
+<body>
+<div class="bg"><div class="blob b1"></div><div class="blob b2"></div></div>
+
+<div class="screen">
+  <div class="status">
+    <span>9:41</span>
+    <div class="status-right">
+      <svg width="17" height="12" viewBox="0 0 17 12"><rect x="0" y="8" width="3" height="4" rx="1" fill="white" opacity=".5"/><rect x="4.5" y="5" width="3" height="7" rx="1" fill="white" opacity=".7"/><rect x="9" y="2" width="3" height="10" rx="1" fill="white" opacity=".9"/><rect x="13.5" y="0" width="3" height="12" rx="1" fill="white"/></svg>
+      <svg width="16" height="12" viewBox="0 0 16 12"><path d="M8 9.5a1.5 1.5 0 100 3 1.5 1.5 0 000-3z" fill="white"/><path d="M3.5 7C5 5.3 6.4 4.5 8 4.5s3 .8 4.5 2.5" stroke="white" stroke-width="1.5" fill="none" stroke-linecap="round"/><path d="M1 4.5C3.2 2 5.5 1 8 1s4.8 1 7 3.5" stroke="white" stroke-width="1.5" fill="none" stroke-linecap="round" opacity=".5"/></svg>
+      <svg width="26" height="13" viewBox="0 0 26 13"><rect x=".5" y="1" width="22" height="11" rx="3" stroke="white" stroke-width="1" fill="none" opacity=".5"/><rect x="23" y="4" width="2.5" height="5" rx="1" fill="white" opacity=".5"/><rect x="2" y="2.5" width="17" height="8" rx="1.5" fill="white"/></svg>
+    </div>
+  </div>
+
+  <div class="header">
+    <div style="font-size:clamp(12px,1.5vw,15px);color:rgba(255,255,255,.4);margin-bottom:4px;letter-spacing:.5px">All time</div>
+    <div class="title">Analytics</div>
+  </div>
+
+  <!-- Top stats -->
+  <div class="stats-row">
+    <div class="stat-box">
+      <div class="stat-n">284</div>
+      <div class="stat-l">Total logs</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-n" style="color:#60a5fa">12d</div>
+      <div class="stat-l">Best streak</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-n" style="color:#fb7185">5</div>
+      <div class="stat-l">Habits</div>
+    </div>
+  </div>
+
+  <!-- Heatmap -->
+  <div class="section">
+    <div class="sec-title">26-week activity</div>
+    <div class="heatmap" id="hm"></div>
+    <div class="hm-months">
+      <span>Dec</span><span>Jan</span><span>Feb</span><span>Mar</span><span>Apr</span><span>May</span>
+    </div>
+  </div>
+
+  <!-- Trends -->
+  <div class="section">
+    <div class="sec-title">30-day trend — Morning Run</div>
+    <div class="line-chart">
+      <svg viewBox="0 0 300 80" preserveAspectRatio="none">
+        <defs>
+          <linearGradient id="lg" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#34d399" stop-opacity=".3"/>
+            <stop offset="100%" stop-color="#34d399" stop-opacity="0"/>
+          </linearGradient>
+        </defs>
+        <path d="M0,60 L10,60 L20,40 L30,40 L40,20 L50,20 L60,60 L70,20 L80,20 L90,40 L100,40 L110,20 L120,20 L130,60 L140,40 L150,20 L160,20 L170,20 L180,40 L190,40 L200,20 L210,20 L220,20 L230,40 L240,20 L250,20 L260,20 L270,20 L280,20 L300,20" stroke="#34d399" stroke-width="2" fill="url(#lg)" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </div>
+  </div>
+
+  <!-- Rankings -->
+  <div class="section">
+    <div class="sec-title">Rankings</div>
+    <div class="bars">
+      <div class="bar-wrap">
+        <div class="bar" style="height:90%"></div>
+        <div class="bar-lbl">Run</div>
+      </div>
+      <div class="bar-wrap">
+        <div class="bar" style="height:72%"></div>
+        <div class="bar-lbl">Read</div>
+      </div>
+      <div class="bar-wrap">
+        <div class="bar" style="height:65%"></div>
+        <div class="bar-lbl">Med.</div>
+      </div>
+      <div class="bar-wrap">
+        <div class="bar" style="height:48%;background:linear-gradient(to top,#1a4a7c,#60a5fa)"></div>
+        <div class="bar-lbl">Coffee</div>
+      </div>
+      <div class="bar-wrap">
+        <div class="bar" style="height:22%;background:linear-gradient(to top,#7c1a2e,#fb7185)"></div>
+        <div class="bar-lbl">Social</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="nav">
+  <div class="ni off">
+    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
+    <span>Habits</span>
+  </div>
+  <div class="ni on">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+    <span>Analytics</span>
+  </div>
+  <div class="ni off">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>
+    <span>Settings</span>
+  </div>
+</div>
+
+<script>
+// Generate heatmap
+const hm = document.getElementById('hm');
+const weeks = 26, days = 7;
+for(let d=0;d<days;d++){
+  const row = document.createElement('div');
+  row.className='hm-row';
+  for(let w=0;w<weeks;w++){
+    const cell=document.createElement('div');
+    const r=Math.random();
+    const recent = w > 20;
+    const val = recent ? (Math.random()<.6?Math.floor(Math.random()*4)+1:0) : (Math.random()<.45?Math.floor(Math.random()*3)+1:0);
+    cell.className='hm-cell hm'+val;
+    row.appendChild(cell);
+  }
+  hm.appendChild(row);
+}
+</script>
+</body>
+</html>

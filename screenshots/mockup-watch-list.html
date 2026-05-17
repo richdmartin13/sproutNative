@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{
+  width:198px;height:242px;overflow:hidden;
+  background:radial-gradient(ellipse at 40% 20%,#1a3d28 0%,#09100c 60%);
+  color:rgba(255,255,255,.92);
+  font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;
+  border-radius:28px;
+}
+.screen{width:100%;height:100%;display:flex;flex-direction:column;padding:10px 12px 12px}
+.time{font-size:14px;font-weight:700;color:rgba(255,255,255,.9);text-align:center;margin-bottom:2px;letter-spacing:.3px}
+.app-name{font-size:11px;font-weight:600;color:#34d399;text-align:center;letter-spacing:.5px;text-transform:uppercase;margin-bottom:8px}
+.habits{display:flex;flex-direction:column;gap:5px;flex:1}
+.habit{display:flex;align-items:center;gap:7px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:6px 8px}
+.dot{width:5px;height:5px;border-radius:50%;flex-shrink:0}
+.dot-s{background:#34d399}
+.dot-x{background:#fb7185}
+.dot-n{background:#60a5fa}
+.hname{font-size:11px;font-weight:600;color:rgba(255,255,255,.88);flex:1;line-height:1.2}
+.streak{font-size:10px;font-weight:500;color:#34d399;font-family:'Courier New',monospace}
+.streak-x{color:rgba(255,255,255,.35)}
+</style>
+</head>
+<body>
+<div class="screen">
+  <div class="time">9:41</div>
+  <div class="app-name">Sprout</div>
+  <div class="habits">
+    <div class="habit">
+      <div class="dot dot-s"></div>
+      <div class="hname">Morning Run</div>
+      <div class="streak">12d 🔥</div>
+    </div>
+    <div class="habit">
+      <div class="dot dot-s"></div>
+      <div class="hname">Meditate</div>
+      <div class="streak">8d 🔥</div>
+    </div>
+    <div class="habit">
+      <div class="dot dot-x"></div>
+      <div class="hname">No Social</div>
+      <div class="streak streak-x">5d ago</div>
+    </div>
+    <div class="habit">
+      <div class="dot dot-s"></div>
+      <div class="hname">Reading</div>
+      <div class="streak">7d 🔥</div>
+    </div>
+    <div class="habit">
+      <div class="dot dot-n"></div>
+      <div class="hname">Coffee</div>
+      <div class="streak" style="color:#60a5fa">2 today</div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

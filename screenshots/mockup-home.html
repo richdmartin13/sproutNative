@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{
+  width:100vw;height:100vh;overflow:hidden;
+  background:#09100c;
+  color:rgba(255,255,255,.92);
+  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  position:relative;
+}
+.bg{position:absolute;inset:0;overflow:hidden;pointer-events:none}
+.blob{position:absolute;border-radius:50%;filter:blur(80px)}
+.b1{width:60vw;height:60vw;background:#2d6e47;opacity:.25;top:-15vw;left:-10vw}
+.b2{width:40vw;height:40vw;background:#1a4a2e;opacity:.2;bottom:10vh;right:-5vw}
+.b3{width:30vw;height:30vw;background:#34d399;opacity:.07;top:40vh;right:5vw}
+
+.screen{position:relative;z-index:1;height:100vh;display:flex;flex-direction:column}
+
+/* ── Status bar ── */
+.status{display:flex;justify-content:space-between;align-items:center;padding:clamp(12px,1.8vh,18px) clamp(18px,5vw,32px) 6px;font-size:clamp(13px,1.8vw,16px);font-weight:600;letter-spacing:.2px}
+.status-right{display:flex;gap:5px;align-items:center}
+
+/* ── Header ── */
+.header{padding:clamp(4px,.8vh,10px) clamp(18px,5vw,32px) clamp(10px,1.6vh,18px)}
+.greeting{font-size:clamp(12px,1.5vw,15px);color:rgba(255,255,255,.45);letter-spacing:.5px;margin-bottom:4px}
+.title{font-family:'Playfair Display',Georgia,serif;font-size:clamp(28px,5vw,44px);font-weight:700;letter-spacing:-.5px;line-height:1}
+
+/* ── Filter bar ── */
+.filters{display:flex;gap:8px;padding:0 clamp(18px,5vw,32px) clamp(10px,1.6vh,18px);overflow-x:auto;scrollbar-width:none}
+.chip{padding:6px clamp(14px,2.5vw,20px);border-radius:20px;font-size:clamp(12px,1.4vw,14px);font-weight:500;white-space:nowrap;border:1px solid rgba(45,110,71,.3);background:rgba(255,255,255,.04);color:rgba(255,255,255,.55);cursor:pointer;transition:.2s}
+.chip.on{background:#2d6e47;color:#fff;border-color:#2d6e47}
+
+/* ── Cards ── */
+.list{flex:1;overflow:hidden;padding:0 clamp(12px,3vw,24px);display:grid;gap:clamp(8px,1.2vh,14px);align-content:start}
+@media(min-width:600px){.list{grid-template-columns:1fr 1fr}}
+
+.card{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);border-radius:clamp(14px,2vw,20px);padding:clamp(12px,2vh,18px) clamp(14px,2.5vw,20px);backdrop-filter:blur(12px);position:relative;overflow:hidden}
+.card::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(255,255,255,.04) 0%,transparent 60%);pointer-events:none}
+.card-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.card-left{display:flex;align-items:center;gap:10px}
+.emoji{font-size:clamp(18px,2.5vw,24px);line-height:1}
+.hname{font-size:clamp(14px,2vw,17px);font-weight:600;color:rgba(255,255,255,.92)}
+.hcat{font-size:clamp(10px,1.3vw,13px);color:rgba(255,255,255,.4);margin-top:2px}
+.stat-val{font-family:'DM Mono','SF Mono',monospace;font-size:clamp(16px,2.5vw,22px);font-weight:500;text-align:right}
+.stat-lbl{font-size:clamp(10px,1.2vw,12px);color:rgba(255,255,255,.38);text-align:right;margin-top:1px}
+.c-start{color:#34d399}.c-stop{color:#fb7185}.c-neutral{color:#60a5fa}
+.type-dot{width:6px;height:6px;border-radius:50%;margin-top:3px}
+.spark{width:100%;height:clamp(16px,2.4vh,22px)}
+
+/* ── Bottom nav ── */
+.nav{position:absolute;bottom:0;left:0;right:0;background:rgba(9,16,12,.85);backdrop-filter:blur(24px);border-top:1px solid rgba(45,110,71,.18);display:flex;justify-content:space-around;padding:10px 0 clamp(14px,3vh,28px)}
+.ni{display:flex;flex-direction:column;align-items:center;gap:3px;font-size:clamp(10px,1.3vw,12px)}
+.ni svg{width:clamp(20px,3vw,26px);height:clamp(20px,3vw,26px)}
+.ni.on{color:#34d399}.ni.off{color:rgba(255,255,255,.3)}
+</style>
+</head>
+<body>
+<div class="bg"><div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div></div>
+<div class="screen">
+
+  <div class="status">
+    <span>9:41</span>
+    <div class="status-right">
+      <svg width="17" height="12" viewBox="0 0 17 12"><rect x="0" y="8" width="3" height="4" rx="1" fill="white" opacity=".5"/><rect x="4.5" y="5" width="3" height="7" rx="1" fill="white" opacity=".7"/><rect x="9" y="2" width="3" height="10" rx="1" fill="white" opacity=".9"/><rect x="13.5" y="0" width="3" height="12" rx="1" fill="white"/></svg>
+      <svg width="16" height="12" viewBox="0 0 16 12"><path d="M8 9.5a1.5 1.5 0 100 3 1.5 1.5 0 000-3z" fill="white"/><path d="M3.5 7C5 5.3 6.4 4.5 8 4.5s3 .8 4.5 2.5" stroke="white" stroke-width="1.5" fill="none" stroke-linecap="round"/><path d="M1 4.5C3.2 2 5.5 1 8 1s4.8 1 7 3.5" stroke="white" stroke-width="1.5" fill="none" stroke-linecap="round" opacity=".5"/></svg>
+      <svg width="26" height="13" viewBox="0 0 26 13"><rect x=".5" y="1" width="22" height="11" rx="3" stroke="white" stroke-width="1" fill="none" opacity=".5"/><rect x="23" y="4" width="2.5" height="5" rx="1" fill="white" opacity=".5"/><rect x="2" y="2.5" width="17" height="8" rx="1.5" fill="white"/></svg>
+    </div>
+  </div>
+
+  <div class="header">
+    <div class="greeting">Good morning ✦</div>
+    <div class="title">Sprout</div>
+  </div>
+
+  <div class="filters">
+    <div class="chip on">All</div>
+    <div class="chip">Start</div>
+    <div class="chip">Stop</div>
+    <div class="chip">Neutral</div>
+  </div>
+
+  <div class="list" style="padding-bottom:90px">
+
+    <div class="card">
+      <div class="card-row">
+        <div class="card-left">
+          <div class="emoji">🏃</div>
+          <div><div class="hname">Morning Run</div><div class="hcat">Fitness</div></div>
+        </div>
+        <div><div class="stat-val c-start">12d</div><div class="stat-lbl">streak 🔥</div></div>
+      </div>
+      <svg class="spark" viewBox="0 0 300 20" preserveAspectRatio="none">
+        <polyline points="0,18 21,18 43,4 64,4 86,4 107,18 129,4 150,4 171,4 193,18 214,4 236,4 257,4 279,4 300,4" fill="none" stroke="#34d399" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity=".35"/>
+        <polyline points="0,18 21,18 43,4 64,4 86,4 107,18 129,4 150,4 171,4 193,18 214,4 236,4 257,4 279,4 300,4" fill="none" stroke="#34d399" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </div>
+
+    <div class="card">
+      <div class="card-row">
+        <div class="card-left">
+          <div class="emoji">🧘</div>
+          <div><div class="hname">Meditate</div><div class="hcat">Wellness</div></div>
+        </div>
+        <div><div class="stat-val c-start">8d</div><div class="stat-lbl">streak 🔥</div></div>
+      </div>
+      <svg class="spark" viewBox="0 0 300 20" preserveAspectRatio="none">
+        <polyline points="0,4 21,18 43,4 64,4 86,18 107,4 129,4 150,4 171,18 193,4 214,4 236,4 257,4 279,4 300,4" fill="none" stroke="#34d399" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </div>
+
+    <div class="card">
+      <div class="card-row">
+        <div class="card-left">
+          <div class="emoji">📵</div>
+          <div><div class="hname">No Social Media</div><div class="hcat">Mindset</div></div>
+        </div>
+        <div><div class="stat-val c-stop">5d</div><div class="stat-lbl">since last</div></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-row">
+        <div class="card-left">
+          <div class="emoji">📖</div>
+          <div><div class="hname">Reading</div><div class="hcat">Learning</div></div>
+        </div>
+        <div><div class="stat-val c-start">7d</div><div class="stat-lbl">streak 🔥</div></div>
+      </div>
+      <svg class="spark" viewBox="0 0 300 20" preserveAspectRatio="none">
+        <polyline points="0,18 21,18 43,18 64,4 86,4 107,4 129,18 150,4 171,4 193,4 214,4 236,4 257,4 279,4 300,4" fill="none" stroke="#34d399" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </div>
+
+    <div class="card">
+      <div class="card-row">
+        <div class="card-left">
+          <div class="emoji">☕</div>
+          <div><div class="hname">Coffee Intake</div><div class="hcat">Health</div></div>
+        </div>
+        <div><div class="stat-val c-neutral">2</div><div class="stat-lbl">today</div></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="nav">
+  <div class="ni on">
+    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
+    <span>Habits</span>
+  </div>
+  <div class="ni off">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+    <span>Analytics</span>
+  </div>
+  <div class="ni off">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>
+    <span>Settings</span>
+  </div>
+</div>
+</body>
+</html>

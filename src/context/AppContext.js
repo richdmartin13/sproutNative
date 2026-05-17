@@ -1,8 +1,7 @@
-import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { Linking, Alert, Platform } from 'react-native';
 import { File as ExpoFile } from 'expo-file-system';
 import { loadData, saveData, importJson } from '../lib/storage.js';
-import { saveToCloud, loadFromCloud } from '../cloud/CloudBridge.js';
 import { getTheme } from '../lib/theme.js';
 import { normLog, todayStr } from '../lib/util.js';
 import { useWatchSync } from '../watch/useWatchSync.js';
@@ -13,8 +12,6 @@ export function AppProvider({ children }) {
   const [data, setData] = useState(null);
   const [ready, setReady] = useState(false);
   const [pendingImportUrl, setPendingImportUrl] = useState(null);
-  const cloudTimer = useRef(null);
-
   // Capture file:// URLs from Share Sheet (cold-start and while running)
   useEffect(() => {
     if (Platform.OS !== 'ios') return;
@@ -52,25 +49,15 @@ export function AppProvider({ children }) {
         await new Promise(r => setTimeout(r, 200));
         d = await loadData();
       }
-      // On fresh install (no local habits), try to restore from iCloud
-      if (!d.habits.length) {
-        const cloudJson = await loadFromCloud();
-        if (cloudJson) {
-          try { d = JSON.parse(cloudJson); } catch {}
-        }
-      }
       setData(d);
       setReady(true);
     }
     load();
   }, []);
 
-  // Persist locally on every change; debounced cloud backup every 2s
   useEffect(() => {
     if (!data || !ready) return;
     saveData(data);
-    clearTimeout(cloudTimer.current);
-    cloudTimer.current = setTimeout(() => saveToCloud(JSON.stringify(data)), 2000);
   }, [data]);
 
   const setPrefs = useCallback(p => setData(d => ({...d, prefs:p})), []);

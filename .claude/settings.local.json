@@ -17,7 +17,18 @@
       "Bash(eas build *)",
       "Bash(curl -sL \"https://expo.dev/artifacts/eas/nTgQFBDgBrUZQ7dFKvDiL6.ipa\" -o /tmp/store3.ipa)",
       "Bash(unzip -o /tmp/store3.ipa -d /tmp/store3_ipa)",
-      "Bash(eas submit *)"
+      "Bash(eas submit *)",
+      "Bash(node -e \"const s=require\\(process.env.USERPROFILE+'/.expo/state.json'\\); console.log\\(JSON.parse\\(s.auth.sessionSecret\\).id\\)\")",
+      "Bash(curl -s -X POST https://api.expo.dev/graphql -H 'Content-Type: application/json' -H 'expo-session: __TRACKED_VAR__' -d '{\"query\":\"mutation { personalAccessToken_createPersonalAccessToken: personal_access_token { create\\(name: \\\\\"GitHub Actions CI\\\\\"\\) { token } } }\"}')",
+      "Bash(node -e \"const d=JSON.parse\\(require\\('fs'\\).readFileSync\\('/dev/stdin','utf8'\\)\\); const fields=d.data?.__schema?.mutationType?.fields||[]; fields.filter\\(f=>f.name.toLowerCase\\(\\).includes\\('token'\\)||f.name.toLowerCase\\(\\).includes\\('access'\\)\\).forEach\\(f=>console.log\\(f.name\\)\\)\")",
+      "Bash(gh workflow *)",
+      "Bash(gh run *)",
+      "Bash(node -e \"const d=JSON.parse\\(require\\('fs'\\).readFileSync\\('/dev/stdin','utf8'\\)\\); console.log\\(Object.keys\\({...d.dependencies,...d.devDependencies}\\).join\\('\\\\n'\\)\\)\")",
+      "Bash(findstr /i \"playwright puppeteer\")",
+      "Bash(node -e \"try{require\\('puppeteer'\\);console.log\\('puppeteer ok'\\)}catch\\(e\\){console.log\\('no puppeteer'\\)}\")",
+      "Bash(node -e \"try{require\\('@playwright/test'\\);console.log\\('playwright ok'\\)}catch\\(e\\){console.log\\('no playwright'\\)}\")",
+      "Bash(npm install *)",
+      "Bash(node -e \"const p=require\\('puppeteer-core'\\);console.log\\('puppeteer-core ok'\\)\")"
     ]
   }
 }
