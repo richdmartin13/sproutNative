@@ -476,7 +476,7 @@ export default function AnalyticsScreen() {
       <FilterBar habits={allHabits} category={category} setCategory={setCategory}
         types={types} setTypes={setTypes} />
 
-      <ScrollView contentContainerStyle={{ paddingHorizontal:20, paddingBottom:120 }}
+      <ScrollView contentContainerStyle={{ paddingHorizontal:20, paddingBottom:120, paddingTop:8 }}
         showsVerticalScrollIndicator={false}>
 
         {/* Summary strip — matches web "All time" / "This day" section */}

@@ -13,6 +13,7 @@ import {
   X, Download, Upload,
   Undo2, Repeat, MoreHorizontal,
   List, Grid, Palette, LayoutGrid, PenLine, Database, ScrollText,
+  TrendingUp, TrendingDown, Minus,
 } from 'lucide-react-native';
 
 export {
@@ -23,4 +24,5 @@ export {
   X, Download, Upload,
   Undo2, Repeat, MoreHorizontal,
   List, Grid, Palette, LayoutGrid, PenLine, Database, ScrollText,
+  TrendingUp, TrendingDown, Minus,
 };

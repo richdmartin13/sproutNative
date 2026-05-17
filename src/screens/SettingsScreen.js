@@ -29,7 +29,19 @@ function MRow({ label, sub, value, onChange }) {
 
 const CHANGELOG = [
   {
-    version: 'sprout_2026.05.14#27',
+    version: 'sprout_2026.05.17.28',
+    changes: [
+      'Apple Watch: full-screen tap logs habit; Undo button appears post-log; auto-dismisses after 2s',
+      'Apple Watch: Undo wired through native bridge — removes most recent today-log on iPhone',
+      'Export filename: # replaced with . (fixes file import issues on some systems)',
+      'Add Habit modal: type selector redesigned as compact inline row with icons',
+      'Compact list cards: increased padding and category label for better readability',
+      'Home & Analytics: spacing added below filter chips before first cards',
+      'Build pipeline: Codemagic fully automated — sign, archive, export, TestFlight submit',
+    ],
+  },
+  {
+    version: 'sprout_2026.05.14.27',
     changes: [
       'Apple Watch app: full SwiftUI app (HabitListView, QuickLogView, HabitRowView, WatchDataModel)',
       'WatchConnectivity bridge: SproutWatchBridge native module pushes habits to watch via Application Context + direct message',
@@ -45,7 +57,7 @@ const CHANGELOG = [
     ],
   },
   {
-    version: 'sprout_2026.05.14#26',
+    version: 'sprout_2026.05.14.26',
     changes: [
       'App icon fix: icon.png top half was nearly transparent (alpha ≈ 15), making the sprout logo hard to see — green background now fills the full 1024×1024 canvas via alpha-composite',
       'adaptive-icon.png: logo scaled up ~72% for better visual weight on Android adaptive icon safe zone',
@@ -54,7 +66,7 @@ const CHANGELOG = [
     ],
   },
   {
-    version: 'sprout_2026.05.14#25',
+    version: 'sprout_2026.05.14.25',
     changes: [
       'Bundle ID renamed: com.sprout.app → sprout.richdmart.in (app.json iOS bundleIdentifier, Android package, Expo slug)',
       'eas.json created with development/preview/production build profiles',
@@ -65,14 +77,14 @@ const CHANGELOG = [
     ],
   },
   {
-    version: 'sprout_2026.05.14#24',
+    version: 'sprout_2026.05.14.24',
     changes: [
       'EAS BUILD FIX: react-native-svg 15.11.2 → 15.12.1 — fixes C++ Fabric shadow node errors (BaseShadowNode, ConcreteShadowNode template arguments) that caused Xcode build failure in RN 0.76+',
       'react-native 0.81.4 → 0.81.5 — minor patch matching Expo SDK 54 expectation',
     ],
   },
   {
-    version: 'sprout_2026.05.14#23',
+    version: 'sprout_2026.05.14.23',
     changes: [
       'CRITICAL FIX: useSafeAreaInsets hook was declared in sub-components (Filters, Section, LogRowNative, MRow) but used via insets.top in the main exported component — ReferenceError on all 4 screens',
       'FIXED: Hook moved to correct scope in HomeScreen, AnalyticsScreen, TapScreen, SettingsScreen',
@@ -82,7 +94,7 @@ const CHANGELOG = [
     ],
   },
   {
-    version: 'sprout_2026.05.14#22',
+    version: 'sprout_2026.05.14.22',
     changes: [
       'SafeAreaView removed entirely — replaced with useSafeAreaInsets() hook on all screens',
       'Topbar: paddingTop = insets.top + 10 on all screens (status bar safe without deprecated component)',
@@ -91,7 +103,7 @@ const CHANGELOG = [
     ],
   },
   {
-    version: 'sprout_2026.05.14#21',
+    version: 'sprout_2026.05.14.21',
     changes: [
       'Settings + TapScreen:(edges=top) added — content no longer overlaps status bar',
       'FAB: blur+bevel matching active nav pill (no sphere gradients), feels same as tab selector',
@@ -101,7 +113,7 @@ const CHANGELOG = [
     ],
   },
   {
-    version: 'sprout_2026.05.14#20',
+    version: 'sprout_2026.05.14.20',
     changes: [
       'Nav: two-shell architecture — outer overflow:visible (glow escapes), inner overflow:hidden (clips blur to circle = no rectangle)',
       'Nav glow: near-zero opacity fill + animated inner View for subtle circular bloom',
@@ -114,7 +126,7 @@ const CHANGELOG = [
     ],
   },
   {
-    version: 'sprout_2026.05.14#19',
+    version: 'sprout_2026.05.14.19',
     changes: [
       'Glow: subtle (dark 0.28/0.45 shadow, light 0.14/0.22) on nav active pill and FAB; accent chips same subtle glow',
       'Nav pill glass reduced to 50% (BlurView intensity 22/15); active pill 50% (24/18)',
@@ -129,7 +141,7 @@ const CHANGELOG = [
     ],
   },
   {
-    version: 'sprout_2026.05.14#18',
+    version: 'sprout_2026.05.14.18',
     changes: [
       'Uniform header font: Habits/Analytics/Settings all 30px Playfair, letterSpacing -0.025',
       'Compact card: total count shown inline',
@@ -145,7 +157,7 @@ const CHANGELOG = [
     ],
   },
   {
-    version: 'sprout_2026.05.14#17',
+    version: 'sprout_2026.05.14.17',
     changes: [
       'CRASH FIX: DayOfWeekSection reference error — stale call replaced with TimePatternsCard',
       'REQUIRE CYCLE FIX: FONTS moved to src/lib/fonts.js — no more App.js circular imports',
@@ -160,7 +172,7 @@ const CHANGELOG = [
     ],
   },
   {
-    version: 'sprout_2026.05.14#16',
+    version: 'sprout_2026.05.14.16',
     changes: [
       'Glass intensity: full (100%) on nav/FAB/sheets, softened (40%) on section/habit cards, flat (no blur) on interior components — stat counters, action buttons, log rows',
       'BottomNav: gradients removed, pure blur+bevel; bottom margin equals side margin (16px)',
@@ -173,7 +185,7 @@ const CHANGELOG = [
     ],
   },
   {
-    version: 'sprout_2026.05.14#15',
+    version: 'sprout_2026.05.14.15',
     changes: [
       'Liquid glass applied to ALL surfaces: stat cards, tap zone, action buttons, log rows, empty states, settings list, bottom sheet panel — via GlassCard (BlurView + sheen + inner bevel)',
       'GlassCard: stronger definition — bevel 2.5px, sheen opacity 0.60-0.70, blur intensity 55 dark/40 light, multi-edge border (bright top, dark bottom) for raised feel',
@@ -182,7 +194,7 @@ const CHANGELOG = [
     ],
   },
   {
-    version: 'sprout_2026.05.14#14',
+    version: 'sprout_2026.05.14.14',
     changes: [
       'GlassCard: real frosted blur (expo-blur BlurView intensity=40) + LinearGradient sheen overlay — true liquid glass effect',
       'BottomNav pill: BlurView frosted glass base layer',
@@ -190,7 +202,7 @@ const CHANGELOG = [
     ],
   },
   {
-    version: 'sprout_2026.05.14#13',
+    version: 'sprout_2026.05.14.13',
     changes: [
       'GlassCard: now uses expo-linear-gradient for true CSS-matching gradients (135° diagonal for cards, 180° top-fade for sections)',
       'BottomNav: LinearGradient glass overlay on pill (matches web .bnav::before), accent glow shadow on active tab pill (matches web .bnav button.on box-shadow: 0 2px 10px var(--accent-glow))',
@@ -198,7 +210,7 @@ const CHANGELOG = [
     ],
   },
   {
-    version: 'sprout_2026.05.14#12',
+    version: 'sprout_2026.05.14.12',
     changes: [
       'Layout & Behavior modal now matches web exactly: order (Streak, Compact, Default view inline, Repeat, Carry, Auto-tag, Day view), subs match, Default view is an inline .seg control on the right',
       'Data modal matches web: icon inline in label row, chevron on right, no icon boxes',
@@ -207,7 +219,7 @@ const CHANGELOG = [
     ],
   },
   {
-    version: 'sprout_2026.05.14#11',
+    version: 'sprout_2026.05.14.11',
     changes: [
       'Version dates corrected to 2026.05.14',
       'Native analytics parity with web: section headers with subtitles, "ALL TIME"/"THIS DAY" label, heatmap subtitle',
@@ -217,7 +229,7 @@ const CHANGELOG = [
     ],
   },
   {
-    version: 'sprout_2026.05.14#10',
+    version: 'sprout_2026.05.14.10',
     changes: [
       'Settings toggles work: track prefs correctly gate fields and are respected on save',
       'All trackables for all habit types (no type gating)',
@@ -227,7 +239,7 @@ const CHANGELOG = [
     ],
   },
   {
-    version: 'sprout_2026.05.14#9',
+    version: 'sprout_2026.05.14.9',
     changes: [
       'Spider chart via react-native-svg (filled polygon, vertex dots) — identical to web',
       'Font rules matched to web: Playfair on screen titles / empty h3 / sheet h2 only',
@@ -235,7 +247,7 @@ const CHANGELOG = [
     ],
   },
   {
-    version: 'sprout_2026.05.14#1–8',
+    version: 'sprout_2026.05.14.1–8',
     changes: [
       'Initial builds: brand guide, 7 schemes, all screens/sheets, analytics, settings',
       'Lucide icons (same as web), Playfair Display + DM Mono fonts',
@@ -259,7 +271,7 @@ export default function SettingsScreen() {
       const json = exportJson(data);
       const now = new Date();
       const p = n => String(n).padStart(2,'0');
-      const filename = `sproutData_${now.getFullYear()}.${p(now.getMonth()+1)}.${p(now.getDate())}#${p(now.getHours())}.${p(now.getMinutes())}.json`;
+      const filename = `sproutData_${now.getFullYear()}.${p(now.getMonth()+1)}.${p(now.getDate())}.${p(now.getHours())}.${p(now.getMinutes())}.json`;
       const path = FileSystem.cacheDirectory + filename;
       await FileSystem.writeAsStringAsync(path, json, { encoding: FileSystem.EncodingType.UTF8 });
       if (await Sharing.isAvailableAsync()) {

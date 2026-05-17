@@ -92,15 +92,18 @@ function HabitCard({ habit, onPress, onLong, viewMode, compact }) {
     );
   }
 
-  // Compact: minimal — just name, today count, and badge
+  // Compact: name + category, today count, and badge
   if (compact) {
     return (
       <Pressable onPress={() => onPress(habit)} onLongPress={() => onLong(habit)} delayLongPress={400}
         style={({ pressed }) => ({ opacity: pressed?0.92:1 })}>
-        <GlassCard style={{ paddingVertical:10, paddingHorizontal:14, paddingLeft:18 }} radius={18} variant="card">
-          <View style={{ position:'absolute', left:0, top:'18%', bottom:'18%', width:3, borderRadius:3, backgroundColor:tc }} />
+        <GlassCard style={{ paddingVertical:14, paddingHorizontal:14, paddingLeft:18 }} radius={18} variant="card">
+          <View style={{ position:'absolute', left:0, top:'14%', bottom:'14%', width:3, borderRadius:3, backgroundColor:tc }} />
           <View style={{ flexDirection:'row', alignItems:'center', gap:8 }}>
-            <Text style={{ flex:1, fontSize:15, fontWeight:'600', color:theme.text, letterSpacing:-0.3 }} numberOfLines={1}>{habit.name}</Text>
+            <View style={{ flex:1 }}>
+              <Text style={{ fontSize:15, fontWeight:'600', color:theme.text, letterSpacing:-0.3 }} numberOfLines={1}>{habit.name}</Text>
+              {habit.category ? <Text style={{ fontSize:11, color:theme.muted, marginTop:1 }}>{habit.category}</Text> : null}
+            </View>
             {badgeVal !== null && (
               <View style={{ flexDirection:'row', alignItems:'center', gap:2 }}>
                 {isStop
@@ -223,7 +226,7 @@ export default function HomeScreen({ onOpenHabit, onLongPressHabit, onNewHabit }
           key={grid?'g':'l'}
           numColumns={grid?2:1}
           keyExtractor={h=>h.id}
-          contentContainerStyle={{ paddingHorizontal:20, paddingBottom:140, gap:10 }}
+          contentContainerStyle={{ paddingHorizontal:20, paddingBottom:140, paddingTop:8, gap:10 }}
           columnWrapperStyle={grid?{gap:10}:undefined}
           showsVerticalScrollIndicator={false}
           renderItem={({item}) => {
