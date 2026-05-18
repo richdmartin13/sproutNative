@@ -41,8 +41,8 @@ function NavBtn({ item, active, onPress, liquidGlass }) {
 
   const labelWidth = widthAnim.interpolate({ inputRange:[0,1], outputRange:[0, 78] });
 
-  // Active icon/text color — white on glass/accent, accent on plain inactive
-  const activeTextColor = liquidGlass ? '#fff' : '#fff';
+  // Active icon/text color: light-mode glass needs dark text (white washes out on light glass)
+  const activeTextColor = (liquidGlass && !d) ? theme.text : '#fff';
   const inactiveTextColor = theme.muted;
 
   return (

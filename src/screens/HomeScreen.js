@@ -68,8 +68,10 @@ function Filters({ habits, category, setCategory, types, setTypes }) {
         style={{ paddingHorizontal: 18 }}
         contentContainerStyle={{ paddingRight: 18, alignItems: 'center' }}>
         {[['go','Start'],['st','Stop'],['ne','Neutral']].map(([t, lbl]) =>
-          chip(lbl, types.includes(t), TC[t], () =>
-            setTypes(types.includes(t) ? types.filter(x => x !== t) : [...types, t]))
+          chip(lbl, types.includes(t), TC[t], () => {
+            const next = types.includes(t) ? types.filter(x => x !== t) : [...types, t];
+            if (next.length > 0) setTypes(next);
+          })
         )}
       </ScrollView>
     </View>
