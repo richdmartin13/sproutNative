@@ -50,6 +50,7 @@ const SWIFT_SOURCES = [
   'HabitGridTile.swift',
   'HourlyActivityView.swift',
   'QuickLogView.swift',
+  'WatchSettingsView.swift',
   'SproutShortcuts.swift',
 ];
 
