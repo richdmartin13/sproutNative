@@ -28,10 +28,18 @@ function MRow({ label, sub, value, onChange }) {
   );
 }
 
-const APP_VERSION = '1.0.17';
-const APP_BUILD  = 17;
+const APP_VERSION = '1.0.18';
+const APP_BUILD  = 18;
 
 const CHANGELOG = [
+  {
+    version: '1.0.18',
+    changes: [
+      'Filter chips: deselecting the last type chip is a no-op — at least one must remain selected',
+      'Nav: active tab text and icon use dark color in light mode (white was unreadable on light glass)',
+      'Watch: toolbar buttons (grid/list toggle, refresh) restored to bare Image(systemName:) — no modifiers that suppress rendering on watchOS',
+    ],
+  },
   {
     version: '1.0.17',
     changes: [
