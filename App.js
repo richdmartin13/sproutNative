@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback } from 'react';
+import React, { useEffect, useCallback, useState } from 'react';
 import { View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useFonts,
@@ -10,7 +10,10 @@ import { DMMono_300Light, DMMono_400Regular, DMMono_500Medium } from '@expo-goog
 import * as SplashScreen from 'expo-splash-screen';
 
 import { AppProvider, useApp } from './src/context/AppContext.js';
+import { TutorialProvider } from './src/context/TutorialContext.js';
 import NativeNav from './src/nav/NativeNav.js';
+import TutorialCard from './src/components/TutorialCard.js';
+import SplashOverlay from './src/components/SplashOverlay.js';
 
 // Re-export FONTS so any file that imports from App.js continues to work
 export { FONTS } from './src/lib/fonts.js';
@@ -20,6 +23,7 @@ SplashScreen.preventAutoHideAsync().catch(() => {});
 
 function AppReady({ fontsLoaded }) {
   const { ready } = useApp();
+  const [showSplash, setShowSplash] = useState(true);
 
   const onLayoutRootView = useCallback(async () => {
     if (fontsLoaded && ready) {
@@ -32,6 +36,8 @@ function AppReady({ fontsLoaded }) {
   return (
     <View style={{ flex: 1 }} onLayout={onLayoutRootView}>
       <NativeNav />
+      <TutorialCard />
+      {showSplash && <SplashOverlay onDone={() => setShowSplash(false)} />}
     </View>
   );
 }
@@ -45,7 +51,9 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <AppProvider>
-        <AppReady fontsLoaded={!!fontsLoaded} />
+        <TutorialProvider>
+          <AppReady fontsLoaded={!!fontsLoaded} />
+        </TutorialProvider>
       </AppProvider>
     </SafeAreaProvider>
   );

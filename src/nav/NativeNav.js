@@ -11,6 +11,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useApp } from '../context/AppContext.js';
+import { useTutorial } from '../context/TutorialContext.js';
 import HomeScreen    from '../screens/HomeScreen.js';
 import TapScreen     from '../screens/TapScreen.js';
 import AnalyticsScreen from '../screens/AnalyticsScreen.js';
@@ -130,9 +131,13 @@ function AnimatedScreen({ screenKey, children }) {
 // ─── Home stack screens ───────────────────────────────────────────────────────
 function HomeScreenWrapper({ navigation }) {
   const ctx = useContext(NavCtx);
+  const { advanceOnAction } = useTutorial();
   return (
     <HomeScreen
-      onOpenHabit={h => navigation.navigate('Tap', { habitId: h.id })}
+      onOpenHabit={h => {
+        advanceOnAction('log_habit');
+        navigation.navigate('Tap', { habitId: h.id });
+      }}
       onLongPressHabit={h => ctx.onOptions(h, () => {})}
       onNewHabit={ctx.openNewHabit}
     />
@@ -176,7 +181,8 @@ function HomeStack() {
 
 // ─── Root navigator ───────────────────────────────────────────────────────────
 export default function NativeNav() {
-  const { habits, data, theme, ready, sysAlert, clearSysAlert, upsertHabit, deleteHabit, archiveHabit, addLog, updateLog, deleteLog } = useApp();
+  const { habits, data, theme, ready, sysAlert, clearSysAlert, upsertHabit, deleteHabit, archiveHabit, addLog, updateLog, deleteLog, setPrefs } = useApp();
+  const { startTutorial } = useTutorial();
   const { width } = useWindowDimensions();
   const isTablet  = width >= 768;
 
@@ -185,6 +191,25 @@ export default function NativeNav() {
   const [actionSheet,  setActionSheet]  = useState(null); // { habit, goBack }
   const [confirm,      setConfirm]      = useState(null); // { title, message, buttons }
   const [onTapScreen,  setOnTapScreen]  = useState(false);
+
+  // Keep a live ref to prefs for use inside callbacks (avoids stale closures)
+  const prefsRef = useRef(data?.prefs || {});
+  useEffect(() => { prefsRef.current = data?.prefs || {}; }, [data?.prefs]);
+
+  // Auto-start tutorial when visiting a tab for the first time
+  useEffect(() => {
+    const p = prefsRef.current;
+    const seen = p.tutorialSeen || {};
+    if (!seen[tab]) {
+      const t = setTimeout(() => {
+        startTutorial(tab, () => {
+          const cur = prefsRef.current;
+          setPrefs({ ...cur, tutorialSeen: { ...(cur.tutorialSeen || {}), [tab]: true } });
+        });
+      }, 500);
+      return () => clearTimeout(t);
+    }
+  }, [tab]);
 
   const openNewHabit = useCallback(() => setSheet({ kind:'habit', habit:null }), []);
 
@@ -234,7 +259,9 @@ export default function NativeNav() {
             <AnimatedScreen screenKey="insights"><AnalyticsScreen /></AnimatedScreen>
           )}
           {tab === 'settings' && (
-            <AnimatedScreen screenKey="settings"><SettingsScreen /></AnimatedScreen>
+            <AnimatedScreen screenKey="settings">
+              <SettingsScreen onNavigate={t => setTab(t)} />
+            </AnimatedScreen>
           )}
 
           {showBottomNav && (

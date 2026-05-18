@@ -6,6 +6,7 @@ import * as Sharing from 'expo-sharing';
 import * as DocumentPicker from 'expo-document-picker';
 import { ChevronRight, Download, Upload, Trash2, Palette, LayoutGrid, PenLine, BarChart3, Database, ScrollText, List, Grid, Clock, Undo2, Archive, FlaskConical } from '../components/Icon.js';
 import { useApp } from '../context/AppContext.js';
+import { useTutorial } from '../context/TutorialContext.js';
 import GlassCard from '../components/GlassCard.js';
 import AppModal from '../components/AppModal.js';
 import { SCHEMES } from '../lib/theme.js';
@@ -28,8 +29,8 @@ function MRow({ label, sub, value, onChange }) {
   );
 }
 
-const APP_VERSION = '1.0.21';
-const APP_BUILD  = 21;
+const APP_VERSION = '1.0.22';
+const APP_BUILD  = 22;
 
 const CHANGELOG = [
   {
@@ -411,8 +412,9 @@ const SECTIONS = [
 const SECTIONS_MAP           = Object.fromEntries(SECTIONS.map(([k,l]) => [k,l]));
 const DEFAULT_SECTIONS_ORDER = SECTIONS.map(([k]) => k);
 
-export default function SettingsScreen() {
+export default function SettingsScreen({ onNavigate }) {
   const { data, theme, setPrefs, setData, restoreHabit, deleteHabit } = useApp();
+  const { startTutorial } = useTutorial();
   const insets = useSafeAreaInsets();
   const prefs  = data?.prefs || {};
   const [modal,           setModal]        = useState(null);
@@ -555,6 +557,46 @@ export default function SettingsScreen() {
                 <Text style={{ fontSize:12, color:theme.muted, marginTop:1 }}>{sub}</Text>
               </View>
               <ChevronRight size={16} strokeWidth={2} color={theme.muted} />
+            </Pressable>
+          ))}
+        </GlassCard>
+
+        {/* ── Guided Tours ── */}
+        <GlassCard style={{ marginBottom:16 }} radius={20} variant="section">
+          <Text style={{ fontSize:11, fontWeight:'700', color:theme.muted,
+            textTransform:'uppercase', letterSpacing:0.8, padding:16, paddingBottom:10 }}>
+            Guided Tours
+          </Text>
+          {[
+            { id:'home',     label:'Habits',    sub:'Logging, filters, and layout',        icon:'🌱' },
+            { id:'insights', label:'Analytics', sub:'Charts, timeframes, and sections',    icon:'📊' },
+            { id:'settings', label:'Settings',  sub:'Colors, logging fields, and options', icon:'⚙' },
+          ].map(({ id, label, sub, icon }, i) => (
+            <Pressable key={id}
+              onPress={() => {
+                // Clear seen flag so NativeNav auto-start fires; switch tab for non-settings
+                setPrefs({ ...prefs, tutorialSeen: { ...(prefs.tutorialSeen || {}), [id]: undefined } });
+                if (id === 'settings') {
+                  startTutorial('settings');
+                } else {
+                  onNavigate?.(id);
+                }
+              }}
+              style={({ pressed }) => ({
+                flexDirection:'row', alignItems:'center', gap:12,
+                paddingHorizontal:16, paddingVertical:14,
+                borderTopWidth: i === 0 ? 1 : 1, borderTopColor:theme.border,
+                backgroundColor: pressed ? (theme.isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)') : 'transparent',
+              })}>
+              <View style={{ width:34, height:34, borderRadius:9,
+                backgroundColor:theme.accentDim, alignItems:'center', justifyContent:'center' }}>
+                <Text style={{ fontSize:17 }}>{icon}</Text>
+              </View>
+              <View style={{ flex:1 }}>
+                <Text style={{ fontSize:15, fontWeight:'600', color:theme.text }}>{label}</Text>
+                <Text style={{ fontSize:12, color:theme.muted, marginTop:1 }}>{sub}</Text>
+              </View>
+              <Text style={{ fontSize:12, color:theme.accent, fontWeight:'600' }}>Retrigger</Text>
             </Pressable>
           ))}
         </GlassCard>

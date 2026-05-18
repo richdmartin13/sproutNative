@@ -91,7 +91,7 @@ function NavBtn({ item, active, onPress, liquidGlass }) {
               position: 'absolute', top: 0, bottom: 0, left: 0, right: 0,
               borderRadius: 999,
               backgroundColor: theme.accent,
-              opacity: d ? 0.82 : 0.92,
+              opacity: d ? 0.50 : 0.58,
             }} />
           )}
 
