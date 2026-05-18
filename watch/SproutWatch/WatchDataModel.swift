@@ -18,17 +18,20 @@ struct WatchPrefs: Codable {
     var haptic: Bool
     var showStats: Bool
     var showGrid: Bool
+    var showCategory: Bool
     var hourlyActivity: [Int]   // 24 values — total logs per hour for today
     var accentHex: String       // e.g. "#2d6e47"
     var isDark: Bool
 
     init(dismissDelay: Double = 2.0, haptic: Bool = true, showStats: Bool = true,
-         showGrid: Bool = false, hourlyActivity: [Int] = Array(repeating: 0, count: 24),
+         showGrid: Bool = false, showCategory: Bool = true,
+         hourlyActivity: [Int] = Array(repeating: 0, count: 24),
          accentHex: String = "#2d6e47", isDark: Bool = true) {
         self.dismissDelay    = dismissDelay
         self.haptic          = haptic
         self.showStats       = showStats
         self.showGrid        = showGrid
+        self.showCategory    = showCategory
         self.hourlyActivity  = hourlyActivity
         self.accentHex       = accentHex
         self.isDark          = isDark
@@ -41,6 +44,7 @@ struct WatchPrefs: Codable {
         haptic         = try c.decodeIfPresent(Bool.self,   forKey: .haptic)         ?? true
         showStats      = try c.decodeIfPresent(Bool.self,   forKey: .showStats)      ?? true
         showGrid       = try c.decodeIfPresent(Bool.self,   forKey: .showGrid)       ?? false
+        showCategory   = try c.decodeIfPresent(Bool.self,   forKey: .showCategory)   ?? true
         hourlyActivity = try c.decodeIfPresent([Int].self,  forKey: .hourlyActivity) ?? Array(repeating: 0, count: 24)
         accentHex      = try c.decodeIfPresent(String.self, forKey: .accentHex)      ?? "#2d6e47"
         isDark         = try c.decodeIfPresent(Bool.self,   forKey: .isDark)         ?? true

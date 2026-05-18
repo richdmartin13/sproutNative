@@ -2,6 +2,7 @@ import SwiftUI
 
 struct HabitRowView: View {
     let habit: WatchHabit
+    var showCategory: Bool = true
 
     private var typeColor: Color {
         switch habit.type {
@@ -18,11 +19,19 @@ struct HabitRowView: View {
                 .fill(typeColor)
                 .frame(width: 6, height: 6)
 
-            // Habit name
-            Text(habit.name)
-                .font(.system(size: 13, weight: .semibold))
-                .lineLimit(1)
-                .frame(maxWidth: .infinity, alignment: .leading)
+            // Habit name + optional category
+            VStack(alignment: .leading, spacing: 1) {
+                Text(habit.name)
+                    .font(.system(size: 13, weight: .semibold))
+                    .lineLimit(1)
+                if showCategory && !habit.category.isEmpty {
+                    Text(habit.category)
+                        .font(.system(size: 9, weight: .medium))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
 
             // Right side: count or streak/days
             VStack(alignment: .trailing, spacing: 2) {

@@ -1,5 +1,5 @@
-import React, { useState, useRef } from 'react';
-import { View, Text, Pressable, ScrollView, Image, Platform } from 'react-native';
+import React, { useState, useRef, useEffect } from 'react';
+import { View, Text, Pressable, ScrollView, Image, Platform, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
@@ -7,6 +7,7 @@ import * as DocumentPicker from 'expo-document-picker';
 import { ChevronRight, Download, Upload, Trash2, Palette, LayoutGrid, PenLine, BarChart3, Database, ScrollText, List, Grid, Clock, Undo2, Archive, FlaskConical, Home } from '../components/Icon.js';
 import { useApp } from '../context/AppContext.js';
 import { useTutorial } from '../context/TutorialContext.js';
+import { onWatchReachability } from '../watch/WatchBridge.js';
 import GlassCard from '../components/GlassCard.js';
 import AppModal from '../components/AppModal.js';
 import { SCHEMES } from '../lib/theme.js';
@@ -29,10 +30,24 @@ function MRow({ label, sub, value, onChange }) {
   );
 }
 
-const APP_VERSION = '1.0.25';
-const APP_BUILD  = 25;
+const APP_VERSION = '1.0.26';
+const APP_BUILD  = 26;
 
 const CHANGELOG = [
+  {
+    version: '1.0.26',
+    changes: [
+      'CRASH FIX: all delete/archive confirmations now use system Alert.alert — eliminates freeze caused by two stacked React Native Modals on iOS',
+      'Quick log: new Behavior setting — tap card = instant log, long-press = open detail screen',
+      'Archived Habits always visible in settings; tapping when empty shows a brief hint instead of opening a modal',
+      'Clear all data: fixed stale-closure bug (uses functional state update now)',
+      'Watch: connection status indicator in Apple Watch settings (Connected / Out of range)',
+      'Watch: refresh icon on watch explained in settings — it manually syncs the latest data from iPhone',
+      'Watch: Show category toggle — display category label on watch habit cards',
+      'Watch: showCategory pref sent to watch and respected by HabitRowView and HabitGridTile',
+      'Dev: Card Shadows setting removed (was outdated)',
+    ],
+  },
   {
     version: '1.0.25',
     changes: [
@@ -436,6 +451,13 @@ export default function SettingsScreen({ onNavigate }) {
 
   const tapRef   = useRef(0);
   const timerRef = useRef(null);
+  const [listHint,      setListHint]      = useState('');
+  const [watchReachable, setWatchReachable] = useState(null); // null=unknown, true/false
+
+  useEffect(() => {
+    if (Platform.OS !== 'ios') return;
+    return onWatchReachability(r => setWatchReachable(r));
+  }, []);
 
   const setP   = updates => setPrefs({ ...prefs, ...updates });
   const setDev = updates => setPrefs({ ...prefs, dev: { ...prefs.dev, ...updates } });
@@ -500,14 +522,14 @@ export default function SettingsScreen({ onNavigate }) {
 
   // ── Clear all ──
   const doClear = () => {
-    setSettAlert({
-      title: 'Clear all data',
-      message: 'This will permanently delete all your habits and logs. This cannot be undone.',
-      buttons: [
-        { text: 'Cancel', style: 'cancel', onPress: () => setSettAlert(null) },
-        { text: 'Clear everything', style: 'destructive', onPress: () => { setData({ ...data, habits: [] }); setSettAlert(null); setModal(null); } },
+    Alert.alert(
+      'Clear all data',
+      'This will permanently delete all your habits and logs. This cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Clear everything', style: 'destructive', onPress: () => { setData(d => ({ ...d, habits: [] })); setModal(null); } },
       ],
-    });
+    );
   };
 
   // ── Analytics section order ──
@@ -529,8 +551,10 @@ export default function SettingsScreen({ onNavigate }) {
     { id:'behavior',   label:'Layout & Behavior',  sub:'Card density, sort, tap behavior',    Icon:LayoutGrid },
     { id:'fields',     label:'Logging Fields',     sub:'Which fields appear when logging',    Icon:PenLine },
     { id:'sections',   label:'Analytics Sections', sub:'Which insights to show and their order', Icon:BarChart3 },
-    ...(!Platform.isPad ? [{ id:'watch', label:'Apple Watch', sub:'Dismiss timing, haptics, stats', Icon:Clock }] : []),
-    ...(archivedHabits.length ? [{ id:'archived', label:'Archived Habits', sub:`${archivedHabits.length} hidden habit${archivedHabits.length !== 1 ? 's' : ''}`, Icon:Archive }] : []),
+    ...(!Platform.isPad ? [{ id:'watch', label:'Apple Watch', sub:'Dismiss timing, haptics, connection', Icon:Clock }] : []),
+    { id:'archived', label:'Archived Habits',
+      sub: archivedHabits.length ? `${archivedHabits.length} hidden habit${archivedHabits.length !== 1 ? 's' : ''}` : 'None',
+      Icon:Archive },
     { id:'data',       label:'Data',               sub:'Backup, restore, and clear',          Icon:Database },
     ...(prefs.devUnlocked ? [{ id:'dev', label:'Developer', sub:'Experimental features & debug', Icon:FlaskConical }] : []),
     { id:'about',      label:'About',              sub:'App info and changelog',               Icon:ScrollText },
@@ -551,8 +575,20 @@ export default function SettingsScreen({ onNavigate }) {
             textTransform:'uppercase', letterSpacing:0.8, padding:16, paddingBottom:10 }}>
             Preferences
           </Text>
+          {listHint ? (
+            <Text style={{ fontSize:12, color:theme.muted, textAlign:'center',
+              paddingHorizontal:16, paddingBottom:10, marginTop:-4 }}>{listHint}</Text>
+          ) : null}
           {GROUPS.map(({ id, label, sub, Icon }) => (
-            <Pressable key={id} onPress={() => setModal(id)}
+            <Pressable key={id} onPress={() => {
+              if (id === 'archived' && archivedHabits.length === 0) {
+                setListHint('No archived habits');
+                clearTimeout(timerRef.current);
+                timerRef.current = setTimeout(() => setListHint(''), 2000);
+                return;
+              }
+              setModal(id);
+            }}
               style={({ pressed }) => ({
                 flexDirection:'row', alignItems:'center', gap:12,
                 paddingHorizontal:16, paddingVertical:14,
@@ -671,6 +707,8 @@ export default function SettingsScreen({ onNavigate }) {
               })}
             </View>
           </View>
+          <MRow label="Quick log" sub="Tap card = instant log; long-press to open detail. On Apple Watch, tapping always logs instantly."
+            value={!!prefs.quickLog} onChange={v => setP({ quickLog: v })} />
           <MRow label="Repeat last by default" sub="Auto-fill most recent log's details on tap"
             value={prefs.repeatLastDefault} onChange={v => setP({ repeatLastDefault: v })} />
           <MRow label="Carry last mood & energy" sub="Copy mood and energy from your most recent log, even without full repeat"
@@ -685,6 +723,25 @@ export default function SettingsScreen({ onNavigate }) {
       {/* ── Watch Modal ── */}
       {modal === 'watch' && (
         <Sheet title="Apple Watch" onClose={() => setModal(null)}>
+          {/* Connection status */}
+          <View style={{ flexDirection:'row', alignItems:'center', paddingVertical:14,
+            borderBottomWidth:1, borderBottomColor:theme.border }}>
+            <View style={{ flex:1 }}>
+              <Text style={{ fontSize:15, fontWeight:'500', color:theme.text }}>Connection</Text>
+              <Text style={{ fontSize:11.5, color:theme.muted, marginTop:2 }}>
+                The sync icon on your watch manually pushes the latest data from iPhone
+              </Text>
+            </View>
+            <View style={{ flexDirection:'row', alignItems:'center', gap:6 }}>
+              <View style={{ width:8, height:8, borderRadius:4,
+                backgroundColor: watchReachable === null ? theme.muted : watchReachable ? theme.typeGo : theme.typeSt }} />
+              <Text style={{ fontSize:12, fontWeight:'600',
+                color: watchReachable === null ? theme.muted : watchReachable ? theme.typeGo : theme.typeSt }}>
+                {watchReachable === null ? 'Unknown' : watchReachable ? 'Connected' : 'Out of range'}
+              </Text>
+            </View>
+          </View>
+          {/* Auto-dismiss */}
           <View style={{ paddingVertical:14, borderBottomWidth:1, borderBottomColor:theme.border }}>
             <Text style={{ fontSize:15, fontWeight:'500', color:theme.text, marginBottom:3 }}>Auto-dismiss after logging</Text>
             <Text style={{ fontSize:11.5, color:theme.muted, marginBottom:12 }}>How long to show the confirmation before closing</Text>
@@ -704,10 +761,12 @@ export default function SettingsScreen({ onNavigate }) {
           </View>
           <MRow label="Haptic feedback" sub="Vibrate on log, resist, and undo"
             value={prefs.watchHaptic !== false} onChange={v => setP({ watchHaptic: v })} />
-          <MRow label="Show stats" sub="Display streak and today count on watch"
+          <MRow label="Show stats" sub="Display streak and today count on each habit"
             value={prefs.watchShowStats !== false} onChange={v => setP({ watchShowStats: v })} />
           <MRow label="Grid view" sub="Show habits in a 2-column grid instead of a list"
             value={prefs.watchShowGrid === true} onChange={v => setP({ watchShowGrid: v })} />
+          <MRow label="Show category" sub="Display category label below habit name on watch cards"
+            value={prefs.watchShowCategory !== false} onChange={v => setP({ watchShowCategory: v })} />
         </Sheet>
       )}
 
@@ -926,14 +985,14 @@ export default function SettingsScreen({ onNavigate }) {
                   backgroundColor:theme.accentDim, borderWidth:1, borderColor:theme.accentBorder }}>
                 <Text style={{ fontSize:12, fontWeight:'600', color:theme.accent }}>Restore</Text>
               </Pressable>
-              <Pressable onPress={() => setSettAlert({
-                title: 'Delete habit',
-                message: `Permanently delete "${h.name}" and all its logs?`,
-                buttons: [
-                  { text:'Cancel', style:'cancel', onPress:()=>setSettAlert(null) },
-                  { text:'Delete', style:'destructive', onPress:()=>{ deleteHabit(h.id); setSettAlert(null); } },
+              <Pressable onPress={() => Alert.alert(
+                'Delete habit',
+                `Permanently delete "${h.name}" and all its logs?`,
+                [
+                  { text: 'Cancel', style: 'cancel' },
+                  { text: 'Delete', style: 'destructive', onPress: () => deleteHabit(h.id) },
                 ],
-              })}
+              )}
                 style={{ paddingHorizontal:12, paddingVertical:6, borderRadius:10,
                   backgroundColor: theme.typeSt + '22', borderWidth:1, borderColor: theme.typeSt + '44' }}>
                 <Text style={{ fontSize:12, fontWeight:'600', color:theme.typeSt }}>Delete</Text>
@@ -962,30 +1021,6 @@ export default function SettingsScreen({ onNavigate }) {
             sub="Display habit.id in small text on each card"
             value={!!prefs.dev?.showIds}
             onChange={v => setDev({ showIds: v })} />
-          {/* Card Shadows — multi-select which modes get glow shadows */}
-          <View style={{ paddingVertical:13, borderBottomWidth:1, borderBottomColor:theme.border }}>
-            <Text style={{ fontSize:15, fontWeight:'500', color:theme.text, marginBottom:3 }}>Card Shadows</Text>
-            <Text style={{ fontSize:11.5, color:theme.muted, marginBottom:10 }}>Glow shadows on cards, tap zones, and buttons</Text>
-            <View style={{ flexDirection:'row', gap:8 }}>
-              {[['dark','Dark mode'],['light','Light mode']].map(([mode, lbl]) => {
-                const shadowModes = prefs.dev?.shadowModes ?? ['dark'];
-                const active = shadowModes.includes(mode);
-                return (
-                  <Pressable key={mode}
-                    onPress={() => {
-                      const cur = prefs.dev?.shadowModes ?? ['dark'];
-                      const next = active ? cur.filter(m => m !== mode) : [...cur, mode];
-                      setDev({ shadowModes: next });
-                    }}
-                    style={{ paddingHorizontal:14, paddingVertical:7, borderRadius:20,
-                      backgroundColor: active ? theme.accent : theme.surface2,
-                      borderWidth:1, borderColor: active ? theme.accent : theme.border }}>
-                    <Text style={{ fontSize:13, fontWeight:'600', color: active ? '#fff' : theme.text2 }}>{lbl}</Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-          </View>
           <MRow label="Liquid Glass"
             sub="iOS 26+ glass on cards and nav. Install @callstack/liquid-glass and update src/lib/liquidGlass.js to activate."
             value={prefs.dev?.liquidGlass !== false}

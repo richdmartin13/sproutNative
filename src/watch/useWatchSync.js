@@ -55,6 +55,7 @@ export function useWatchSync(habits, prefs, themeInfo, onLog, onUndo, onResist) 
         haptic:         prefs?.watchHaptic !== false,
         showStats:      prefs?.watchShowStats !== false,
         showGrid:       prefs?.watchShowGrid === true,
+        showCategory:   prefs?.watchShowCategory !== false,
         hourlyActivity: hourly,
         accentHex:      themeInfo?.accent ?? '#2d6e47',
         isDark:         themeInfo?.isDark ?? true,
@@ -63,7 +64,7 @@ export function useWatchSync(habits, prefs, themeInfo, onLog, onUndo, onResist) 
       sendHabitsToWatch(payload, watchPrefs);
     }, 400);
     return () => clearTimeout(timer.current);
-  }, [habits, prefs?.watchDismiss, prefs?.watchHaptic, prefs?.watchShowStats, prefs?.watchShowGrid, themeInfo?.accent, themeInfo?.isDark]);
+  }, [habits, prefs?.watchDismiss, prefs?.watchHaptic, prefs?.watchShowStats, prefs?.watchShowGrid, prefs?.watchShowCategory, themeInfo?.accent, themeInfo?.isDark]);
 
   useEffect(() => { return onWatchLog(id => onLog(id)); }, [onLog]);
   useEffect(() => { if (!onUndo) return; return onWatchUndo(id => onUndo(id)); }, [onUndo]);

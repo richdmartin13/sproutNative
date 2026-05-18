@@ -44,7 +44,7 @@ struct HabitListView: View {
                             ) {
                                 ForEach(model.habits) { habit in
                                     NavigationLink(destination: QuickLogView(habit: habit)) {
-                                        HabitGridTile(habit: habit)
+                                        HabitGridTile(habit: habit, showCategory: model.watchPrefs.showCategory)
                                     }
                                     .buttonStyle(.plain)
                                 }
@@ -53,7 +53,7 @@ struct HabitListView: View {
                             LazyVStack(spacing: 6) {
                                 ForEach(model.habits) { habit in
                                     NavigationLink(destination: QuickLogView(habit: habit)) {
-                                        HabitRowView(habit: habit)
+                                        HabitRowView(habit: habit, showCategory: model.watchPrefs.showCategory)
                                     }
                                     .buttonStyle(.plain)
                                 }

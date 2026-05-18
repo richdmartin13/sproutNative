@@ -3,7 +3,7 @@ import React, {
   createContext, useContext,
 } from 'react';
 import {
-  View, Text, Animated, Pressable,
+  View, Text, Animated, Pressable, Alert,
   ActivityIndicator, StatusBar, useWindowDimensions, Image,
 } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
@@ -23,6 +23,7 @@ import LogSheet      from '../sheets/LogSheet.js';
 import Sheet         from '../sheets/Sheet.js';
 import { Home, BarChart3, Settings, Plus } from '../components/Icon.js';
 import { FONTS } from '../lib/fonts.js';
+import { todayStr } from '../lib/util.js';
 
 const Stack = createNativeStackNavigator();
 
@@ -132,13 +133,27 @@ function AnimatedScreen({ screenKey, children }) {
 function HomeScreenWrapper({ navigation }) {
   const ctx = useContext(NavCtx);
   const { advanceOnAction } = useTutorial();
+  const { data, addLog } = useApp();
+  const quickLog = data?.prefs?.quickLog;
+
   return (
     <HomeScreen
       onOpenHabit={h => {
-        advanceOnAction('log_habit');
-        navigation.navigate('Tap', { habitId: h.id });
+        if (quickLog) {
+          addLog(h.id, { date: todayStr(), tags: [], notes: '' });
+        } else {
+          advanceOnAction('log_habit');
+          navigation.navigate('Tap', { habitId: h.id });
+        }
       }}
-      onLongPressHabit={h => ctx.onOptions(h, () => {})}
+      onLongPressHabit={h => {
+        if (quickLog) {
+          advanceOnAction('log_habit');
+          navigation.navigate('Tap', { habitId: h.id });
+        } else {
+          ctx.onOptions(h, () => {});
+        }
+      }}
       onNewHabit={ctx.openNewHabit}
     />
   );
@@ -189,7 +204,6 @@ export default function NativeNav() {
   const [tab,          setTab]          = useState('home');
   const [sheet,        setSheet]        = useState(null);
   const [actionSheet,  setActionSheet]  = useState(null); // { habit, goBack }
-  const [confirm,      setConfirm]      = useState(null); // { title, message, buttons }
   const [onTapScreen,  setOnTapScreen]  = useState(false);
 
   // Keep a live ref to prefs for use inside callbacks (avoids stale closures)
@@ -315,14 +329,14 @@ export default function NativeNav() {
                 <Pressable onPress={() => {
                   const h = actionSheet.habit;
                   const gb = actionSheet.goBack;
-                  setConfirm({
-                    title: 'Archive habit',
-                    message: `"${h.name}" will be hidden from your habits and excluded from stats. You can restore it later in Settings.`,
-                    buttons: [
-                      { text:'Cancel', style:'cancel', onPress:() => setConfirm(null) },
-                      { text:'Archive', onPress:() => { archiveHabit(h.id); gb?.(); setConfirm(null); setActionSheet(null); } },
+                  Alert.alert(
+                    'Archive habit',
+                    `"${h.name}" will be hidden from your habits and excluded from stats. You can restore it later in Settings.`,
+                    [
+                      { text: 'Cancel', style: 'cancel' },
+                      { text: 'Archive', onPress: () => { archiveHabit(h.id); gb?.(); setActionSheet(null); } },
                     ],
-                  });
+                  );
                 }} style={({ pressed }) => ({
                   ...pillBase,
                   backgroundColor: d
@@ -336,14 +350,14 @@ export default function NativeNav() {
                 <Pressable onPress={() => {
                   const h = actionSheet.habit;
                   const gb = actionSheet.goBack;
-                  setConfirm({
-                    title: 'Delete habit',
-                    message: `Permanently delete "${h.name}" and all its logs?`,
-                    buttons: [
-                      { text:'Cancel', style:'cancel', onPress:() => setConfirm(null) },
-                      { text:'Delete', style:'destructive', onPress:() => { deleteHabit(h.id); gb?.(); setConfirm(null); setActionSheet(null); } },
+                  Alert.alert(
+                    'Delete habit',
+                    `Permanently delete "${h.name}" and all its logs?`,
+                    [
+                      { text: 'Cancel', style: 'cancel' },
+                      { text: 'Delete', style: 'destructive', onPress: () => { deleteHabit(h.id); gb?.(); setActionSheet(null); } },
                     ],
-                  });
+                  );
                 }} style={({ pressed }) => ({
                   ...pillBase,
                   backgroundColor: d
@@ -357,15 +371,6 @@ export default function NativeNav() {
             </Sheet>
           );
         })()}
-
-        {/* ── Confirm dialog (archive/delete habit) ───────────────────── */}
-        <AppModal
-          visible={!!confirm}
-          title={confirm?.title}
-          message={confirm?.message}
-          buttons={confirm?.buttons ?? []}
-          onDismiss={() => setConfirm(null)}
-        />
 
         {/* ── System alert (Share Sheet import result) ─────────────────── */}
         <AppModal

@@ -2,6 +2,7 @@ import SwiftUI
 
 struct HabitGridTile: View {
     let habit: WatchHabit
+    var showCategory: Bool = true
 
     private var typeColor: Color {
         switch habit.type {
@@ -30,6 +31,13 @@ struct HabitGridTile: View {
                 .font(.system(size: 11, weight: .semibold))
                 .lineLimit(2)
                 .foregroundStyle(.primary)
+
+            if showCategory && !habit.category.isEmpty {
+                Text(habit.category)
+                    .font(.system(size: 9, weight: .medium))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
 
             Spacer(minLength: 0)
 
