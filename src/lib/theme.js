@@ -55,7 +55,7 @@ export function getTheme(prefs = {}, systemDark = true) {
     accentMid:    hexA(s.accent, 0.55),
     accentGlow: s.glow, grad: s.grad, heat: s.heat,
     shadowsOn,
-    liquidGlassOn: !!prefs?.dev?.liquidGlass,
+    liquidGlassOn: prefs?.dev?.liquidGlass !== false,
     typeGo: TYPE_COLORS.go, typeSt: TYPE_COLORS.st, typeNe: TYPE_COLORS.ne,
   };
 }

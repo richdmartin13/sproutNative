@@ -28,10 +28,17 @@ function MRow({ label, sub, value, onChange }) {
   );
 }
 
-const APP_VERSION = '1.0.13';
-const APP_BUILD  = 14;
+const APP_VERSION = '1.0.14';
+const APP_BUILD  = 15;
 
 const CHANGELOG = [
+  {
+    version: '1.0.14',
+    changes: [
+      'Liquid Glass enabled by default on devices that support it (iOS 26+ native builds)',
+      'Liquid Glass can now be disabled in Developer → Liquid Glass toggle',
+    ],
+  },
   {
     version: '1.0.13',
     changes: [
@@ -886,7 +893,7 @@ export default function SettingsScreen() {
           </View>
           <MRow label="Liquid Glass"
             sub="iOS 26+ glass on cards and nav. Install @callstack/liquid-glass and update src/lib/liquidGlass.js to activate."
-            value={!!prefs.dev?.liquidGlass}
+            value={prefs.dev?.liquidGlass !== false}
             onChange={v => setDev({ liquidGlass: v })} />
           <Pressable
             onPress={() => setSettAlert({
