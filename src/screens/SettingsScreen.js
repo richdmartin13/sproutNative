@@ -28,10 +28,19 @@ function MRow({ label, sub, value, onChange }) {
   );
 }
 
-const APP_VERSION = '1.0.18';
-const APP_BUILD  = 18;
+const APP_VERSION = '1.0.19';
+const APP_BUILD  = 19;
 
 const CHANGELOG = [
+  {
+    version: '1.0.19',
+    changes: [
+      'Watch: toolbar icons (grid/list, refresh) now render correctly — .foregroundStyle(.primary) overrides accent tint fill',
+      'Settings: Developer mode toggle moved to About section — 7 taps reveals it; toggling off hides the dev panel',
+      'Settings: removed the separate "Disable Developer Options" button (About toggle replaces it)',
+      'iPad: side nav refreshed — app icon branding, accent-tinted active items, tighter spacing matching phone design',
+    ],
+  },
   {
     version: '1.0.18',
     changes: [
@@ -410,21 +419,18 @@ export default function SettingsScreen() {
 
   // 7-tap dev unlock — placed on version text in About modal
   const handleVersionTap = () => {
+    if (prefs.devUnlocked) return; // already on; toggle in About controls it
     tapRef.current += 1;
     clearTimeout(timerRef.current);
     const n = tapRef.current;
     if (n >= 7) {
       tapRef.current = 0;
-      setTapHint('');
-      if (prefs.devUnlocked) {
-        setSettAlert({ title:'Developer options', message:'Already unlocked. Find it in Settings.', buttons:[{ text:'OK', onPress:()=>setSettAlert(null) }] });
-      } else {
-        setPrefs({ ...prefs, devUnlocked: true });
-        setSettAlert({ title:'You are now a developer', message:'Developer options are now visible in Settings.', buttons:[{ text:'OK', onPress:()=>setSettAlert(null) }] });
-      }
+      setTapHint('Developer mode enabled');
+      setPrefs({ ...prefs, devUnlocked: true });
+      timerRef.current = setTimeout(() => setTapHint(''), 2000);
       return;
     }
-    if (n >= 3) setTapHint(`${7 - n} more tap${7 - n !== 1 ? 's' : ''} to unlock developer options`);
+    if (n >= 3) setTapHint(`${7 - n} more tap${7 - n !== 1 ? 's' : ''} to unlock developer mode`);
     timerRef.current = setTimeout(() => { tapRef.current = 0; setTapHint(''); }, 2000);
   };
 
@@ -931,22 +937,6 @@ export default function SettingsScreen() {
             sub="Apply liquid glass to filter and type chips everywhere"
             value={prefs.dev?.glassChips !== false}
             onChange={v => setDev({ glassChips: v })} />
-          <Pressable
-            onPress={() => setSettAlert({
-              title: 'Disable developer options?',
-              message: 'The dev panel will be hidden. Tap the version number 7 times in About to re-enable.',
-              buttons: [
-                { text:'Cancel', style:'cancel', onPress:()=>setSettAlert(null) },
-                { text:'Disable', style:'destructive', onPress:()=>{ setData(d => ({...d, prefs:{...d.prefs, devUnlocked: false}})); setSettAlert(null); setModal(null); } },
-              ],
-            })}
-            style={({ pressed }) => ({
-              marginTop:20, paddingVertical:13, borderRadius:14,
-              borderWidth:1, borderColor: theme.typeSt + '55', alignItems:'center',
-              opacity: pressed ? 0.7 : 1,
-            })}>
-            <Text style={{ fontSize:14, fontWeight:'600', color:theme.typeSt }}>Disable Developer Options</Text>
-          </Pressable>
         </Sheet>
       )}
 
@@ -980,6 +970,12 @@ export default function SettingsScreen() {
               ) : null}
             </View>
           </View>
+          {prefs.devUnlocked && (
+            <MRow label="Developer mode"
+              sub="Reveals the Developer section in Settings"
+              value={!!prefs.devUnlocked}
+              onChange={v => setP({ devUnlocked: v || undefined })} />
+          )}
           <Text style={{ fontSize:13, color:theme.muted, lineHeight:20, paddingVertical:14,
             borderBottomWidth:1, borderBottomColor:theme.border }}>
             A lightweight habit tracker for iOS and Apple Watch. All data lives on your device — no accounts, no servers.

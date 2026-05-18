@@ -4,7 +4,7 @@ import React, {
 } from 'react';
 import {
   View, Text, Animated, Pressable,
-  ActivityIndicator, StatusBar, useWindowDimensions,
+  ActivityIndicator, StatusBar, useWindowDimensions, Image,
 } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -37,56 +37,75 @@ const SIDE_TABS = [
 
 function SideNav({ tab, onChange, onNewHabit }) {
   const { theme } = useApp();
+  const d = theme.isDark;
   const insets = useSafeAreaInsets();
   return (
     <View style={{
-      width:220, backgroundColor:theme.navBg,
-      borderRightWidth:1, borderRightColor:theme.navBorder,
-      paddingTop: insets.top + 8, paddingBottom: insets.bottom + 8,
-      paddingHorizontal:12, gap:2,
+      width: 240,
+      backgroundColor: d ? theme.solid2 : theme.solid,
+      borderRightWidth: 1,
+      borderRightColor: theme.navBorder,
+      paddingTop: insets.top + 16,
+      paddingBottom: insets.bottom + 16,
+      paddingHorizontal: 14,
+      gap: 2,
+      shadowColor: '#000',
+      shadowOffset: { width: 2, height: 0 },
+      shadowOpacity: d ? 0.22 : 0.08,
+      shadowRadius: 12,
     }}>
-      <View style={{ flexDirection:'row', alignItems:'center', gap:10,
-        paddingHorizontal:8, paddingVertical:14, marginBottom:8 }}>
-        <View style={{ width:34, height:34, borderRadius:10, backgroundColor:theme.grad[1],
-          alignItems:'center', justifyContent:'center',
-          shadowColor:theme.accent, shadowOffset:{width:0,height:4},
-          shadowOpacity:0.40, shadowRadius:8, elevation:6 }}>
-          <Text style={{ fontSize:18 }}>🌱</Text>
-        </View>
-        <Text style={{ fontSize:20, fontWeight:'700', color:theme.text,
+      {/* Brand header */}
+      <View style={{ flexDirection:'row', alignItems:'center', gap:12,
+        paddingHorizontal:8, paddingVertical:10, marginBottom:12 }}>
+        <Image source={require('../../assets/icon.png')}
+          style={{ width:36, height:36, borderRadius:10,
+            shadowColor: theme.accent, shadowOffset:{width:0,height:3},
+            shadowOpacity:0.35, shadowRadius:8 }} />
+        <Text style={{ fontSize:22, fontWeight:'700', color:theme.text,
           fontFamily:FONTS.heading, letterSpacing:-0.02 }}>Sprout</Text>
       </View>
 
+      {/* Nav items */}
       {SIDE_TABS.map(({ id, label, Icon }) => {
         const active = tab === id;
         return (
           <Pressable key={id} onPress={() => onChange(id)}
             style={({ pressed }) => ({
-              flexDirection:'row', alignItems:'center', gap:10,
-              paddingHorizontal:12, paddingVertical:10, borderRadius:12,
-              backgroundColor: active ? theme.navActive : 'transparent',
-              opacity: pressed ? 0.8 : 1,
+              flexDirection:'row', alignItems:'center', gap:12,
+              paddingHorizontal:14, paddingVertical:12, borderRadius:14,
+              backgroundColor: active
+                ? (d ? theme.accentDim : theme.accentSubtle)
+                : pressed ? (d ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)')
+                : 'transparent',
+              borderWidth: active ? 1 : 0,
+              borderColor: active ? theme.accentBorder : 'transparent',
             })}>
-            <Icon size={20} strokeWidth={active ? 2.5 : 2} color={active ? theme.accent : theme.muted} />
-            <Text style={{ fontSize:14, fontWeight:active ? '650' : '500',
-              color: active ? theme.accent : theme.muted }}>
+            <Icon size={20} strokeWidth={active ? 2.5 : 2}
+              color={active ? theme.accent : theme.muted} />
+            <Text style={{ fontSize:15, fontWeight: active ? '700' : '500',
+              color: active ? theme.accent : theme.muted, letterSpacing:-0.01 }}>
               {label}
             </Text>
           </Pressable>
         );
       })}
 
+      {/* New Habit button — matches FAB style */}
       <Pressable onPress={onNewHabit}
         style={({ pressed }) => ({
-          flexDirection:'row', alignItems:'center', gap:10,
-          paddingHorizontal:12, paddingVertical:11, borderRadius:12,
-          backgroundColor:theme.accent, marginTop:8,
+          flexDirection:'row', alignItems:'center', justifyContent:'center', gap:10,
+          paddingHorizontal:14, paddingVertical:13, borderRadius:14,
+          backgroundColor: theme.accent, marginTop:16,
           opacity: pressed ? 0.85 : 1,
-          shadowColor:theme.accent, shadowOffset:{width:0,height:4},
-          shadowOpacity:0.35, shadowRadius:10, elevation:6,
+          shadowColor: theme.accent,
+          shadowOffset: { width:0, height:4 },
+          shadowOpacity: d ? 0.50 : 0.30,
+          shadowRadius: 12,
+          borderWidth: 1,
+          borderColor: 'rgba(255,255,255,0.22)',
         })}>
         <Plus size={20} strokeWidth={2.5} color="#fff" />
-        <Text style={{ fontSize:14, fontWeight:'650', color:'#fff' }}>New Habit</Text>
+        <Text style={{ fontSize:15, fontWeight:'700', color:'#fff', letterSpacing:-0.01 }}>New Habit</Text>
       </Pressable>
     </View>
   );
