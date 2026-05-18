@@ -50,15 +50,12 @@ struct HabitListView: View {
                                 }
                             }
                         } else {
-                            LazyVStack(spacing: 0) {
+                            LazyVStack(spacing: 6) {
                                 ForEach(model.habits) { habit in
                                     NavigationLink(destination: QuickLogView(habit: habit)) {
                                         HabitRowView(habit: habit)
                                     }
                                     .buttonStyle(.plain)
-                                    if habit.id != model.habits.last?.id {
-                                        Divider().opacity(0.25)
-                                    }
                                 }
                             }
                         }
@@ -81,7 +78,7 @@ struct HabitListView: View {
                     withAnimation(.spring(duration: 0.25)) { showGrid.toggle() }
                 } label: {
                     Image(systemName: showGrid ? "list.bullet" : "square.grid.2x2")
-                        .font(.caption)
+                        .imageScale(.medium)
                 }
             }
             ToolbarItem(placement: .topBarTrailing) {
@@ -89,7 +86,7 @@ struct HabitListView: View {
                     model.requestUpdate()
                 } label: {
                     Image(systemName: "arrow.clockwise")
-                        .font(.caption)
+                        .imageScale(.medium)
                 }
             }
         }

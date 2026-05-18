@@ -28,10 +28,21 @@ function MRow({ label, sub, value, onChange }) {
   );
 }
 
-const APP_VERSION = '1.0.14';
-const APP_BUILD  = 15;
+const APP_VERSION = '1.0.15';
+const APP_BUILD  = 16;
 
 const CHANGELOG = [
+  {
+    version: '1.0.15',
+    changes: [
+      'Nav: active tab selector no longer creates a blurry blob — uses a clean frosted capsule inside the glass pill',
+      'FAB: glass circle no longer ghosts when the button is hidden',
+      'Settings: Developer Options disable button now reliably persists via functional state update',
+      'Splash screen now waits for both fonts and data to finish loading before hiding',
+      'Watch: list rows redesigned as cards with left-edge type-color accent bar',
+      'Watch: toolbar icons (grid/list toggle, refresh) now render correctly',
+    ],
+  },
   {
     version: '1.0.14',
     changes: [
@@ -901,7 +912,7 @@ export default function SettingsScreen() {
               message: 'The dev panel will be hidden. Tap the version number 7 times in About to re-enable.',
               buttons: [
                 { text:'Cancel', style:'cancel', onPress:()=>setSettAlert(null) },
-                { text:'Disable', style:'destructive', onPress:()=>{ setPrefs({ ...prefs, devUnlocked: false }); setSettAlert(null); setModal(null); } },
+                { text:'Disable', style:'destructive', onPress:()=>{ setData(d => ({...d, prefs:{...d.prefs, devUnlocked: false}})); setSettAlert(null); setModal(null); } },
               ],
             })}
             style={({ pressed }) => ({

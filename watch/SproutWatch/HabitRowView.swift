@@ -12,19 +12,23 @@ struct HabitRowView: View {
     }
 
     var body: some View {
-        HStack(spacing: 10) {
-            // Left type stripe — fills the full row height
-            Rectangle()
-                .fill(typeColor)
-                .frame(width: 3)
+        HStack(spacing: 0) {
+            // Left-edge color bar
+            typeColor
+                .frame(width: 4)
+                .clipShape(UnevenRoundedRectangle(
+                    topLeadingRadius: 12, bottomLeadingRadius: 12,
+                    bottomTrailingRadius: 0, topTrailingRadius: 0
+                ))
 
+            // Content
             VStack(alignment: .leading, spacing: 3) {
                 Text(habit.name)
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(.system(size: 13, weight: .semibold))
                     .lineLimit(1)
                     .frame(maxWidth: .infinity, alignment: .leading)
 
-                HStack(spacing: 8) {
+                HStack(spacing: 6) {
                     if habit.todayCount > 0 {
                         Label("\(habit.todayCount)", systemImage: "checkmark.circle.fill")
                             .font(.system(size: 10, weight: .medium))
@@ -42,10 +46,12 @@ struct HabitRowView: View {
                 }
                 .foregroundStyle(.secondary)
             }
-
-            Spacer(minLength: 0)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 10)
         }
-        .frame(minHeight: 44)
+        .frame(maxWidth: .infinity, minHeight: 48, alignment: .leading)
+        .background(Color.primary.opacity(0.07))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
         .contentShape(Rectangle())
     }
 }

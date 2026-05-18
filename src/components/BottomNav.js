@@ -81,22 +81,17 @@ function NavBtn({ item, active, onPress }) {
           height: 48, paddingHorizontal: active ? 16 : 13,
           borderRadius: 999, gap: 7,
         }}>
-          {/* Active pill surface — glass tint in LG mode, subtle solid otherwise */}
+          {/* Active pill surface — always a simple capsule; nesting LiquidGlassViews causes blur artifacts */}
           {active && (
-            liquidGlass ? (
-              <LiquidGlassView style={{
-                position: 'absolute', top: 0, bottom: 0, left: 0, right: 0,
-                borderRadius: 999,
-              }} tintColor={theme.accent} colorScheme={d ? 'dark' : 'light'} />
-            ) : (
-              <View style={{
-                position: 'absolute', top: 0, bottom: 0, left: 0, right: 0,
-                borderRadius: 999,
-                backgroundColor: d ? theme.accentDim : theme.solid,
-                borderWidth: 1.5,
-                borderColor: d ? theme.accentMid : theme.accentBorder,
-              }} />
-            )
+            <View style={{
+              position: 'absolute', top: 0, bottom: 0, left: 0, right: 0,
+              borderRadius: 999,
+              backgroundColor: liquidGlass
+                ? (d ? 'rgba(255,255,255,0.18)' : 'rgba(255,255,255,0.62)')
+                : (d ? theme.accentDim : theme.solid),
+              borderWidth: liquidGlass ? 0 : 1.5,
+              borderColor: d ? theme.accentMid : theme.accentBorder,
+            }} />
           )}
 
           <View style={{ zIndex:1 }}>
@@ -170,10 +165,10 @@ export default function BottomNav({ tab, onChange, onFab }) {
         ))}
       </NavPill>
 
-      {/* ── FAB ── */}
-      <View style={{ position:'relative', overflow:'visible' }}>
-        {/* Glow halo */}
-        {onFab && (
+      {/* ── FAB — only rendered when a handler is provided (LiquidGlassView native layer persists at opacity:0) ── */}
+      {onFab ? (
+        <View style={{ position:'relative', overflow:'visible' }}>
+          {/* Glow halo */}
           <View pointerEvents="none" style={{
             position: 'absolute',
             top: -16, left: -16, right: -16, bottom: -16,
@@ -185,34 +180,34 @@ export default function BottomNav({ tab, onChange, onFab }) {
             shadowOpacity: d ? 0.70 : 0.48,
             shadowRadius: 22,
           }} />
-        )}
-
-        <Animated.View style={{ transform:[{ scale: fabScale }], opacity: onFab ? 1 : 0 }}
-          pointerEvents={onFab ? 'auto' : 'none'}>
-          {liquidGlass ? (
-            <LiquidGlassView style={{ width: 58, height: 58, borderRadius: 29 }}
-              tintColor={theme.accent} colorScheme={d ? 'dark' : 'light'}>
+          <Animated.View style={{ transform:[{ scale: fabScale }] }}>
+            {liquidGlass ? (
+              <LiquidGlassView style={{ width: 58, height: 58, borderRadius: 29 }}
+                tintColor={theme.accent} colorScheme={d ? 'dark' : 'light'}>
+                <Pressable onPress={handleFab} style={{
+                  width: '100%', height: '100%',
+                  alignItems: 'center', justifyContent: 'center',
+                }}>
+                  <Plus size={26} strokeWidth={2.5} color="#fff" />
+                </Pressable>
+              </LiquidGlassView>
+            ) : (
               <Pressable onPress={handleFab} style={{
-                width: '100%', height: '100%',
+                width: 58, height: 58, borderRadius: 29,
+                overflow: 'hidden',
+                backgroundColor: theme.accent,
+                borderWidth: 1,
+                borderColor: d ? 'rgba(255,255,255,0.22)' : 'rgba(255,255,255,0.45)',
                 alignItems: 'center', justifyContent: 'center',
               }}>
                 <Plus size={26} strokeWidth={2.5} color="#fff" />
               </Pressable>
-            </LiquidGlassView>
-          ) : (
-            <Pressable onPress={handleFab} style={{
-              width: 58, height: 58, borderRadius: 29,
-              overflow: 'hidden',
-              backgroundColor: theme.accent,
-              borderWidth: 1,
-              borderColor: d ? 'rgba(255,255,255,0.22)' : 'rgba(255,255,255,0.45)',
-              alignItems: 'center', justifyContent: 'center',
-            }}>
-              <Plus size={26} strokeWidth={2.5} color="#fff" />
-            </Pressable>
-          )}
-        </Animated.View>
-      </View>
+            )}
+          </Animated.View>
+        </View>
+      ) : (
+        <View style={{ width: 58, height: 58 }} />
+      )}
     </Container>
   );
 }
