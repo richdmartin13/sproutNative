@@ -28,10 +28,20 @@ function MRow({ label, sub, value, onChange }) {
   );
 }
 
-const APP_VERSION = '1.0.19';
-const APP_BUILD  = 19;
+const APP_VERSION = '1.0.20';
+const APP_BUILD  = 20;
 
 const CHANGELOG = [
+  {
+    version: '1.0.20',
+    changes: [
+      'Watch: toolbar buttons use .tint(.white) to override accent tint — icons render as clear white symbols',
+      'Filter chips: Start/Stop/Neutral now all selected on launch (initialized to all three)',
+      'Logging Fields: per-type selectors — each field shows Start/Stop/Neutral chips to control which habit types include it',
+      'Analytics: Resistance section now renders (was missing from DEFAULT_SECTION_ORDER and renderSection)',
+      'Analytics: Resistance section shows segmented bar per stop habit with Resisted/Partial/Gave In breakdown',
+    ],
+  },
   {
     version: '1.0.19',
     changes: [
@@ -691,11 +701,45 @@ export default function SettingsScreen() {
       {/* ── Logging Fields Modal ── */}
       {modal === 'fields' && (
         <Sheet title="Logging Fields" onClose={() => setModal(null)}>
-          {TRACKS.map(([k, l]) => (
-            <MRow key={k} label={l}
-              value={prefs.track?.[k] !== false}
-              onChange={() => setPrefs({ ...prefs, track: { ...prefs.track, [k]: !prefs.track?.[k] } })} />
-          ))}
+          {TRACKS.map(([k, l]) => {
+            const rawVal = prefs.track?.[k];
+            const fieldOn = rawVal !== false;
+            const perType = typeof rawVal === 'object' && rawVal !== null;
+            const ts = perType ? rawVal : { go: true, st: true, ne: true };
+            const toggleType = (type) => {
+              const cur = perType ? rawVal : { go: true, st: true, ne: true };
+              const next = { ...cur, [type]: !cur[type] };
+              if (!next.go && !next.st && !next.ne) return;
+              const allOn = next.go && next.st && next.ne;
+              setPrefs({ ...prefs, track: { ...prefs.track, [k]: allOn ? undefined : next } });
+            };
+            return (
+              <View key={k} style={{ paddingVertical: 11, borderBottomWidth: 1, borderBottomColor: theme.border }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <View style={{ flex: 1, paddingRight: 12 }}>
+                    <Text style={{ fontSize: 15, fontWeight: '500', color: theme.text }}>{l}</Text>
+                  </View>
+                  <Toggle value={fieldOn} onChange={v => setPrefs({ ...prefs, track: { ...prefs.track, [k]: v ? undefined : false } })} />
+                </View>
+                {fieldOn && (
+                  <View style={{ flexDirection: 'row', gap: 6, marginTop: 8 }}>
+                    {[['go','Start',theme.typeGo],['st','Stop',theme.typeSt],['ne','Neutral',theme.typeNe]].map(([t, lbl, col]) => {
+                      const active = ts[t] !== false;
+                      return (
+                        <Pressable key={t} onPress={() => toggleType(t)} style={{
+                          paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10,
+                          backgroundColor: active ? col + '22' : theme.surface2,
+                          borderWidth: 1, borderColor: active ? col + '55' : theme.border,
+                        }}>
+                          <Text style={{ fontSize: 11, fontWeight: '600', color: active ? col : theme.muted }}>{lbl}</Text>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                )}
+              </View>
+            );
+          })}
         </Sheet>
       )}
 

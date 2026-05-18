@@ -16,7 +16,7 @@ import { heatColor, TYPE_COLORS } from '../lib/theme.js';
 import { LiquidGlassView, isLiquidGlassSupported } from '../lib/liquidGlass.js';
 import { FONTS } from '../lib/fonts.js';
 
-const DEFAULT_SECTION_ORDER = ['heatmap','hourly','trends','spider','rankings','correlations','mood','time','tags'];
+const DEFAULT_SECTION_ORDER = ['heatmap','hourly','trends','spider','rankings','correlations','mood','time','tags','resist'];
 
 // ─── Glass card matching web .section ───────────────────────────────────────
 const Section = React.memo(function Section({ title, subtitle, children }) {
@@ -581,6 +581,58 @@ function CorrelationsSection({ habits }) {
   );
 }
 
+// ─── Resistance ──────────────────────────────────────────────────────────────
+function ResistSection({ habits }) {
+  const { theme } = useApp();
+  const d = theme.isDark;
+  const stops = habits.filter(h => h.type === 'st' && h.logs.length >= 3);
+  if (!stops.length) return null;
+  return (
+    <Section title="Resistance" subtitle="How often stop habits were resisted">
+      {stops.map(h => {
+        const r = resistRate(h);
+        if (!r) return null;
+        const total = r.yes + r.no + r.partial;
+        if (!total) return null;
+        const pctYes     = Math.round((r.yes     / total) * 100);
+        const pctPartial = Math.round((r.partial / total) * 100);
+        const pctNo      = 100 - pctYes - pctPartial;
+        return (
+          <View key={h.id} style={{ marginBottom: 14 }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
+              <Text style={{ fontSize: 13.5, fontWeight: '600', color: theme.text }}>{h.name}</Text>
+              <Text style={{ fontSize: 12, color: theme.muted }}>{total} entries</Text>
+            </View>
+            {/* Segmented bar */}
+            <View style={{ flexDirection: 'row', height: 10, borderRadius: 5, overflow: 'hidden', gap: 1 }}>
+              {pctYes > 0 && (
+                <View style={{ flex: pctYes, backgroundColor: theme.typeGo, borderRadius: 5 }} />
+              )}
+              {pctPartial > 0 && (
+                <View style={{ flex: pctPartial, backgroundColor: '#f59e0b', borderRadius: 5 }} />
+              )}
+              {pctNo > 0 && (
+                <View style={{ flex: pctNo, backgroundColor: theme.typeSt, borderRadius: 5 }} />
+              )}
+            </View>
+            {/* Legend */}
+            <View style={{ flexDirection: 'row', gap: 14, marginTop: 6 }}>
+              {[[pctYes, theme.typeGo, 'Resisted'], [pctPartial, '#f59e0b', 'Partial'], [pctNo, theme.typeSt, 'Gave in']].map(([pct, col, lbl]) => (
+                pct > 0 ? (
+                  <View key={lbl} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                    <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: col }} />
+                    <Text style={{ fontSize: 11, color: theme.muted }}>{lbl} {pct}%</Text>
+                  </View>
+                ) : null
+              ))}
+            </View>
+          </View>
+        );
+      })}
+    </Section>
+  );
+}
+
 // ─── Main screen ─────────────────────────────────────────────────────────────
 export default function AnalyticsScreen() {
   const insets = useSafeAreaInsets();
@@ -591,7 +643,7 @@ export default function AnalyticsScreen() {
   const [mode,     setMode]     = useState(prefs.insDay?'day':'all');
   const [date,     setDate]     = useState(todayStr());
   const [category, setCategory] = useState('');
-  const [types,    setTypes]    = useState([]);
+  const [types,    setTypes]    = useState(['go', 'st', 'ne']);
 
   // Single filtered set — drives ALL sections below
   const filtered = useMemo(()=>{
@@ -644,6 +696,8 @@ export default function AnalyticsScreen() {
         return <TimePatternsCard key="time" habits={filtered} dateFilter={df} />;
       case 'tags':
         return <TagsSection key="tags" filtered={filtered} dateFilter={df} />;
+      case 'resist':
+        return <ResistSection key="resist" habits={filtered} />;
       default:
         return null;
     }

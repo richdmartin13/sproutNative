@@ -78,16 +78,16 @@ struct HabitListView: View {
                     withAnimation(.spring(duration: 0.25)) { showGrid.toggle() }
                 } label: {
                     Image(systemName: showGrid ? "list.bullet" : "square.grid.2x2")
-                        .foregroundStyle(.primary)
                 }
+                .tint(.white)
             }
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
                     model.requestUpdate()
                 } label: {
                     Image(systemName: "arrow.clockwise")
-                        .foregroundStyle(.primary)
                 }
+                .tint(.white)
             }
         }
     }

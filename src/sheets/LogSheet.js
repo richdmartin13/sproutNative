@@ -15,8 +15,19 @@ const COMMON_TAGS = [
 
 export default function LogSheet({ habit, log, allHabits, onClose, onSave }) {
   const { theme, data } = useApp();
-  // track prefs from settings — governs which fields are shown (all habit types show all fields)
-  const track = data?.prefs?.track || {};
+  // track prefs — per-type objects ({go,st,ne}) or plain boolean/undefined
+  const rawTrack = data?.prefs?.track || {};
+  const ht = habit.type; // 'go' | 'st' | 'ne'
+  const tr = (k) => {
+    const v = rawTrack[k];
+    if (v === false) return false;
+    if (typeof v === 'object' && v !== null) return v[ht] !== false;
+    return true;
+  };
+  // Flatten to a simple boolean map for backward-compat references below
+  const track = Object.fromEntries(
+    ['ease','mood','energy','duration','trigger','resist','context','tags','notes'].map(k => [k, tr(k)])
+  );
 
   const ts0 = log.ts ? new Date(log.ts) : new Date();
   const [dateVal, setDateVal] = useState(ts0.toISOString().slice(0,10));

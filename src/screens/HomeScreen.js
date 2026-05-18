@@ -229,7 +229,7 @@ export default function HomeScreen({ onOpenHabit, onLongPressHabit, onNewHabit }
   const habits = habitsRaw;
   const prefs  = data?.prefs  || {};
   const [category, setCategory] = useState('');
-  const [types,    setTypes]    = useState([]);
+  const [types,    setTypes]    = useState(['go', 'st', 'ne']);
 
   const filtered = useMemo(() => {
     let l = habits.filter(h => !h.archived);
