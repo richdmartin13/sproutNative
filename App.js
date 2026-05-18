@@ -15,29 +15,22 @@ import NativeNav from './src/nav/NativeNav.js';
 import TutorialCard from './src/components/TutorialCard.js';
 import SplashOverlay from './src/components/SplashOverlay.js';
 
-// Re-export FONTS so any file that imports from App.js continues to work
 export { FONTS } from './src/lib/fonts.js';
 
-// Keep the splash screen visible until both fonts and data are ready
+// Prevent native splash from auto-hiding — we will hide it immediately ourselves
+// so the native splash (which shows the large icon) never appears to the user.
+// Our custom JS SplashOverlay takes over from the very first frame.
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
 function AppReady({ fontsLoaded }) {
   const { ready } = useApp();
-  const [showSplash, setShowSplash] = useState(true);
-
-  const onLayoutRootView = useCallback(async () => {
-    if (fontsLoaded && ready) {
-      await SplashScreen.hideAsync();
-    }
-  }, [fontsLoaded, ready]);
 
   if (!fontsLoaded || !ready) return null;
 
   return (
-    <View style={{ flex: 1 }} onLayout={onLayoutRootView}>
+    <View style={{ flex: 1 }}>
       <NativeNav />
       <TutorialCard />
-      {showSplash && <SplashOverlay onDone={() => setShowSplash(false)} />}
     </View>
   );
 }
@@ -47,6 +40,13 @@ export default function App() {
     PlayfairDisplay_700Bold, PlayfairDisplay_500Medium, PlayfairDisplay_500Medium_Italic,
     DMMono_300Light, DMMono_400Regular, DMMono_500Medium,
   });
+  const [splashDone, setSplashDone] = useState(false);
+
+  // Hide the native splash immediately on first render so only our custom
+  // SplashOverlay is ever visible to the user.
+  useEffect(() => {
+    SplashScreen.hideAsync().catch(() => {});
+  }, []);
 
   return (
     <SafeAreaProvider>
@@ -55,6 +55,9 @@ export default function App() {
           <AppReady fontsLoaded={!!fontsLoaded} />
         </TutorialProvider>
       </AppProvider>
+      {/* SplashOverlay lives outside AppProvider so it renders from frame 1,
+          masking the brief loading period before fonts + data are ready. */}
+      {!splashDone && <SplashOverlay onDone={() => setSplashDone(true)} />}
     </SafeAreaProvider>
   );
 }

@@ -56,6 +56,23 @@ export function AppProvider({ children }) {
         await new Promise(r => setTimeout(r, 200));
         d = await loadData();
       }
+      // Seed a sample habit on a fresh install so the tutorial has something to demonstrate.
+      // The 'seeded' flag prevents re-adding if the user later deletes all habits.
+      if (d.habits.length === 0 && !d.prefs?.seeded) {
+        d = {
+          ...d,
+          habits: [{
+            id: 'sample_morning_walk',
+            name: 'Morning Walk',
+            type: 'go',
+            category: 'Health',
+            goal: 1,
+            logs: [],
+            createdAt: new Date().toISOString(),
+          }],
+          prefs: { ...d.prefs, seeded: true },
+        };
+      }
       setData(d);
       setReady(true);
     }

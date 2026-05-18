@@ -1,115 +1,109 @@
 import React, { createContext, useContext, useState, useCallback, useRef, useMemo, useEffect } from 'react';
 
+// icon values must match keys in TutorialCard's ICON_MAP (lucide-react-native names)
 export const TUTORIAL_STEPS = {
   home: [
     {
       id: 'welcome',
-      icon: '🌱',
-      title: 'Welcome to Sprout',
-      body: 'Your habits live here. Tap a card to log it, long-press for options like edit, archive, or delete.',
+      icon: 'Home',
+      title: 'Your habits',
+      body: 'Every habit you track lives here. Tap a card to log it instantly, or long-press for options like edit, archive, and delete.',
       type: 'intro',
     },
     {
       id: 'tap_log',
-      icon: '👆',
+      icon: 'Zap',
       title: 'Tap to log',
-      body: "Try tapping any habit card below — we'll move on as soon as you do.",
+      body: 'Try tapping any habit card below — we will move on automatically once you do.',
       type: 'action',
       action: 'log_habit',
-      hint: 'up',
     },
     {
       id: 'filters',
-      icon: '⊞',
-      title: 'Filter your view',
-      body: 'Use the Start, Stop, and Neutral chips to focus on specific habit types. The list/grid icons change your layout.',
+      icon: 'List',
+      title: 'Filter and sort',
+      body: 'The type chips (Start, Stop, Neutral) filter your list. The list/grid icons in the top-right switch your layout. Category chips appear when you have categorised habits.',
       type: 'info',
-      hint: 'up',
     },
     {
       id: 'add',
-      icon: '+',
-      title: 'Build your list',
-      body: 'Tap the + button to create a new habit. Set its name, type, category, and daily goal.',
+      icon: 'Plus',
+      title: 'Add a habit',
+      body: 'Tap the + button in the bottom-right to create a new habit. Set its name, type (Start/Stop/Neutral), category, and daily goal.',
       type: 'info',
-      hint: 'down',
     },
     {
       id: 'done',
-      icon: '✓',
-      title: "You're all set!",
-      body: 'Head to Analytics to see your patterns, and Settings to personalize Sprout.',
+      icon: 'ArrowRight',
+      title: 'All set!',
+      body: 'Head to Analytics to see your patterns, and Settings to personalise colors, fields, and more.',
       type: 'finish',
     },
   ],
   insights: [
     {
-      id: 'overview',
-      icon: '📊',
-      title: 'Your patterns',
-      body: 'Charts and stats update as you log habits. The more you log, the richer your data.',
+      id: 'welcome',
+      icon: 'BarChart3',
+      title: 'Your analytics',
+      body: 'Every chart here updates automatically as you log habits. The more you log, the richer the data.',
       type: 'intro',
     },
     {
-      id: 'filter',
-      icon: '⊞',
-      title: 'Filter by type',
-      body: 'Use the Start, Stop, and Neutral chips at the top to focus charts on specific habit types.',
+      id: 'dates',
+      icon: 'Clock',
+      title: 'Change timeframe',
+      body: 'Use the date arrows and range chips (7d, 30d, 90d, All) at the top to zoom in on any period, or tap into a specific day.',
       type: 'info',
-      hint: 'up',
     },
     {
-      id: 'dates',
-      icon: '📅',
-      title: 'Change timeframe',
-      body: 'Switch between 7d, 30d, 90d, and All time to zoom in on different periods.',
+      id: 'filter',
+      icon: 'List',
+      title: 'Filter by type',
+      body: 'The Start, Stop, and Neutral chips filter every chart at once. Select one type to focus, or mix and match.',
       type: 'info',
-      hint: 'up',
     },
     {
       id: 'scroll',
-      icon: '↕',
+      icon: 'TrendingUp',
       title: 'Scroll to explore',
-      body: "Below you'll find heatmaps, hourly activity, trends, mood charts, rankings, correlations, and resistance tracking.",
+      body: 'Below the filters you will find: activity heatmap, hourly breakdown, 30-day trends, spider chart, rankings, correlations, mood and energy patterns, day-of-week chart, tag cloud, and resistance stats.',
       type: 'info',
     },
     {
       id: 'done',
-      icon: '✓',
+      icon: 'ArrowRight',
       title: 'Keep logging!',
-      body: 'Your analytics grow richer with every entry. Come back often.',
+      body: 'Charts deepen with every entry. Come back often to spot patterns.',
       type: 'finish',
     },
   ],
   settings: [
     {
-      id: 'overview',
-      icon: '⚙',
-      title: 'Customize Sprout',
-      body: 'Everything here saves automatically. Let\'s walk through the key options.',
+      id: 'welcome',
+      icon: 'Settings',
+      title: 'Settings',
+      body: 'Customise how Sprout looks and behaves. Every change saves automatically.',
       type: 'intro',
     },
     {
-      id: 'color',
-      icon: '🎨',
-      title: 'Pick your color',
-      body: 'Choose an accent color — it appears on cards, charts, and the nav bar throughout the app.',
+      id: 'appearance',
+      icon: 'Palette',
+      title: 'Appearance',
+      body: 'Tap Appearance to pick your accent color, toggle dark mode, and enable Liquid Glass effects on iOS 26.',
       type: 'info',
-      hint: 'up',
     },
     {
       id: 'logging',
-      icon: '📝',
+      icon: 'PenLine',
       title: 'Logging fields',
-      body: 'Control what you track per habit type: ease, mood, energy, tags, trigger, context, notes, and more.',
+      body: 'Tap Logging Fields to control what appears when you log a habit. Enable or disable ease, mood, energy, duration, trigger, context, tags, and notes — per habit type.',
       type: 'info',
-      hint: 'up',
     },
     {
       id: 'done',
-      icon: '✓',
-      title: 'All set!',
-      body: 'Retrigger any screen\'s tour from the Tours section here in Settings.',
+      icon: 'ArrowRight',
+      title: 'Done!',
+      body: 'You can replay any screen tour anytime from the Guided Tours section below.',
       type: 'finish',
     },
   ],
@@ -119,10 +113,9 @@ const TutorialCtx = createContext(null);
 
 export function TutorialProvider({ children }) {
   const [tut, setTut] = useState({ active: false, screen: null, step: 0 });
-  const onEndRef = useRef(null);
+  const onEndRef    = useRef(null);
   const prevActiveRef = useRef(false);
 
-  // Fire onEnd callback when tutorial goes inactive
   useEffect(() => {
     if (!tut.active && prevActiveRef.current) {
       onEndRef.current?.();

@@ -4,7 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import * as DocumentPicker from 'expo-document-picker';
-import { ChevronRight, Download, Upload, Trash2, Palette, LayoutGrid, PenLine, BarChart3, Database, ScrollText, List, Grid, Clock, Undo2, Archive, FlaskConical } from '../components/Icon.js';
+import { ChevronRight, Download, Upload, Trash2, Palette, LayoutGrid, PenLine, BarChart3, Database, ScrollText, List, Grid, Clock, Undo2, Archive, FlaskConical, Home, Settings, ArrowRight } from '../components/Icon.js';
 import { useApp } from '../context/AppContext.js';
 import { useTutorial } from '../context/TutorialContext.js';
 import GlassCard from '../components/GlassCard.js';
@@ -29,8 +29,8 @@ function MRow({ label, sub, value, onChange }) {
   );
 }
 
-const APP_VERSION = '1.0.23';
-const APP_BUILD  = 23;
+const APP_VERSION = '1.0.24';
+const APP_BUILD  = 24;
 
 const CHANGELOG = [
   {
@@ -568,13 +568,12 @@ export default function SettingsScreen({ onNavigate }) {
             Guided Tours
           </Text>
           {[
-            { id:'home',     label:'Habits',    sub:'Logging, filters, and layout',        icon:'🌱' },
-            { id:'insights', label:'Analytics', sub:'Charts, timeframes, and sections',    icon:'📊' },
-            { id:'settings', label:'Settings',  sub:'Colors, logging fields, and options', icon:'⚙' },
-          ].map(({ id, label, sub, icon }, i) => (
+            { id:'home',     label:'Habits',    sub:'Logging, filters, and layout',        Icon:Home     },
+            { id:'insights', label:'Analytics', sub:'Charts, timeframes, and sections',    Icon:BarChart3 },
+            { id:'settings', label:'Settings',  sub:'Colors, logging fields, and options', Icon:Settings  },
+          ].map(({ id, label, sub, Icon }, i) => (
             <Pressable key={id}
               onPress={() => {
-                // Clear seen flag so NativeNav auto-start fires; switch tab for non-settings
                 setPrefs({ ...prefs, tutorialSeen: { ...(prefs.tutorialSeen || {}), [id]: undefined } });
                 if (id === 'settings') {
                   startTutorial('settings');
@@ -585,12 +584,12 @@ export default function SettingsScreen({ onNavigate }) {
               style={({ pressed }) => ({
                 flexDirection:'row', alignItems:'center', gap:12,
                 paddingHorizontal:16, paddingVertical:14,
-                borderTopWidth: i === 0 ? 1 : 1, borderTopColor:theme.border,
+                borderTopWidth:1, borderTopColor:theme.border,
                 backgroundColor: pressed ? (theme.isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)') : 'transparent',
               })}>
               <View style={{ width:34, height:34, borderRadius:9,
                 backgroundColor:theme.accentDim, alignItems:'center', justifyContent:'center' }}>
-                <Text style={{ fontSize:17 }}>{icon}</Text>
+                <Icon size={17} strokeWidth={2} color={theme.accent} />
               </View>
               <View style={{ flex:1 }}>
                 <Text style={{ fontSize:15, fontWeight:'600', color:theme.text }}>{label}</Text>
