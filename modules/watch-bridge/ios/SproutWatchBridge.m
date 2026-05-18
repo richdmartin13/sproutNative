@@ -12,7 +12,7 @@ RCT_EXPORT_MODULE(SproutWatchBridge);
 + (BOOL)requiresMainQueueSetup { return NO; }
 
 - (NSArray<NSString *> *)supportedEvents {
-    return @[@"WatchLog", @"WatchUndo", @"WatchResist", @"WatchReachability"];
+    return @[@"WatchLog", @"WatchUndo", @"WatchResist", @"WatchReachability", @"WatchPrefUpdate"];
 }
 
 - (void)startObserving { _hasListeners = YES; }
@@ -87,6 +87,9 @@ didReceiveMessage:(NSDictionary<NSString *, id> *)message
         replyHandler(@{@"ok": @YES});
     } else if ([action isEqualToString:@"resistHabit"] && message[@"id"]) {
         [self emitName:@"WatchResist" body:@{@"id": message[@"id"]}];
+        replyHandler(@{@"ok": @YES});
+    } else if ([action isEqualToString:@"updatePref"] && message[@"key"] && message[@"value"]) {
+        [self emitName:@"WatchPrefUpdate" body:@{@"key": message[@"key"], @"value": message[@"value"]}];
         replyHandler(@{@"ok": @YES});
     } else {
         replyHandler(@{});

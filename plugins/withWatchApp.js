@@ -51,6 +51,7 @@ const SWIFT_SOURCES = [
   'HourlyActivityView.swift',
   'QuickLogView.swift',
   'WatchSettingsView.swift',
+  'CategoryPickerView.swift',
   'SproutShortcuts.swift',
 ];
 

@@ -14,43 +14,45 @@ struct WatchHabit: Identifiable, Codable, Hashable {
 }
 
 struct WatchPrefs: Codable {
-    var dismissDelay: Double
-    var haptic: Bool
-    var showStats: Bool
-    var showGrid: Bool
-    var showCategory: Bool
     var categories: [String]    // available categories from active iPhone habits
     var hourlyActivity: [Int]   // 24 values — total logs per hour for today
     var accentHex: String       // e.g. "#2d6e47"
     var isDark: Bool
 
-    init(dismissDelay: Double = 2.0, haptic: Bool = true, showStats: Bool = true,
-         showGrid: Bool = false, showCategory: Bool = true, categories: [String] = [],
-         hourlyActivity: [Int] = Array(repeating: 0, count: 24),
-         accentHex: String = "#2d6e47", isDark: Bool = true) {
+    // Legacy fields — still decoded so old iPhone builds don't break wire format
+    var dismissDelay: Double
+    var haptic: Bool
+    var showStats: Bool
+    var showGrid: Bool
+    var showCategory: Bool
+
+    init(categories: [String] = [], hourlyActivity: [Int] = Array(repeating: 0, count: 24),
+         accentHex: String = "#2d6e47", isDark: Bool = true,
+         dismissDelay: Double = 2.0, haptic: Bool = true, showStats: Bool = true,
+         showGrid: Bool = false, showCategory: Bool = true) {
+        self.categories      = categories
+        self.hourlyActivity  = hourlyActivity
+        self.accentHex       = accentHex
+        self.isDark          = isDark
         self.dismissDelay    = dismissDelay
         self.haptic          = haptic
         self.showStats       = showStats
         self.showGrid        = showGrid
         self.showCategory    = showCategory
-        self.categories      = categories
-        self.hourlyActivity  = hourlyActivity
-        self.accentHex       = accentHex
-        self.isDark          = isDark
     }
 
     // Tolerant decode — new keys fall back to defaults so old builds keep working
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
+        categories     = try c.decodeIfPresent([String].self, forKey: .categories)     ?? []
+        hourlyActivity = try c.decodeIfPresent([Int].self,    forKey: .hourlyActivity) ?? Array(repeating: 0, count: 24)
+        accentHex      = try c.decodeIfPresent(String.self,   forKey: .accentHex)      ?? "#2d6e47"
+        isDark         = try c.decodeIfPresent(Bool.self,     forKey: .isDark)         ?? true
         dismissDelay   = try c.decodeIfPresent(Double.self,   forKey: .dismissDelay)   ?? 2.0
         haptic         = try c.decodeIfPresent(Bool.self,     forKey: .haptic)         ?? true
         showStats      = try c.decodeIfPresent(Bool.self,     forKey: .showStats)      ?? true
         showGrid       = try c.decodeIfPresent(Bool.self,     forKey: .showGrid)       ?? false
         showCategory   = try c.decodeIfPresent(Bool.self,     forKey: .showCategory)   ?? true
-        categories     = try c.decodeIfPresent([String].self, forKey: .categories)     ?? []
-        hourlyActivity = try c.decodeIfPresent([Int].self,    forKey: .hourlyActivity) ?? Array(repeating: 0, count: 24)
-        accentHex      = try c.decodeIfPresent(String.self,   forKey: .accentHex)      ?? "#2d6e47"
-        isDark         = try c.decodeIfPresent(Bool.self,     forKey: .isDark)         ?? true
     }
 
     var accentColor: Color { Color(hex: accentHex) }
@@ -75,15 +77,72 @@ extension Color {
 class WatchDataModel: NSObject, ObservableObject {
     @Published var habits: [WatchHabit] = []
     @Published var watchPrefs = WatchPrefs()
-    @Published var selectedCategory: String? = nil
     @Published var isReachable = false
     @Published var isLoading = true
 
+    // Suppresses sendPrefUpdate while applying a payload from the phone
+    // to prevent echo loops (phone → watch → phone → watch...).
+    private var isSyncing = false
+
+    // ── Watch-local persisted settings ──────────────────────────────────
+    // Changes are saved to UserDefaults AND mirrored to iPhone when reachable.
+    @Published var showGrid: Bool = false {
+        didSet {
+            UserDefaults.standard.set(showGrid, forKey: "wShowGrid")
+            sendPrefUpdate("watchShowGrid", showGrid)
+        }
+    }
+    @Published var showCategory: Bool = true {
+        didSet {
+            UserDefaults.standard.set(showCategory, forKey: "wShowCategory")
+            sendPrefUpdate("watchShowCategory", showCategory)
+        }
+    }
+    @Published var selectedCategory: String? = nil {
+        didSet { UserDefaults.standard.set(selectedCategory, forKey: "wSelectedCat") }
+    }
+    @Published var dismissDelay: Double = 2.0 {
+        didSet {
+            UserDefaults.standard.set(dismissDelay, forKey: "wDismissDelay")
+            sendPrefUpdate("watchDismiss", dismissDelay)
+        }
+    }
+    @Published var haptic: Bool = true {
+        didSet {
+            UserDefaults.standard.set(haptic, forKey: "wHaptic")
+            sendPrefUpdate("watchHaptic", haptic)
+        }
+    }
+    @Published var showStats: Bool = true {
+        didSet {
+            UserDefaults.standard.set(showStats, forKey: "wShowStats")
+            sendPrefUpdate("watchShowStats", showStats)
+        }
+    }
+
     override init() {
         super.init()
+        let ud = UserDefaults.standard
+        showGrid     = ud.bool(forKey: "wShowGrid")
+        showCategory = ud.object(forKey: "wShowCategory") as? Bool   ?? true
+        haptic       = ud.object(forKey: "wHaptic")       as? Bool   ?? true
+        showStats    = ud.object(forKey: "wShowStats")    as? Bool   ?? true
+        dismissDelay = ud.object(forKey: "wDismissDelay") as? Double ?? 2.0
+        selectedCategory = ud.string(forKey: "wSelectedCat")
+
         guard WCSession.isSupported() else { return }
         WCSession.default.delegate = self
         WCSession.default.activate()
+    }
+
+    private func sendPrefUpdate(_ key: String, _ value: Any) {
+        guard !isSyncing,
+              WCSession.default.activationState == .activated,
+              WCSession.default.isReachable else { return }
+        WCSession.default.sendMessage(
+            ["action": "updatePref", "key": key, "value": value],
+            replyHandler: nil, errorHandler: nil
+        )
     }
 
     func requestUpdate() {
@@ -101,7 +160,7 @@ class WatchDataModel: NSObject, ObservableObject {
     }
 
     func logHabit(_ id: String) {
-        if watchPrefs.haptic { WKInterfaceDevice.current().play(.click) }
+        if haptic { WKInterfaceDevice.current().play(.click) }
         guard WCSession.default.isReachable else { return }
         WCSession.default.sendMessage(
             ["action": "logHabit", "id": id],
@@ -111,7 +170,7 @@ class WatchDataModel: NSObject, ObservableObject {
     }
 
     func resistHabit(_ id: String) {
-        if watchPrefs.haptic { WKInterfaceDevice.current().play(.success) }
+        if haptic { WKInterfaceDevice.current().play(.success) }
         guard WCSession.default.isReachable else { return }
         WCSession.default.sendMessage(
             ["action": "resistHabit", "id": id],
@@ -121,7 +180,7 @@ class WatchDataModel: NSObject, ObservableObject {
     }
 
     func undoHabit(_ id: String) {
-        if watchPrefs.haptic { WKInterfaceDevice.current().play(.click) }
+        if haptic { WKInterfaceDevice.current().play(.click) }
         guard WCSession.default.isReachable else { return }
         WCSession.default.sendMessage(
             ["action": "undoHabit", "id": id],
@@ -140,7 +199,21 @@ class WatchDataModel: NSObject, ObservableObject {
         }
         if let pd = payload["watchPrefs"] as? Data,
            let decoded = try? JSONDecoder().decode(WatchPrefs.self, from: pd) {
-            DispatchQueue.main.async { self.watchPrefs = decoded }
+            DispatchQueue.main.async {
+                // Suppress sendPrefUpdate in didSet while applying phone values
+                self.isSyncing = true
+                self.watchPrefs    = decoded
+                self.showGrid      = decoded.showGrid
+                self.showCategory  = decoded.showCategory
+                self.dismissDelay  = decoded.dismissDelay
+                self.haptic        = decoded.haptic
+                self.showStats     = decoded.showStats
+                self.isSyncing = false
+                // Clear selected category if it no longer exists
+                if let sel = self.selectedCategory, !decoded.categories.contains(sel) {
+                    self.selectedCategory = nil
+                }
+            }
         }
     }
 

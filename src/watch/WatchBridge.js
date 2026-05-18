@@ -45,3 +45,10 @@ export function onWatchReachability(callback) {
   const sub = emitter.addListener('WatchReachability', ({ reachable }) => callback(reachable));
   return () => sub.remove();
 }
+
+/** Subscribe to pref-update events sent from the watch (setting changed on watch). */
+export function onWatchPrefUpdate(callback) {
+  if (!emitter) return () => {};
+  const sub = emitter.addListener('WatchPrefUpdate', ({ key, value }) => callback(key, value));
+  return () => sub.remove();
+}

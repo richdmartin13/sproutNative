@@ -5,6 +5,7 @@ import { loadData, saveData, importJson } from '../lib/storage.js';
 import { getTheme } from '../lib/theme.js';
 import { normLog, todayStr } from '../lib/util.js';
 import { useWatchSync } from '../watch/useWatchSync.js';
+import { onWatchPrefUpdate } from '../watch/WatchBridge.js';
 import { TEST_HABITS } from '../lib/testData.js';
 
 const Ctx = createContext(null);
@@ -198,6 +199,14 @@ export function AppProvider({ children }) {
 
   // Keep Apple Watch in sync — must come AFTER theme and habits are defined
   useWatchSync(habits, data?.prefs ?? {}, theme, handleWatchLog, handleWatchUndo, handleWatchResist);
+
+  // Mirror pref changes initiated on the watch back to iPhone storage
+  useEffect(() => {
+    if (Platform.OS !== 'ios') return;
+    return onWatchPrefUpdate((key, value) => {
+      setData(d => d ? { ...d, prefs: { ...d.prefs, [key]: value } } : d);
+    });
+  }, []);
 
   return (
     <Ctx.Provider value={{ data, ready, theme, habits, setPrefs, upsertHabit, deleteHabit, archiveHabit, restoreHabit, addLog, updateLog, deleteLog, setData, sysAlert, clearSysAlert }}>

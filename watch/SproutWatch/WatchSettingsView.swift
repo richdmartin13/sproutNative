@@ -2,85 +2,179 @@ import SwiftUI
 
 struct WatchSettingsView: View {
     @EnvironmentObject var model: WatchDataModel
-    @Binding var showGrid: Bool
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: 12) {
 
-                // View mode + sync row
-                Text("VIEW")
-                    .font(.system(size: 9, weight: .semibold))
-                    .foregroundStyle(.secondary)
-
+                // ── Layout ────────────────────────────────────────────────
+                label("LAYOUT")
                 HStack(spacing: 6) {
-                    Button {
-                        withAnimation(.spring(duration: 0.25)) { showGrid = false }
-                    } label: {
-                        Image(systemName: "list.bullet")
-                            .frame(maxWidth: .infinity)
+                    layoutBtn("list.bullet", "List", selected: !model.showGrid) {
+                        model.showGrid = false
                     }
-                    .buttonStyle(.bordered)
-                    .tint(showGrid ? .secondary : model.watchPrefs.accentColor)
-
-                    Button {
-                        withAnimation(.spring(duration: 0.25)) { showGrid = true }
-                    } label: {
-                        Image(systemName: "square.grid.2x2")
-                            .frame(maxWidth: .infinity)
+                    layoutBtn("square.grid.2x2", "Grid", selected: model.showGrid) {
+                        model.showGrid = true
                     }
-                    .buttonStyle(.bordered)
-                    .tint(showGrid ? model.watchPrefs.accentColor : .secondary)
-
-                    Button {
-                        model.requestUpdate()
-                        dismiss()
-                    } label: {
-                        Image(systemName: "arrow.clockwise")
-                            .frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(.bordered)
-                    .tint(model.watchPrefs.accentColor)
                 }
 
-                // Category filter — only shown when categories exist
-                if !model.watchPrefs.categories.isEmpty {
-                    Divider()
-                        .padding(.vertical, 2)
-
-                    Text("CATEGORY")
-                        .font(.system(size: 9, weight: .semibold))
+                // ── Category filter ───────────────────────────────────────
+                Divider().padding(.vertical, 2)
+                label("CATEGORY")
+                catChip(nil)
+                if model.watchPrefs.categories.isEmpty {
+                    Text("No categories found — assign categories in the iPhone app.")
+                        .font(.system(size: 10))
                         .foregroundStyle(.secondary)
-
-                    Button {
-                        model.selectedCategory = nil
-                        dismiss()
-                    } label: {
-                        Text("All")
-                            .font(.system(size: 13, weight: .semibold))
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-                    .buttonStyle(.bordered)
-                    .tint(model.selectedCategory == nil ? model.watchPrefs.accentColor : .secondary)
-
+                        .padding(.horizontal, 2)
+                } else {
                     ForEach(model.watchPrefs.categories, id: \.self) { cat in
-                        Button {
-                            model.selectedCategory = cat
-                            dismiss()
-                        } label: {
-                            Text(cat)
-                                .font(.system(size: 13, weight: .semibold))
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                        }
-                        .buttonStyle(.bordered)
-                        .tint(model.selectedCategory == cat ? model.watchPrefs.accentColor : .secondary)
+                        catChip(cat)
                     }
                 }
+
+                // ── Display ───────────────────────────────────────────────
+                Divider().padding(.vertical, 2)
+                label("DISPLAY")
+                toggleRow("Show stats", on: model.showStats)  { model.showStats    = $0 }
+                toggleRow("Show category", on: model.showCategory) { model.showCategory = $0 }
+
+                // ── After logging ─────────────────────────────────────────
+                Divider().padding(.vertical, 2)
+                label("AUTO-DISMISS")
+                HStack(spacing: 4) {
+                    dismissBtn("1s",   1.0)
+                    dismissBtn("2s",   2.0)
+                    dismissBtn("5s",   5.0)
+                    dismissBtn("Off",  0.0)
+                }
+
+                // ── Haptic ────────────────────────────────────────────────
+                toggleRow("Haptic", on: model.haptic) { model.haptic = $0 }
+
+                // ── Sync ──────────────────────────────────────────────────
+                Divider().padding(.vertical, 2)
+                Button {
+                    model.requestUpdate()
+                    dismiss()
+                } label: {
+                    Label("Sync from iPhone", systemImage: "arrow.clockwise")
+                        .font(.system(size: 13, weight: .semibold))
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+                .tint(model.watchPrefs.accentColor)
             }
             .padding(.horizontal, 8)
             .padding(.vertical, 6)
         }
         .navigationTitle("Settings")
+    }
+
+    // ── Helpers ───────────────────────────────────────────────────────────
+
+    @ViewBuilder
+    private func label(_ text: String) -> some View {
+        Text(text)
+            .font(.system(size: 9, weight: .semibold))
+            .foregroundStyle(.secondary)
+    }
+
+    @ViewBuilder
+    private func layoutBtn(_ icon: String, _ title: String, selected: Bool, action: @escaping () -> Void) -> some View {
+        let accent = model.watchPrefs.accentColor
+        Button(action: action) {
+            VStack(spacing: 3) {
+                Image(systemName: selected ? "\(icon).fill" : icon)
+                    .font(.system(size: 15, weight: .medium))
+                Text(title)
+                    .font(.system(size: 10, weight: selected ? .semibold : .regular))
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 9)
+            .background(selected ? accent.opacity(0.22) : Color(white: 0.18))
+            .clipShape(RoundedRectangle(cornerRadius: 9))
+            .overlay(
+                RoundedRectangle(cornerRadius: 9)
+                    .stroke(selected ? accent : Color.clear, lineWidth: 1.5)
+            )
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(selected ? accent : .secondary)
+    }
+
+    @ViewBuilder
+    private func catChip(_ cat: String?) -> some View {
+        let isSelected = model.selectedCategory == cat
+        let accent = model.watchPrefs.accentColor
+        Button {
+            model.selectedCategory = cat
+            dismiss()
+        } label: {
+            HStack(spacing: 6) {
+                if isSelected {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 13))
+                        .foregroundStyle(accent)
+                } else {
+                    Image(systemName: "circle")
+                        .font(.system(size: 13))
+                        .foregroundStyle(.secondary)
+                }
+                Text(cat ?? "All")
+                    .font(.system(size: 13, weight: isSelected ? .semibold : .regular))
+                    .foregroundStyle(isSelected ? accent : .primary)
+                Spacer()
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 7)
+            .padding(.horizontal, 10)
+            .background(isSelected ? accent.opacity(0.15) : Color(white: 0.13))
+            .clipShape(RoundedRectangle(cornerRadius: 9))
+            .overlay(
+                RoundedRectangle(cornerRadius: 9)
+                    .stroke(isSelected ? accent.opacity(0.5) : Color.clear, lineWidth: 1)
+            )
+        }
+        .buttonStyle(.plain)
+    }
+
+    @ViewBuilder
+    private func toggleRow(_ title: String, on value: Bool, onChange: @escaping (Bool) -> Void) -> some View {
+        let accent = model.watchPrefs.accentColor
+        Button { onChange(!value) } label: {
+            HStack {
+                Text(title)
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(.primary)
+                Spacer()
+                Image(systemName: value ? "checkmark.circle.fill" : "circle")
+                    .font(.system(size: 15))
+                    .foregroundStyle(value ? accent : .secondary)
+            }
+            .padding(.vertical, 6)
+        }
+        .buttonStyle(.plain)
+    }
+
+    @ViewBuilder
+    private func dismissBtn(_ label: String, _ value: Double) -> some View {
+        let selected = model.dismissDelay == value
+        let accent = model.watchPrefs.accentColor
+        Button { model.dismissDelay = value } label: {
+            Text(label)
+                .font(.system(size: 11, weight: selected ? .semibold : .regular))
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 7)
+                .background(selected ? accent.opacity(0.22) : Color(white: 0.18))
+                .clipShape(RoundedRectangle(cornerRadius: 7))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 7)
+                        .stroke(selected ? accent : Color.clear, lineWidth: 1.5)
+                )
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(selected ? accent : .secondary)
     }
 }

@@ -2,8 +2,8 @@ import SwiftUI
 
 struct HabitListView: View {
     @EnvironmentObject var model: WatchDataModel
-    @State private var showGrid = false
     @State private var showSettings = false
+    @State private var showCategoryPicker = false
 
     private var visibleHabits: [WatchHabit] {
         guard let cat = model.selectedCategory else { return model.habits }
@@ -14,11 +14,8 @@ struct HabitListView: View {
         Group {
             if model.isLoading {
                 VStack(spacing: 10) {
-                    ProgressView()
-                        .progressViewStyle(.circular)
-                    Text("Syncing…")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
+                    ProgressView().progressViewStyle(.circular)
+                    Text("Syncing…").font(.caption2).foregroundStyle(.secondary)
                 }
             } else if model.habits.isEmpty {
                 VStack(spacing: 10) {
@@ -28,8 +25,7 @@ struct HabitListView: View {
                     Text(model.isReachable
                          ? "No habits yet.\nOpen Sprout on iPhone."
                          : "iPhone out of range.")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
+                        .font(.caption2).foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
                 }
                 .padding()
@@ -37,56 +33,51 @@ struct HabitListView: View {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 10) {
 
-                        // Hourly sparkline — always shown, fades in when data arrives
-                        let hourly = model.watchPrefs.hourlyActivity
-                        HourlyActivityView(counts: hourly, accentColor: model.watchPrefs.accentColor)
+                        HourlyActivityView(counts: model.watchPrefs.hourlyActivity,
+                                           accentColor: model.watchPrefs.accentColor)
                             .padding(.horizontal, 2)
 
-                        // Active category indicator
+                        // Active category chip — tap to clear
                         if let cat = model.selectedCategory {
-                            HStack(spacing: 4) {
-                                Text(cat)
-                                    .font(.system(size: 11, weight: .semibold))
-                                    .foregroundStyle(model.watchPrefs.accentColor)
-                                    .lineLimit(1)
-                                Spacer()
-                                Button {
-                                    model.selectedCategory = nil
-                                } label: {
-                                    Image(systemName: "xmark.circle.fill")
-                                        .font(.system(size: 12))
+                            Button { model.selectedCategory = nil } label: {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "line.3.horizontal.decrease.circle.fill")
+                                        .font(.system(size: 11))
+                                    Text(cat)
+                                        .font(.system(size: 11, weight: .semibold))
+                                        .lineLimit(1)
+                                    Spacer()
+                                    Image(systemName: "xmark")
+                                        .font(.system(size: 10, weight: .semibold))
                                         .foregroundStyle(.secondary)
                                 }
-                                .buttonStyle(.plain)
+                                .foregroundStyle(model.watchPrefs.accentColor)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 5)
+                                .background(model.watchPrefs.accentColor.opacity(0.14))
+                                .clipShape(Capsule())
                             }
+                            .buttonStyle(.plain)
                             .padding(.horizontal, 2)
                         }
 
-                        // Empty category state
+                        // Empty-category fallback
                         if visibleHabits.isEmpty {
                             VStack(spacing: 8) {
                                 Text("No habits in this category.")
-                                    .font(.caption2)
-                                    .foregroundStyle(.secondary)
+                                    .font(.caption2).foregroundStyle(.secondary)
                                     .multilineTextAlignment(.center)
-                                Button {
-                                    model.selectedCategory = nil
-                                } label: {
-                                    Text("Show all")
-                                        .font(.system(size: 12, weight: .semibold))
+                                Button { model.selectedCategory = nil } label: {
+                                    Text("Show all").font(.system(size: 12, weight: .semibold))
                                 }
                                 .tint(model.watchPrefs.accentColor)
                             }
-                            .frame(maxWidth: .infinity)
-                            .padding(.top, 8)
-                        } else if showGrid {
-                            LazyVGrid(
-                                columns: [GridItem(.flexible()), GridItem(.flexible())],
-                                spacing: 8
-                            ) {
+                            .frame(maxWidth: .infinity).padding(.top, 8)
+                        } else if model.showGrid {
+                            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 8) {
                                 ForEach(visibleHabits) { habit in
                                     NavigationLink(destination: QuickLogView(habit: habit)) {
-                                        HabitGridTile(habit: habit, showCategory: model.watchPrefs.showCategory)
+                                        HabitGridTile(habit: habit, showCategory: model.showCategory)
                                     }
                                     .buttonStyle(.plain)
                                 }
@@ -95,7 +86,7 @@ struct HabitListView: View {
                             LazyVStack(spacing: 6) {
                                 ForEach(visibleHabits) { habit in
                                     NavigationLink(destination: QuickLogView(habit: habit)) {
-                                        HabitRowView(habit: habit, showCategory: model.watchPrefs.showCategory)
+                                        HabitRowView(habit: habit, showCategory: model.showCategory)
                                     }
                                     .buttonStyle(.plain)
                                 }
@@ -107,23 +98,30 @@ struct HabitListView: View {
                 }
             }
         }
-        .onAppear {
-            model.requestUpdate()
-            showGrid = model.watchPrefs.showGrid
+        .onAppear { model.requestUpdate() }
+        // Category picker — focused, fast-dismiss sheet
+        .sheet(isPresented: $showCategoryPicker) {
+            CategoryPickerView()
         }
-        .onChange(of: model.watchPrefs.showGrid) { _, newVal in
-            showGrid = newVal
-        }
+        // Full settings sheet
         .sheet(isPresented: $showSettings) {
-            WatchSettingsView(showGrid: $showGrid)
+            WatchSettingsView()
         }
         .toolbar {
+            // Leading: category filter (filled icon = active filter)
+            ToolbarItem(placement: .topBarLeading) {
+                Button { showCategoryPicker = true } label: {
+                    Image(systemName: model.selectedCategory != nil
+                          ? "line.3.horizontal.decrease.circle.fill"
+                          : "line.3.horizontal.decrease.circle")
+                        .foregroundStyle(model.selectedCategory != nil
+                                         ? model.watchPrefs.accentColor : .white)
+                }
+            }
+            // Trailing: settings
             ToolbarItem(placement: .topBarTrailing) {
-                Button {
-                    showSettings = true
-                } label: {
-                    Image(systemName: "slider.horizontal.3")
-                        .foregroundStyle(.white)
+                Button { showSettings = true } label: {
+                    Image(systemName: "slider.horizontal.3").foregroundStyle(.white)
                 }
             }
         }

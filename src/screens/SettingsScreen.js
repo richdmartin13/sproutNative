@@ -30,10 +30,21 @@ function MRow({ label, sub, value, onChange }) {
   );
 }
 
-const APP_VERSION = '1.0.27';
-const APP_BUILD  = 27;
+const APP_VERSION = '1.0.28';
+const APP_BUILD  = 28;
 
 const CHANGELOG = [
+  {
+    version: '1.0.28',
+    changes: [
+      'Watch: category filter gets its own toolbar button — tap the filter icon to narrow habits by category, persists until cleared',
+      'Watch: active category shown as an inline chip with × clear button directly on the habit list',
+      'Watch: all settings now bidirectionally synced — changes made on iPhone mirror to watch and vice versa instantly',
+      'Watch: settings panel (⚙ icon) contains all display options: layout, haptic, auto-dismiss, show stats, show category',
+      'Watch: selected category resets automatically if the filtered category is removed from your habits',
+      'Settings: Apple Watch modal cleaned up — shorter labels, sync note added to connection row',
+    ],
+  },
   {
     version: '1.0.27',
     changes: [
@@ -743,7 +754,7 @@ export default function SettingsScreen({ onNavigate }) {
             <View style={{ flex:1 }}>
               <Text style={{ fontSize:15, fontWeight:'500', color:theme.text }}>Connection</Text>
               <Text style={{ fontSize:11.5, color:theme.muted, marginTop:2 }}>
-                The sync icon on your watch manually pushes the latest data from iPhone
+                Changes here sync to your watch. Tap ⚙ on the watch to edit there.
               </Text>
             </View>
             <View style={{ flexDirection:'row', alignItems:'center', gap:6 }}>
@@ -757,9 +768,10 @@ export default function SettingsScreen({ onNavigate }) {
           </View>
           {/* Auto-dismiss */}
           <View style={{ paddingVertical:14, borderBottomWidth:1, borderBottomColor:theme.border }}>
-            <Text style={{ fontSize:15, fontWeight:'500', color:theme.text, marginBottom:3 }}>Auto-dismiss after logging</Text>
-            <Text style={{ fontSize:11.5, color:theme.muted, marginBottom:12 }}>How long to show the confirmation before closing</Text>
-            <View style={{ flexDirection:'row', gap:8 }}>
+            <Text style={{ fontSize:15, fontWeight:'500', color:theme.text, marginBottom:3 }}>
+              Auto-dismiss after logging
+            </Text>
+            <View style={{ flexDirection:'row', gap:8, marginTop:10 }}>
               {[[1,'1s'],[2,'2s'],[5,'5s'],[0,'Never']].map(([val, label]) => {
                 const active = (prefs.watchDismiss ?? 2) === val;
                 return (
@@ -773,13 +785,13 @@ export default function SettingsScreen({ onNavigate }) {
               })}
             </View>
           </View>
-          <MRow label="Haptic feedback" sub="Vibrate on log, resist, and undo"
+          <MRow label="Haptic" sub="Vibrate on log, resist, and undo"
             value={prefs.watchHaptic !== false} onChange={v => setP({ watchHaptic: v })} />
-          <MRow label="Show stats" sub="Display streak and today count on each habit"
+          <MRow label="Show stats" sub="Streak and today count on each habit"
             value={prefs.watchShowStats !== false} onChange={v => setP({ watchShowStats: v })} />
-          <MRow label="Grid view" sub="Show habits in a 2-column grid instead of a list"
+          <MRow label="Grid view" sub="2-column layout instead of list"
             value={prefs.watchShowGrid === true} onChange={v => setP({ watchShowGrid: v })} />
-          <MRow label="Show category" sub="Display category label below habit name on watch cards"
+          <MRow label="Show category" sub="Category label on watch habit cards"
             value={prefs.watchShowCategory !== false} onChange={v => setP({ watchShowCategory: v })} />
         </Sheet>
       )}

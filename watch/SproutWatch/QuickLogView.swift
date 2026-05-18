@@ -48,7 +48,7 @@ struct QuickLogView: View {
                             .font(.system(size: 13, weight: .medium))
                             .foregroundStyle(action == "resisted" ? Color.green : (isStop ? Color.orange : Color.green))
                             .transition(.scale.combined(with: .opacity))
-                    } else if model.watchPrefs.showStats {
+                    } else if model.showStats {
                         statsRow
                             .transition(.opacity)
                     }
@@ -161,7 +161,7 @@ struct QuickLogView: View {
     }
 
     private func scheduleDismiss() {
-        let delay = model.watchPrefs.dismissDelay
+        let delay = model.dismissDelay
         guard delay > 0 else { return }
         let work = DispatchWorkItem { dismiss() }
         dismissWork = work
