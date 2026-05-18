@@ -10,10 +10,9 @@ const TABS = [
   { id:'settings', label:'Settings',  Icon:Settings   },
 ];
 
-function NavBtn({ item, active, onPress }) {
+function NavBtn({ item, active, onPress, liquidGlass }) {
   const { theme } = useApp();
   const d = theme.isDark;
-  const liquidGlass = theme.liquidGlassOn && isLiquidGlassSupported && LiquidGlassView;
 
   const widthAnim  = useRef(new Animated.Value(active ? 1 : 0)).current;
   const opacAnim   = useRef(new Animated.Value(active ? 1 : 0)).current;
@@ -42,10 +41,14 @@ function NavBtn({ item, active, onPress }) {
 
   const labelWidth = widthAnim.interpolate({ inputRange:[0,1], outputRange:[0, 78] });
 
+  // Active icon/text color — white on glass/accent, accent on plain inactive
+  const activeTextColor = liquidGlass ? '#fff' : '#fff';
+  const inactiveTextColor = theme.muted;
+
   return (
     <View style={{ overflow: 'visible', position: 'relative' }}>
 
-      {/* Ambient glow disc */}
+      {/* Ambient glow disc — only when active */}
       <Animated.View pointerEvents="none" style={{
         position: 'absolute',
         top: -8, bottom: -8, left: -8, right: -8,
@@ -65,7 +68,7 @@ function NavBtn({ item, active, onPress }) {
         }} />
       </Animated.View>
 
-      {/* Active pill */}
+      {/* Pill wrapper — spring scale + drop shadow when active */}
       <Animated.View style={[
         { transform: [{ scale: scaleAnim }] },
         active && {
@@ -81,26 +84,35 @@ function NavBtn({ item, active, onPress }) {
           height: 48, paddingHorizontal: active ? 16 : 13,
           borderRadius: 999, gap: 7,
         }}>
-          {/* Active pill surface — always a simple capsule; nesting LiquidGlassViews causes blur artifacts */}
+
+          {/* Active indicator — LiquidGlassView in glass mode (parent is plain View, no nesting)
+              or solid accent fill in non-glass mode */}
           {active && (
-            <View style={{
-              position: 'absolute', top: 0, bottom: 0, left: 0, right: 0,
-              borderRadius: 999,
-              backgroundColor: liquidGlass
-                ? (d ? 'rgba(255,255,255,0.18)' : 'rgba(255,255,255,0.62)')
-                : (d ? theme.accentDim : theme.solid),
-              borderWidth: liquidGlass ? 0 : 1.5,
-              borderColor: d ? theme.accentMid : theme.accentBorder,
-            }} />
+            liquidGlass ? (
+              <LiquidGlassView
+                style={{ position:'absolute', top:0, bottom:0, left:0, right:0, borderRadius:999 }}
+                tintColor={theme.accent}
+                colorScheme={d ? 'dark' : 'light'}
+                pointerEvents="none"
+              />
+            ) : (
+              <View style={{
+                position: 'absolute', top: 0, bottom: 0, left: 0, right: 0,
+                borderRadius: 999,
+                backgroundColor: d ? theme.accentMid : theme.accent,
+                borderWidth: 1,
+                borderColor: d ? theme.accentBorder : 'rgba(255,255,255,0.30)',
+              }} />
+            )
           )}
 
           <View style={{ zIndex:1 }}>
             <item.Icon size={21} strokeWidth={active ? 2.5 : 2}
-              color={active ? theme.accent : theme.muted} />
+              color={active ? activeTextColor : inactiveTextColor} />
           </View>
           <Animated.View style={{ width: labelWidth, overflow:'hidden', zIndex:1 }}>
             <Animated.Text numberOfLines={1}
-              style={{ fontSize:13.5, fontWeight:'700', color:theme.accent, opacity: opacAnim }}>
+              style={{ fontSize:13.5, fontWeight:'700', color: activeTextColor, opacity: opacAnim }}>
               {item.label}
             </Animated.Text>
           </Animated.View>
@@ -114,7 +126,9 @@ export default function BottomNav({ tab, onChange, onFab }) {
   const { theme } = useApp();
   const d = theme.isDark;
   const liquidGlass = theme.liquidGlassOn && isLiquidGlassSupported && LiquidGlassView;
-  const NavPill = liquidGlass ? LiquidGlassView : View;
+
+  // When glass is on, the nav pill is a plain View (so active LG indicators don't nest inside another LG)
+  // When glass is off, the nav pill keeps its solid background
   const Container = liquidGlass ? LiquidGlassContainerView : View;
 
   const fabScale = useRef(new Animated.Value(1)).current;
@@ -135,20 +149,26 @@ export default function BottomNav({ tab, onChange, onFab }) {
     }} pointerEvents="box-none">
 
       {/* ── Nav pill ── */}
-      <NavPill style={{
+      <View style={{
         flexDirection: 'row', alignItems: 'center',
         borderRadius: 999,
         paddingHorizontal: 8, paddingVertical: 7, gap: 2,
         overflow: 'visible',
-        ...(!liquidGlass ? {
+        // In glass mode: dark translucent background (no glass blur — prevents nesting artifact)
+        // In non-glass mode: solid surface with shadow
+        ...(liquidGlass ? {
+          backgroundColor: d ? 'rgba(30,30,30,0.55)' : 'rgba(255,255,255,0.72)',
+          borderWidth: 1,
+          borderColor: d ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)',
+        } : {
           shadowColor: theme.accent,
           shadowOffset: { width: 0, height: 3 },
           shadowOpacity: d ? 0.28 : 0.16,
           shadowRadius: 14,
           elevation: 10,
-        } : {}),
-      }} {...(liquidGlass ? { colorScheme: d ? 'dark' : 'light' } : {})}>
-        {/* Solid background — only when not using liquid glass */}
+        }),
+      }}>
+        {/* Solid background for non-glass mode */}
         {!liquidGlass && (
           <View style={{
             position: 'absolute', top:0, left:0, right:0, bottom:0,
@@ -161,11 +181,11 @@ export default function BottomNav({ tab, onChange, onFab }) {
 
         {TABS.map(item => (
           <NavBtn key={item.id} item={item} active={tab === item.id}
-            onPress={() => onChange(item.id)} />
+            onPress={() => onChange(item.id)} liquidGlass={!!liquidGlass} />
         ))}
-      </NavPill>
+      </View>
 
-      {/* ── FAB — only rendered when a handler is provided (LiquidGlassView native layer persists at opacity:0) ── */}
+      {/* ── FAB — only rendered when a handler is provided ── */}
       {onFab ? (
         <View style={{ position:'relative', overflow:'visible' }}>
           {/* Glow halo */}

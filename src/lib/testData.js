@@ -1,11 +1,10 @@
 // App-store-safe demo dataset for screenshots and developer testing.
-// All habits are wholesome / productivity-focused.
 // Patterns baked in:
 //   Morning Run  → Screen Time Before Bed  (−75% on run days)
 //   Healthy Meal → Skipping Breakfast      (−80% on meal days)
 //   Skipping Breakfast → Procrastinating  (+380% on skip days)
 //   Morning Run ↔ Meditation              (positive co-occurrence)
-//   Reading ↔ Healthy Meal               (positive co-occurrence)
+//   Water ↔ Healthy Meal                  (positive co-occurrence)
 
 function lcg(seed) {
   let s = (seed | 0) >>> 0;
@@ -23,7 +22,6 @@ function daysAgo(n) {
   return d.toISOString().slice(0, 10);
 }
 
-// All dates: index 0 = oldest, index TOTAL-1 = today
 const ALL_DATES = Array.from({ length: TOTAL }, (_, i) => daysAgo(TOTAL - 1 - i));
 
 function genDateSet(seed, prob) {
@@ -40,6 +38,7 @@ function genCondDateSet(seed, condSet, baseProb, condProb) {
   return s;
 }
 
+// Single log per day at approx hourBase
 function makeLogs(habitId, dateSet, hourBase, extraFn) {
   const rng = lcg(habitId.split('').reduce((a, c) => a + c.charCodeAt(0), 0) * 997);
   return [...dateSet].sort().map(date => {
@@ -57,33 +56,67 @@ function makeLogs(habitId, dateSet, hourBase, extraFn) {
   });
 }
 
+// Multiple logs per day — count per day determined by countFn(rng) → number
+function makeMultiLogs(habitId, dateSet, hourSlots, extraFn) {
+  const seed = habitId.split('').reduce((a, c) => a + c.charCodeAt(0), 0) * 1031;
+  const rng = lcg(seed);
+  const logs = [];
+  for (const date of [...dateSet].sort()) {
+    const count = hourSlots(rng);
+    // spread taps across the day using a predefined set of hour ranges
+    const hours = [7, 12, 14, 16, 18, 20, 22];
+    for (let i = 0; i < count; i++) {
+      const h = hours[i % hours.length] + Math.floor(rng() * 2);
+      const m = Math.floor(rng() * 60);
+      logs.push({
+        id: `demo_${habitId}_${date}_${i}`,
+        date,
+        ts: `${date}T${String(Math.min(h, 23)).padStart(2, '0')}:${String(m).padStart(2, '0')}:00.000Z`,
+        tags: [],
+        notes: '',
+        ...(extraFn ? extraFn(rng, i) : {}),
+      });
+    }
+  }
+  return logs;
+}
+
 // ── Driver date sets ──────────────────────────────────────────────────────────
-const runDates  = genDateSet(1001, 0.40);   // ~36 days
-const mealDates = genDateSet(1002, 0.63);   // ~57 days
-const coffDates = genDateSet(1003, 0.85);   // ~76 days
+const runDates    = genDateSet(1001, 0.40);   // ~36 days
+const mealDates   = genDateSet(1002, 0.80);   // ~72 days (most days have ≥1 meal)
+const coffDates   = genDateSet(1003, 0.88);   // ~79 days
+const waterDates  = genDateSet(1009, 0.92);   // ~83 days (almost every day)
+const stretchDates= genDateSet(1010, 0.55);   // ~50 days
+const weightDates = genDateSet(1011, 0.45);   // ~40 days
+const moodDates   = genDateSet(1012, 0.70);   // ~63 days
 
-// Meditation: 70% on run days, 16% otherwise
-const medDates = genCondDateSet(1004, runDates, 0.16, 0.70);
-// Reading: 55% on meal days, 27% otherwise
-const readDates = genCondDateSet(1005, mealDates, 0.27, 0.55);
-// Screen Time Before Bed: 12% on run days, 58% otherwise
-const screenDates = genCondDateSet(1006, runDates, 0.58, 0.12);
-// Skipping Breakfast: 7% on meal days, 42% otherwise
-const skipDates = genCondDateSet(1007, mealDates, 0.07, 0.42);
-// Procrastinating: 72% on skip-breakfast days, 13% otherwise
-const procDates = genCondDateSet(1008, skipDates, 0.13, 0.72);
+// Meditation: 72% on run days, 14% otherwise
+const medDates = genCondDateSet(1004, runDates, 0.14, 0.72);
+// Reading: 60% on meal days, 22% otherwise
+const readDates = genCondDateSet(1005, mealDates, 0.22, 0.60);
+// Screen Time Before Bed: 10% on run days, 55% otherwise
+const screenDates = genCondDateSet(1006, runDates, 0.55, 0.10);
+// Skipping Breakfast: 5% on meal days, 40% otherwise
+const skipDates = genCondDateSet(1007, mealDates, 0.05, 0.40);
+// Procrastinating: 70% on skip-breakfast days, 11% otherwise
+const procDates = genCondDateSet(1008, skipDates, 0.11, 0.70);
 
-// ── Mood/energy extras ────────────────────────────────────────────────────────
-const MOODS_POS  = ['good', 'fired up', 'good'];
-const MOODS_NEU  = ['meh', 'tired', 'meh'];
-const MOODS_NEG  = ['tired', 'meh', 'low'];
-const ENERGY_HI  = ['high', 'high', 'medium'];
-const ENERGY_LO  = ['low energy', 'low energy', 'medium'];
+// ── Extras ───────────────────────────────────────────────────────────────────
+const MOODS_POS = ['good', 'fired up', 'good'];
+const MOODS_NEU = ['meh', 'tired', 'meh'];
+const MOODS_NEG = ['tired', 'meh', 'low'];
+const ENERGY_HI = ['high', 'high', 'medium'];
+const ENERGY_LO = ['low energy', 'low energy', 'medium'];
+
+const MEAL_TAGS  = ['breakfast', 'lunch', 'dinner'];
+const WATER_TAGS = ['morning', 'midday', 'afternoon', 'evening', 'night'];
+const READ_TAGS  = ['nonfiction', 'fiction', 'evening', 'morning'];
 
 function pickRng(arr, rng) { return arr[Math.floor(rng() * arr.length)]; }
 
 // ── Test habits ───────────────────────────────────────────────────────────────
 export const TEST_HABITS = [
+  // ── GO ───────────────────────────────────────────────────────────────────
   {
     id: 'demo_run',
     name: 'Morning Run',
@@ -113,14 +146,26 @@ export const TEST_HABITS = [
   },
   {
     id: 'demo_meal',
-    name: 'Healthy Meal',
+    name: 'Eat a Meal',
     type: 'go',
     category: 'Nutrition',
     archived: false,
-    logs: makeLogs('meal', mealDates, 12, rng => ({
+    // 1–3 taps per day (breakfast + lunch + dinner), spread across the day
+    logs: makeMultiLogs('meal', mealDates, rng => 1 + Math.floor(rng() * 3), (rng, i) => ({
       mood: pickRng([...MOODS_POS, 'meh'], rng),
       energy: pickRng(['medium', 'high', 'medium'], rng),
-      tags: [pickRng(['lunch', 'dinner', 'home-cooked', 'lunch'], rng)],
+      tags: [MEAL_TAGS[i % 3]],
+    })),
+  },
+  {
+    id: 'demo_water',
+    name: 'Drink Water',
+    type: 'go',
+    category: 'Health',
+    archived: false,
+    // 4–8 taps per day spread across daylight hours
+    logs: makeMultiLogs('water', waterDates, rng => 4 + Math.floor(rng() * 5), (rng, i) => ({
+      tags: [WATER_TAGS[i % WATER_TAGS.length]],
     })),
   },
   {
@@ -129,10 +174,11 @@ export const TEST_HABITS = [
     type: 'go',
     category: 'Learning',
     archived: false,
-    logs: makeLogs('read', readDates, 19, rng => ({
+    // 1–2 sessions per day
+    logs: makeMultiLogs('read', readDates, rng => 1 + Math.floor(rng() * 2), (rng, i) => ({
       mood: pickRng([...MOODS_POS, 'meh'], rng),
       duration: 15 + Math.floor(rng() * 45),
-      tags: [pickRng(['nonfiction', 'fiction', 'evening', 'nonfiction'], rng)],
+      tags: [READ_TAGS[i % READ_TAGS.length]],
     })),
   },
   {
@@ -147,6 +193,46 @@ export const TEST_HABITS = [
       tags: [],
     })),
   },
+
+  // ── NEUTRAL ───────────────────────────────────────────────────────────────
+  {
+    id: 'demo_stretch',
+    name: 'Daily Stretch',
+    type: 'ne',
+    category: 'Wellness',
+    archived: false,
+    logs: makeLogs('stretch', stretchDates, 8, rng => ({
+      duration: 5 + Math.floor(rng() * 20),
+      energy: pickRng(['medium', 'high', 'medium', 'low energy'], rng),
+      tags: [pickRng(['morning', 'evening', 'desk break', 'morning'], rng)],
+    })),
+  },
+  {
+    id: 'demo_weight',
+    name: 'Weight Check',
+    type: 'ne',
+    category: 'Health',
+    archived: false,
+    logs: makeLogs('weight', weightDates, 7, rng => ({
+      notes: '',
+      tags: ['morning'],
+    })),
+  },
+  {
+    id: 'demo_mood',
+    name: 'Mood Check-in',
+    type: 'ne',
+    category: 'Mindfulness',
+    archived: false,
+    // 1–2 check-ins per day
+    logs: makeMultiLogs('mood', moodDates, rng => 1 + Math.floor(rng() * 2), rng => ({
+      mood: pickRng([...MOODS_POS, ...MOODS_NEU, 'energized'], rng),
+      energy: pickRng([...ENERGY_HI, ...ENERGY_LO, 'medium'], rng),
+      tags: [],
+    })),
+  },
+
+  // ── STOP ──────────────────────────────────────────────────────────────────
   {
     id: 'demo_screen',
     name: 'Screen Time Before Bed',

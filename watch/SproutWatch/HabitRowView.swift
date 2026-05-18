@@ -12,46 +12,41 @@ struct HabitRowView: View {
     }
 
     var body: some View {
-        HStack(spacing: 0) {
-            // Left-edge color bar
-            typeColor
-                .frame(width: 4)
-                .clipShape(UnevenRoundedRectangle(
-                    topLeadingRadius: 12, bottomLeadingRadius: 12,
-                    bottomTrailingRadius: 0, topTrailingRadius: 0
-                ))
+        HStack(spacing: 8) {
+            // Type dot — mirrors grid tile
+            Circle()
+                .fill(typeColor)
+                .frame(width: 6, height: 6)
 
-            // Content
-            VStack(alignment: .leading, spacing: 3) {
-                Text(habit.name)
-                    .font(.system(size: 13, weight: .semibold))
-                    .lineLimit(1)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+            // Habit name
+            Text(habit.name)
+                .font(.system(size: 13, weight: .semibold))
+                .lineLimit(1)
+                .frame(maxWidth: .infinity, alignment: .leading)
 
-                HStack(spacing: 6) {
-                    if habit.todayCount > 0 {
-                        Label("\(habit.todayCount)", systemImage: "checkmark.circle.fill")
-                            .font(.system(size: 10, weight: .medium))
-                            .foregroundStyle(.green)
-                    }
-                    if habit.type == "st", let d = habit.daysSince {
-                        Label("\(d)d free", systemImage: "clock.fill")
-                            .font(.system(size: 10, weight: .medium))
-                            .foregroundStyle(.orange)
-                    } else if habit.streak > 1 {
-                        Label("\(habit.streak)", systemImage: "flame.fill")
-                            .font(.system(size: 10, weight: .medium))
-                            .foregroundStyle(.orange)
-                    }
+            // Right side: count or streak/days
+            VStack(alignment: .trailing, spacing: 2) {
+                if habit.todayCount > 0 {
+                    Text("\(habit.todayCount)")
+                        .font(.system(size: 18, weight: .bold, design: .rounded))
+                        .foregroundStyle(typeColor)
                 }
-                .foregroundStyle(.secondary)
+                if habit.type == "st", let d = habit.daysSince {
+                    Label("\(d)d", systemImage: "clock")
+                        .font(.system(size: 9, weight: .medium))
+                        .foregroundStyle(.orange)
+                } else if habit.streak > 1 {
+                    Label("\(habit.streak)", systemImage: "flame.fill")
+                        .font(.system(size: 9, weight: .medium))
+                        .foregroundStyle(.orange)
+                }
             }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 10)
         }
-        .frame(maxWidth: .infinity, minHeight: 48, alignment: .leading)
-        .background(Color.primary.opacity(0.07))
+        .padding(10)
+        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+        .background(typeColor.opacity(0.14))
         .clipShape(RoundedRectangle(cornerRadius: 12))
+        .overlay(RoundedRectangle(cornerRadius: 12).stroke(typeColor.opacity(0.30), lineWidth: 0.5))
         .contentShape(Rectangle())
     }
 }

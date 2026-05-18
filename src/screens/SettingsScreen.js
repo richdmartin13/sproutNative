@@ -28,10 +28,23 @@ function MRow({ label, sub, value, onChange }) {
   );
 }
 
-const APP_VERSION = '1.0.15';
-const APP_BUILD  = 16;
+const APP_VERSION = '1.0.17';
+const APP_BUILD  = 17;
 
 const CHANGELOG = [
+  {
+    version: '1.0.17',
+    changes: [
+      'Nav: active tab now uses a liquid glass indicator with accent tint — visible without blur artifacts',
+      'Dev: Glass Chips toggle — glass chips on by default; can be disabled per-device in Developer settings',
+      'Dev: test dataset overhauled — Drink Water (×4–8/day), Eat a Meal (×1–3/day), Reading (1–2 sessions/day)',
+      'Dev: test dataset adds 3 neutral habits: Daily Stretch, Weight Check, Mood Check-in',
+      'Dev: Watch taps in test mode now use ephemeral state — changes reset when test mode is toggled off',
+      'Watch: list rows now match grid tile style — colored background, count, dot indicator',
+      'Watch: toolbar icons fixed with explicit font sizing',
+      'Context: theme now computed before useWatchSync call (TDZ crash fix for build 17+)',
+    ],
+  },
   {
     version: '1.0.15',
     changes: [
@@ -906,6 +919,10 @@ export default function SettingsScreen() {
             sub="iOS 26+ glass on cards and nav. Install @callstack/liquid-glass and update src/lib/liquidGlass.js to activate."
             value={prefs.dev?.liquidGlass !== false}
             onChange={v => setDev({ liquidGlass: v })} />
+          <MRow label="Glass Chips"
+            sub="Apply liquid glass to filter and type chips everywhere"
+            value={prefs.dev?.glassChips !== false}
+            onChange={v => setDev({ glassChips: v })} />
           <Pressable
             onPress={() => setSettAlert({
               title: 'Disable developer options?',

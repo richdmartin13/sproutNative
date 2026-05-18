@@ -65,11 +65,11 @@ function HourlySection({ filtered, date }) {
 function FilterBar({ habits, category, setCategory, types, setTypes }) {
   const { theme } = useApp();
   const d = theme.isDark;
-  const liquidGlass = theme.liquidGlassOn && isLiquidGlassSupported && LiquidGlassView;
+  const glassChips = theme.glassChipsOn && isLiquidGlassSupported && LiquidGlassView;
   const cats = useMemo(() => [...new Set(habits.map(h=>h.category).filter(Boolean))],[habits]);
   const TC = { go:theme.typeGo, st:theme.typeSt, ne:theme.typeNe };
   const chip = (label, active, color, onPress) => {
-    if (liquidGlass) {
+    if (glassChips) {
       return (
         <View key={label} style={{ marginRight: 6, overflow: 'visible' }}>
           <LiquidGlassView

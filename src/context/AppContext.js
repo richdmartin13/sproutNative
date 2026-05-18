@@ -15,6 +15,10 @@ export function AppProvider({ children }) {
   const [pendingImportUrl, setPendingImportUrl] = useState(null);
   const [sysAlert, setSysAlert] = useState(null); // { title, message }
   const clearSysAlert = useCallback(() => setSysAlert(null), []);
+
+  // Ephemeral test dataset — mutable while useTestData is on, discarded when toggled off
+  const [testHabitsState, setTestHabitsState] = useState(null);
+
   // Capture file:// URLs from Share Sheet (cold-start and while running)
   useEffect(() => {
     if (Platform.OS !== 'ios') return;
@@ -63,6 +67,17 @@ export function AppProvider({ children }) {
     saveData(data);
   }, [data]);
 
+  // Sync ephemeral test state when the useTestData toggle changes
+  useEffect(() => {
+    const on = data?.prefs?.dev?.useTestData;
+    if (on && !testHabitsState) {
+      // Clone TEST_HABITS so mutations don't affect the frozen export
+      setTestHabitsState(JSON.parse(JSON.stringify(TEST_HABITS)));
+    } else if (!on && testHabitsState) {
+      setTestHabitsState(null);
+    }
+  }, [data?.prefs?.dev?.useTestData]);
+
   const setPrefs = useCallback(p => setData(d => ({...d, prefs:p})), []);
 
   const upsertHabit = useCallback(next => setData(d => {
@@ -88,42 +103,84 @@ export function AppProvider({ children }) {
     ...d, habits: d.habits.map(h => h.id===habitId ? {...h, logs: h.logs.filter(l => l.id!==logId)} : h)
   })), []);
 
-  // Watch log handler: quick-tap from watch creates a minimal log entry
+  // Watch log handler: routes to ephemeral test state when useTestData is on
   const handleWatchLog = useCallback((habitId) => {
-    addLog(habitId, { date: todayStr(), tags: [], notes: '' });
-  }, [addLog]);
+    if (data?.prefs?.dev?.useTestData) {
+      const log = {
+        id: `test_log_${Date.now()}`,
+        date: todayStr(),
+        ts: new Date().toISOString(),
+        tags: [], notes: '',
+      };
+      setTestHabitsState(hs => hs
+        ? hs.map(h => h.id === habitId ? {...h, logs: [...h.logs, log]} : h)
+        : hs
+      );
+    } else {
+      addLog(habitId, { date: todayStr(), tags: [], notes: '' });
+    }
+  }, [addLog, data?.prefs?.dev?.useTestData]);
 
-  // Watch resist handler: logs with resist='watch' marker
+  // Watch resist handler
   const handleWatchResist = useCallback((habitId) => {
-    addLog(habitId, { date: todayStr(), tags: [], notes: '', resist: 'yes' });
-  }, [addLog]);
+    if (data?.prefs?.dev?.useTestData) {
+      const log = {
+        id: `test_log_${Date.now()}`,
+        date: todayStr(),
+        ts: new Date().toISOString(),
+        tags: [], notes: '', resist: 'yes',
+      };
+      setTestHabitsState(hs => hs
+        ? hs.map(h => h.id === habitId ? {...h, logs: [...h.logs, log]} : h)
+        : hs
+      );
+    } else {
+      addLog(habitId, { date: todayStr(), tags: [], notes: '', resist: 'yes' });
+    }
+  }, [addLog, data?.prefs?.dev?.useTestData]);
 
-  // Watch undo handler: removes the most recent today-log for the habit
+  // Watch undo handler: removes most recent today-log
   const handleWatchUndo = useCallback((habitId) => {
-    const today = todayStr();
-    setData(d => ({
-      ...d,
-      habits: d.habits.map(h => {
-        if (h.id !== habitId) return h;
-        const todayLogs = h.logs.filter(l => l.date === today);
-        if (!todayLogs.length) return h;
-        const last = todayLogs[todayLogs.length - 1];
-        return { ...h, logs: h.logs.filter(l => l.id !== last.id) };
-      }),
-    }));
-  }, []);
-
-  // Keep Apple Watch in sync whenever habits or watch prefs change
-  useWatchSync(data?.habits ?? [], data?.prefs ?? {}, theme, handleWatchLog, handleWatchUndo, handleWatchResist);
+    if (data?.prefs?.dev?.useTestData) {
+      const today = todayStr();
+      setTestHabitsState(hs => {
+        if (!hs) return hs;
+        return hs.map(h => {
+          if (h.id !== habitId) return h;
+          const todayLogs = h.logs.filter(l => l.date === today);
+          if (!todayLogs.length) return h;
+          const last = todayLogs[todayLogs.length - 1];
+          return { ...h, logs: h.logs.filter(l => l.id !== last.id) };
+        });
+      });
+    } else {
+      const today = todayStr();
+      setData(d => ({
+        ...d,
+        habits: d.habits.map(h => {
+          if (h.id !== habitId) return h;
+          const todayLogs = h.logs.filter(l => l.date === today);
+          if (!todayLogs.length) return h;
+          const last = todayLogs[todayLogs.length - 1];
+          return { ...h, logs: h.logs.filter(l => l.id !== last.id) };
+        }),
+      }));
+    }
+  }, [data?.prefs?.dev?.useTestData]);
 
   const systemColorScheme = useColorScheme();
   const theme = getTheme(data?.prefs, systemColorScheme === 'dark');
 
   // habits: test dataset when dev.useTestData is on, otherwise real habits
   const habits = useMemo(
-    () => data?.prefs?.dev?.useTestData ? TEST_HABITS : (data?.habits ?? []),
-    [data?.habits, data?.prefs?.dev?.useTestData],
+    () => data?.prefs?.dev?.useTestData
+      ? (testHabitsState ?? TEST_HABITS)
+      : (data?.habits ?? []),
+    [data?.habits, data?.prefs?.dev?.useTestData, testHabitsState],
   );
+
+  // Keep Apple Watch in sync — must come AFTER theme and habits are defined
+  useWatchSync(habits, data?.prefs ?? {}, theme, handleWatchLog, handleWatchUndo, handleWatchResist);
 
   return (
     <Ctx.Provider value={{ data, ready, theme, habits, setPrefs, upsertHabit, deleteHabit, archiveHabit, restoreHabit, addLog, updateLog, deleteLog, setData, sysAlert, clearSysAlert }}>
