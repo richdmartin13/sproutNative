@@ -3,7 +3,7 @@ import React, {
   createContext, useContext,
 } from 'react';
 import {
-  View, Text, Animated, Pressable, Alert,
+  View, Text, Animated, Pressable,
   ActivityIndicator, StatusBar, useWindowDimensions, Image,
 } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
@@ -204,6 +204,7 @@ export default function NativeNav() {
   const [tab,          setTab]          = useState('home');
   const [sheet,        setSheet]        = useState(null);
   const [actionSheet,  setActionSheet]  = useState(null); // { habit, goBack }
+  const [confirm,      setConfirm]      = useState(null); // { title, message, buttons }
   const [onTapScreen,  setOnTapScreen]  = useState(false);
 
   // Keep a live ref to prefs for use inside callbacks (avoids stale closures)
@@ -329,14 +330,17 @@ export default function NativeNav() {
                 <Pressable onPress={() => {
                   const h = actionSheet.habit;
                   const gb = actionSheet.goBack;
-                  Alert.alert(
-                    'Archive habit',
-                    `"${h.name}" will be hidden from your habits and excluded from stats. You can restore it later in Settings.`,
-                    [
-                      { text: 'Cancel', style: 'cancel' },
-                      { text: 'Archive', onPress: () => { archiveHabit(h.id); gb?.(); setActionSheet(null); } },
-                    ],
-                  );
+                  setActionSheet(null);
+                  setTimeout(() => {
+                    setConfirm({
+                      title: 'Archive habit',
+                      message: `"${h.name}" will be hidden from your habits and excluded from stats. You can restore it later in Settings.`,
+                      buttons: [
+                        { text: 'Cancel', style: 'cancel', onPress: () => setConfirm(null) },
+                        { text: 'Archive', onPress: () => { archiveHabit(h.id); gb?.(); setConfirm(null); } },
+                      ],
+                    });
+                  }, 350);
                 }} style={({ pressed }) => ({
                   ...pillBase,
                   backgroundColor: d
@@ -350,14 +354,17 @@ export default function NativeNav() {
                 <Pressable onPress={() => {
                   const h = actionSheet.habit;
                   const gb = actionSheet.goBack;
-                  Alert.alert(
-                    'Delete habit',
-                    `Permanently delete "${h.name}" and all its logs?`,
-                    [
-                      { text: 'Cancel', style: 'cancel' },
-                      { text: 'Delete', style: 'destructive', onPress: () => { deleteHabit(h.id); gb?.(); setActionSheet(null); } },
-                    ],
-                  );
+                  setActionSheet(null);
+                  setTimeout(() => {
+                    setConfirm({
+                      title: 'Delete habit',
+                      message: `Permanently delete "${h.name}" and all its logs?`,
+                      buttons: [
+                        { text: 'Cancel', style: 'cancel', onPress: () => setConfirm(null) },
+                        { text: 'Delete', style: 'destructive', onPress: () => { deleteHabit(h.id); gb?.(); setConfirm(null); } },
+                      ],
+                    });
+                  }, 350);
                 }} style={({ pressed }) => ({
                   ...pillBase,
                   backgroundColor: d
@@ -379,6 +386,15 @@ export default function NativeNav() {
           message={sysAlert?.message}
           buttons={[{ text:'OK', onPress: clearSysAlert }]}
           onDismiss={clearSysAlert}
+        />
+
+        {/* ── Confirm dialog (archive / delete) ────────────────────────── */}
+        <AppModal
+          visible={!!confirm}
+          title={confirm?.title}
+          message={confirm?.message}
+          buttons={confirm?.buttons ?? []}
+          onDismiss={() => setConfirm(null)}
         />
       </View>
     </NavCtx.Provider>

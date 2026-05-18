@@ -19,12 +19,13 @@ struct WatchPrefs: Codable {
     var showStats: Bool
     var showGrid: Bool
     var showCategory: Bool
+    var categories: [String]    // available categories from active iPhone habits
     var hourlyActivity: [Int]   // 24 values — total logs per hour for today
     var accentHex: String       // e.g. "#2d6e47"
     var isDark: Bool
 
     init(dismissDelay: Double = 2.0, haptic: Bool = true, showStats: Bool = true,
-         showGrid: Bool = false, showCategory: Bool = true,
+         showGrid: Bool = false, showCategory: Bool = true, categories: [String] = [],
          hourlyActivity: [Int] = Array(repeating: 0, count: 24),
          accentHex: String = "#2d6e47", isDark: Bool = true) {
         self.dismissDelay    = dismissDelay
@@ -32,6 +33,7 @@ struct WatchPrefs: Codable {
         self.showStats       = showStats
         self.showGrid        = showGrid
         self.showCategory    = showCategory
+        self.categories      = categories
         self.hourlyActivity  = hourlyActivity
         self.accentHex       = accentHex
         self.isDark          = isDark
@@ -40,14 +42,15 @@ struct WatchPrefs: Codable {
     // Tolerant decode — new keys fall back to defaults so old builds keep working
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
-        dismissDelay   = try c.decodeIfPresent(Double.self, forKey: .dismissDelay)   ?? 2.0
-        haptic         = try c.decodeIfPresent(Bool.self,   forKey: .haptic)         ?? true
-        showStats      = try c.decodeIfPresent(Bool.self,   forKey: .showStats)      ?? true
-        showGrid       = try c.decodeIfPresent(Bool.self,   forKey: .showGrid)       ?? false
-        showCategory   = try c.decodeIfPresent(Bool.self,   forKey: .showCategory)   ?? true
-        hourlyActivity = try c.decodeIfPresent([Int].self,  forKey: .hourlyActivity) ?? Array(repeating: 0, count: 24)
-        accentHex      = try c.decodeIfPresent(String.self, forKey: .accentHex)      ?? "#2d6e47"
-        isDark         = try c.decodeIfPresent(Bool.self,   forKey: .isDark)         ?? true
+        dismissDelay   = try c.decodeIfPresent(Double.self,   forKey: .dismissDelay)   ?? 2.0
+        haptic         = try c.decodeIfPresent(Bool.self,     forKey: .haptic)         ?? true
+        showStats      = try c.decodeIfPresent(Bool.self,     forKey: .showStats)      ?? true
+        showGrid       = try c.decodeIfPresent(Bool.self,     forKey: .showGrid)       ?? false
+        showCategory   = try c.decodeIfPresent(Bool.self,     forKey: .showCategory)   ?? true
+        categories     = try c.decodeIfPresent([String].self, forKey: .categories)     ?? []
+        hourlyActivity = try c.decodeIfPresent([Int].self,    forKey: .hourlyActivity) ?? Array(repeating: 0, count: 24)
+        accentHex      = try c.decodeIfPresent(String.self,   forKey: .accentHex)      ?? "#2d6e47"
+        isDark         = try c.decodeIfPresent(Bool.self,     forKey: .isDark)         ?? true
     }
 
     var accentColor: Color { Color(hex: accentHex) }
@@ -72,6 +75,7 @@ extension Color {
 class WatchDataModel: NSObject, ObservableObject {
     @Published var habits: [WatchHabit] = []
     @Published var watchPrefs = WatchPrefs()
+    @Published var selectedCategory: String? = nil
     @Published var isReachable = false
     @Published var isLoading = true
 

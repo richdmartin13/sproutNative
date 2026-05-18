@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, Pressable, ScrollView, Image, Platform, Alert } from 'react-native';
+import { View, Text, Pressable, ScrollView, Image, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
@@ -30,10 +30,21 @@ function MRow({ label, sub, value, onChange }) {
   );
 }
 
-const APP_VERSION = '1.0.26';
-const APP_BUILD  = 26;
+const APP_VERSION = '1.0.27';
+const APP_BUILD  = 27;
 
 const CHANGELOG = [
+  {
+    version: '1.0.27',
+    changes: [
+      'Alert dialogs: all confirmations (clear data, delete, archive) now use the in-app styled modal — consistent background and animations everywhere',
+      'Alert fix: sheets close before showing confirmation modal, eliminating the iOS two-Modal freeze',
+      'Watch: category filter — new settings panel on watch (single gear icon replaces two toolbar buttons)',
+      'Watch: settings panel has grid/list toggle, sync button, and category chips',
+      'Watch: active category shown with dismiss button inline in the list; empty-category state with clear filter option',
+      'Watch: categories list derived from active habits and sent with watchPrefs from iPhone',
+    ],
+  },
   {
     version: '1.0.26',
     changes: [
@@ -522,14 +533,17 @@ export default function SettingsScreen({ onNavigate }) {
 
   // ── Clear all ──
   const doClear = () => {
-    Alert.alert(
-      'Clear all data',
-      'This will permanently delete all your habits and logs. This cannot be undone.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Clear everything', style: 'destructive', onPress: () => { setData(d => ({ ...d, habits: [] })); setModal(null); } },
-      ],
-    );
+    setModal(null);
+    setTimeout(() => {
+      setSettAlert({
+        title: 'Clear all data',
+        message: 'This will permanently delete all your habits and logs. This cannot be undone.',
+        buttons: [
+          { text: 'Cancel', style: 'cancel', onPress: () => setSettAlert(null) },
+          { text: 'Clear everything', style: 'destructive', onPress: () => { setData(d => ({ ...d, habits: [] })); setSettAlert(null); } },
+        ],
+      });
+    }, 350);
   };
 
   // ── Analytics section order ──
@@ -985,14 +999,21 @@ export default function SettingsScreen({ onNavigate }) {
                   backgroundColor:theme.accentDim, borderWidth:1, borderColor:theme.accentBorder }}>
                 <Text style={{ fontSize:12, fontWeight:'600', color:theme.accent }}>Restore</Text>
               </Pressable>
-              <Pressable onPress={() => Alert.alert(
-                'Delete habit',
-                `Permanently delete "${h.name}" and all its logs?`,
-                [
-                  { text: 'Cancel', style: 'cancel' },
-                  { text: 'Delete', style: 'destructive', onPress: () => deleteHabit(h.id) },
-                ],
-              )}
+              <Pressable onPress={() => {
+                const hId = h.id;
+                const hName = h.name;
+                setModal(null);
+                setTimeout(() => {
+                  setSettAlert({
+                    title: 'Delete habit',
+                    message: `Permanently delete "${hName}" and all its logs?`,
+                    buttons: [
+                      { text: 'Cancel', style: 'cancel', onPress: () => setSettAlert(null) },
+                      { text: 'Delete', style: 'destructive', onPress: () => { deleteHabit(hId); setSettAlert(null); } },
+                    ],
+                  });
+                }, 350);
+              }}
                 style={{ paddingHorizontal:12, paddingVertical:6, borderRadius:10,
                   backgroundColor: theme.typeSt + '22', borderWidth:1, borderColor: theme.typeSt + '44' }}>
                 <Text style={{ fontSize:12, fontWeight:'600', color:theme.typeSt }}>Delete</Text>

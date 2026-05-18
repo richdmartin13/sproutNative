@@ -50,12 +50,15 @@ export function useWatchSync(habits, prefs, themeInfo, onLog, onUndo, onResist) 
         }
       }
 
+      const categories = [...new Set(active.map(h => h.category).filter(Boolean))].sort();
+
       const watchPrefs = {
         dismissDelay:   prefs?.watchDismiss ?? 2,
         haptic:         prefs?.watchHaptic !== false,
         showStats:      prefs?.watchShowStats !== false,
         showGrid:       prefs?.watchShowGrid === true,
         showCategory:   prefs?.watchShowCategory !== false,
+        categories,
         hourlyActivity: hourly,
         accentHex:      themeInfo?.accent ?? '#2d6e47',
         isDark:         themeInfo?.isDark ?? true,

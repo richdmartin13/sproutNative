@@ -3,6 +3,12 @@ import SwiftUI
 struct HabitListView: View {
     @EnvironmentObject var model: WatchDataModel
     @State private var showGrid = false
+    @State private var showSettings = false
+
+    private var visibleHabits: [WatchHabit] {
+        guard let cat = model.selectedCategory else { return model.habits }
+        return model.habits.filter { $0.category == cat }
+    }
 
     var body: some View {
         Group {
@@ -36,13 +42,49 @@ struct HabitListView: View {
                         HourlyActivityView(counts: hourly, accentColor: model.watchPrefs.accentColor)
                             .padding(.horizontal, 2)
 
-                        // Grid or list
-                        if showGrid {
+                        // Active category indicator
+                        if let cat = model.selectedCategory {
+                            HStack(spacing: 4) {
+                                Text(cat)
+                                    .font(.system(size: 11, weight: .semibold))
+                                    .foregroundStyle(model.watchPrefs.accentColor)
+                                    .lineLimit(1)
+                                Spacer()
+                                Button {
+                                    model.selectedCategory = nil
+                                } label: {
+                                    Image(systemName: "xmark.circle.fill")
+                                        .font(.system(size: 12))
+                                        .foregroundStyle(.secondary)
+                                }
+                                .buttonStyle(.plain)
+                            }
+                            .padding(.horizontal, 2)
+                        }
+
+                        // Empty category state
+                        if visibleHabits.isEmpty {
+                            VStack(spacing: 8) {
+                                Text("No habits in this category.")
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                                    .multilineTextAlignment(.center)
+                                Button {
+                                    model.selectedCategory = nil
+                                } label: {
+                                    Text("Show all")
+                                        .font(.system(size: 12, weight: .semibold))
+                                }
+                                .tint(model.watchPrefs.accentColor)
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(.top, 8)
+                        } else if showGrid {
                             LazyVGrid(
                                 columns: [GridItem(.flexible()), GridItem(.flexible())],
                                 spacing: 8
                             ) {
-                                ForEach(model.habits) { habit in
+                                ForEach(visibleHabits) { habit in
                                     NavigationLink(destination: QuickLogView(habit: habit)) {
                                         HabitGridTile(habit: habit, showCategory: model.watchPrefs.showCategory)
                                     }
@@ -51,7 +93,7 @@ struct HabitListView: View {
                             }
                         } else {
                             LazyVStack(spacing: 6) {
-                                ForEach(model.habits) { habit in
+                                ForEach(visibleHabits) { habit in
                                     NavigationLink(destination: QuickLogView(habit: habit)) {
                                         HabitRowView(habit: habit, showCategory: model.watchPrefs.showCategory)
                                     }
@@ -72,20 +114,15 @@ struct HabitListView: View {
         .onChange(of: model.watchPrefs.showGrid) { _, newVal in
             showGrid = newVal
         }
+        .sheet(isPresented: $showSettings) {
+            WatchSettingsView(showGrid: $showGrid)
+        }
         .toolbar {
-            ToolbarItem(placement: .topBarLeading) {
-                Button {
-                    withAnimation(.spring(duration: 0.25)) { showGrid.toggle() }
-                } label: {
-                    Image(systemName: showGrid ? "list.bullet" : "square.grid.2x2")
-                        .foregroundStyle(.white)
-                }
-            }
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
-                    model.requestUpdate()
+                    showSettings = true
                 } label: {
-                    Image(systemName: "arrow.clockwise")
+                    Image(systemName: "slider.horizontal.3")
                         .foregroundStyle(.white)
                 }
             }
