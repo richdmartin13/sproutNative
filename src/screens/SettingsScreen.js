@@ -30,10 +30,22 @@ function MRow({ label, sub, value, onChange }) {
   );
 }
 
-const APP_VERSION = '1.0.28';
-const APP_BUILD  = 28;
+const APP_VERSION = '1.0.29';
+const APP_BUILD  = 29;
 
 const CHANGELOG = [
+  {
+    version: '1.0.29',
+    changes: [
+      'Watch: category filter icon now correctly stays visible and accent-tinted when a filter is active (uses .tint on watchOS toolbar button)',
+      'Watch: category section removed from gear settings — filter is only accessible via the dedicated toolbar button',
+      'Settings: all modals now use consistent section headers (DISPLAY, SORT, LOGGING, ANALYTICS, ACCENT COLOR)',
+      'Settings: Logging Fields redesigned to match Analytics Sections — tap-to-toggle circle indicators, shown/hidden grouping, type chips inline when active',
+      'Settings: Behavior modal reorganized into four logical groups',
+      'Settings: Apple Watch modal gets a DISPLAY section header; label copy tightened throughout',
+      'Settings: Appearance modal accent color section uses header + current scheme name inline',
+    ],
+  },
   {
     version: '1.0.28',
     changes: [
@@ -641,45 +653,42 @@ export default function SettingsScreen({ onNavigate }) {
       {/* ── Appearance Modal ── */}
       {modal === 'appearance' && (
         <Sheet title="Appearance" onClose={() => setModal(null)}>
-          <MRow label="Follow device" sub="Match iOS dark/light mode automatically"
+          <MRow label="Follow device" sub="Automatically match iOS dark/light mode"
             value={prefs.dark == null} onChange={v => setP({ dark: v ? null : theme.isDark })} />
           {prefs.dark != null && (
-            <MRow label="Dark mode" sub={prefs.dark ? 'On' : 'Off'}
+            <MRow label="Dark mode" sub="Force dark background regardless of system"
               value={!!prefs.dark} onChange={v => setP({ dark: v })} />
           )}
-          <View style={{ paddingVertical:14 }}>
-            <View style={{ marginBottom:10 }}>
-              <Text style={{ fontSize:14, fontWeight:'600', color:theme.text }}>Color scheme</Text>
-              <Text style={{ fontSize:12, color:theme.muted, marginTop:2 }}>
-                {SCHEMES[prefs.scheme]?.label || 'Sprout'}
-              </Text>
-            </View>
-            <View style={{ flexDirection:'row', flexWrap:'wrap', gap:8 }}>
-              {Object.entries(SCHEMES).map(([key, sc]) => {
-                const isActive = prefs.scheme === key;
-                const accentCol = sc.accent;
-                return (
-                  <View key={key} style={{ flex:1, minWidth:40, overflow:'visible' }}>
-                    <Pressable onPress={() => setP({ scheme: key })}
-                      title={sc.label}
-                      style={({ pressed }) => ({
-                        height:42, borderRadius:13,
-                        backgroundColor: accentCol,
-                        borderWidth: isActive ? 2.5 : 1.5,
-                        borderColor: isActive ? theme.text : 'transparent',
-                        ...(isActive && theme.shadowsOn ? {
-                          shadowColor: accentCol,
-                          shadowOffset: {width:0,height:0},
-                          shadowOpacity: theme.isDark ? 0.70 : 0.14,
-                          shadowRadius: 12,
-                          elevation: 6,
-                        } : {}),
-                        transform:[{scale: pressed?0.94:isActive?1.05:1}],
-                      })} />
-                  </View>
-                );
-              })}
-            </View>
+          <View style={{ flexDirection:'row', alignItems:'center', paddingTop:18, paddingBottom:10 }}>
+            <Text style={{ flex:1, fontSize:11, fontWeight:'700', color:theme.muted,
+              textTransform:'uppercase', letterSpacing:0.7 }}>Accent color</Text>
+            <Text style={{ fontSize:12, color:theme.muted }}>{SCHEMES[prefs.scheme]?.label || 'Sprout'}</Text>
+          </View>
+          <View style={{ flexDirection:'row', flexWrap:'wrap', gap:8 }}>
+            {Object.entries(SCHEMES).map(([key, sc]) => {
+              const isActive = prefs.scheme === key;
+              const accentCol = sc.accent;
+              return (
+                <View key={key} style={{ flex:1, minWidth:40, overflow:'visible' }}>
+                  <Pressable onPress={() => setP({ scheme: key })}
+                    title={sc.label}
+                    style={({ pressed }) => ({
+                      height:42, borderRadius:13,
+                      backgroundColor: accentCol,
+                      borderWidth: isActive ? 2.5 : 1.5,
+                      borderColor: isActive ? theme.text : 'transparent',
+                      ...(isActive && theme.shadowsOn ? {
+                        shadowColor: accentCol,
+                        shadowOffset: {width:0,height:0},
+                        shadowOpacity: theme.isDark ? 0.70 : 0.14,
+                        shadowRadius: 12,
+                        elevation: 6,
+                      } : {}),
+                      transform:[{scale: pressed?0.94:isActive?1.05:1}],
+                    })} />
+                </View>
+              );
+            })}
           </View>
         </Sheet>
       )}
@@ -687,16 +696,17 @@ export default function SettingsScreen({ onNavigate }) {
       {/* ── Behavior Modal ── */}
       {modal === 'behavior' && (
         <Sheet title="Layout & Behavior" onClose={() => setModal(null)}>
-          <MRow label="Streak badges" sub="Show streak (start/neutral) or days-since (stop)"
+          <Text style={{ fontSize:11, fontWeight:'700', color:theme.muted,
+            textTransform:'uppercase', letterSpacing:0.7, paddingBottom:4 }}>Display</Text>
+          <MRow label="Streak badges" sub="Streak count on start/neutral; days-since on stop"
             value={prefs.showStreak} onChange={v => setP({ showStreak: v })} />
           <MRow label="Compact cards" sub="Tighter padding on habit cards"
             value={prefs.compact} onChange={v => setP({ compact: v })} />
-          {/* Default view */}
           <View style={{ flexDirection:'row', alignItems:'center', gap:10,
             paddingVertical:10, borderBottomWidth:1, borderBottomColor:theme.border }}>
             <View style={{ flex:1 }}>
               <Text style={{ fontSize:15, fontWeight:'500', color:theme.text }}>Default view</Text>
-              <Text style={{ fontSize:11.5, color:theme.muted, marginTop:1 }}>Habits list shape on launch</Text>
+              <Text style={{ fontSize:11.5, color:theme.muted, marginTop:1 }}>Shape of the habits list on launch</Text>
             </View>
             <View style={{ flexDirection:'row', backgroundColor:theme.surface2,
               borderWidth:1, borderColor:theme.border, borderRadius:10,
@@ -714,10 +724,9 @@ export default function SettingsScreen({ onNavigate }) {
               ))}
             </View>
           </View>
-          {/* Sort habits */}
-          <View style={{ paddingVertical:14, borderBottomWidth:1, borderBottomColor:theme.border }}>
-            <Text style={{ fontSize:15, fontWeight:'500', color:theme.text, marginBottom:3 }}>Sort habits</Text>
-            <Text style={{ fontSize:11.5, color:theme.muted, marginBottom:10 }}>Order habits appear in the list</Text>
+          <Text style={{ fontSize:11, fontWeight:'700', color:theme.muted,
+            textTransform:'uppercase', letterSpacing:0.7, paddingTop:18, paddingBottom:4 }}>Sort</Text>
+          <View style={{ paddingBottom:10, borderBottomWidth:1, borderBottomColor:theme.border }}>
             <View style={{ flexDirection:'row', gap:8, flexWrap:'wrap' }}>
               {[['mostLogged','Taps'],['name','A–Z'],['type','Type'],['recent','Recent']].map(([v,lbl]) => {
                 const active = (prefs.habitsSort || 'mostLogged') === v;
@@ -732,15 +741,19 @@ export default function SettingsScreen({ onNavigate }) {
               })}
             </View>
           </View>
-          <MRow label="Quick log" sub="Tap card = instant log; long-press to open detail. On Apple Watch, tapping always logs instantly."
+          <Text style={{ fontSize:11, fontWeight:'700', color:theme.muted,
+            textTransform:'uppercase', letterSpacing:0.7, paddingTop:18, paddingBottom:4 }}>Logging</Text>
+          <MRow label="Quick log" sub="Tap card = instant log; long-press to open detail"
             value={!!prefs.quickLog} onChange={v => setP({ quickLog: v })} />
           <MRow label="Repeat last by default" sub="Auto-fill most recent log's details on tap"
             value={prefs.repeatLastDefault} onChange={v => setP({ repeatLastDefault: v })} />
-          <MRow label="Carry last mood & energy" sub="Copy mood and energy from your most recent log, even without full repeat"
+          <MRow label="Carry last mood & energy" sub="Copy mood and energy from your most recent log"
             value={prefs.repeatLastMoodEnergy} onChange={v => setP({ repeatLastMoodEnergy: v })} />
-          <MRow label="Auto-tag recent habits" sub="Automatically add habits logged in the last 5 minutes as tags"
+          <MRow label="Auto-tag recent habits" sub="Add habits logged in the last 5 min as tags"
             value={prefs.autoTagRecentHabits} onChange={v => setP({ autoTagRecentHabits: v })} />
-          <MRow label="Open analytics in Day view" sub="Analytics defaults to Day instead of All-time"
+          <Text style={{ fontSize:11, fontWeight:'700', color:theme.muted,
+            textTransform:'uppercase', letterSpacing:0.7, paddingTop:18, paddingBottom:4 }}>Analytics</Text>
+          <MRow label="Open in Day view" sub="Analytics defaults to Day instead of All-time"
             value={prefs.insDay} onChange={v => setP({ insDay: v })} />
         </Sheet>
       )}
@@ -785,50 +798,60 @@ export default function SettingsScreen({ onNavigate }) {
               })}
             </View>
           </View>
-          <MRow label="Haptic" sub="Vibrate on log, resist, and undo"
+          <Text style={{ fontSize:11, fontWeight:'700', color:theme.muted,
+            textTransform:'uppercase', letterSpacing:0.7, paddingTop:18, paddingBottom:4 }}>Display</Text>
+          <MRow label="Haptic feedback" sub="Vibrate on log, resist, and undo"
             value={prefs.watchHaptic !== false} onChange={v => setP({ watchHaptic: v })} />
-          <MRow label="Show stats" sub="Streak and today count on each habit"
+          <MRow label="Show stats" sub="Streak count and today's total on each card"
             value={prefs.watchShowStats !== false} onChange={v => setP({ watchShowStats: v })} />
-          <MRow label="Grid view" sub="2-column layout instead of list"
+          <MRow label="Grid layout" sub="2-column grid instead of list"
             value={prefs.watchShowGrid === true} onChange={v => setP({ watchShowGrid: v })} />
-          <MRow label="Show category" sub="Category label on watch habit cards"
+          <MRow label="Show category" sub="Category label on each habit card"
             value={prefs.watchShowCategory !== false} onChange={v => setP({ watchShowCategory: v })} />
         </Sheet>
       )}
 
       {/* ── Logging Fields Modal ── */}
-      {modal === 'fields' && (
-        <Sheet title="Logging Fields" onClose={() => setModal(null)}>
-          {TRACKS.map(([k, l]) => {
-            const rawVal = prefs.track?.[k];
-            const fieldOn = rawVal !== false;
-            const perType = typeof rawVal === 'object' && rawVal !== null;
-            const ts = perType ? rawVal : { go: true, st: true, ne: true };
-            const toggleType = (type) => {
-              const cur = perType ? rawVal : { go: true, st: true, ne: true };
-              const next = { ...cur, [type]: !cur[type] };
-              if (!next.go && !next.st && !next.ne) return;
-              const allOn = next.go && next.st && next.ne;
-              setPrefs({ ...prefs, track: { ...prefs.track, [k]: allOn ? undefined : next } });
-            };
-            return (
-              <View key={k} style={{ paddingVertical: 11, borderBottomWidth: 1, borderBottomColor: theme.border }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <View style={{ flex: 1, paddingRight: 12 }}>
-                    <Text style={{ fontSize: 15, fontWeight: '500', color: theme.text }}>{l}</Text>
-                  </View>
-                  <Toggle value={fieldOn} onChange={v => setPrefs({ ...prefs, track: { ...prefs.track, [k]: v ? undefined : false } })} />
-                </View>
-                {fieldOn && (
-                  <View style={{ flexDirection: 'row', gap: 6, marginTop: 8 }}>
+      {modal === 'fields' && (() => {
+        const shown  = TRACKS.filter(([k]) => prefs.track?.[k] !== false);
+        const hidden = TRACKS.filter(([k]) => prefs.track?.[k] === false);
+        const renderRow = ([k, l]) => {
+          const rawVal  = prefs.track?.[k];
+          const on      = rawVal !== false;
+          const perType = typeof rawVal === 'object' && rawVal !== null;
+          const ts      = perType ? rawVal : { go: true, st: true, ne: true };
+          const toggleField = () =>
+            setPrefs({ ...prefs, track: { ...prefs.track, [k]: on ? false : undefined } });
+          const toggleType = t => {
+            const cur  = perType ? rawVal : { go: true, st: true, ne: true };
+            const next = { ...cur, [t]: !cur[t] };
+            if (!next.go && !next.st && !next.ne) return;
+            setPrefs({ ...prefs, track: { ...prefs.track, [k]: (next.go && next.st && next.ne) ? undefined : next } });
+          };
+          return (
+            <Pressable key={k} onPress={toggleField}
+              style={({ pressed }) => ({
+                flexDirection: 'row', alignItems: 'flex-start', paddingVertical: 12,
+                borderBottomWidth: 1, borderBottomColor: theme.border,
+                opacity: pressed ? 0.7 : on ? 1 : 0.45,
+              })}>
+              <View style={{ width: 22, height: 22, borderRadius: 11, marginRight: 12, marginTop: 1,
+                backgroundColor: on ? theme.accent : 'transparent',
+                borderWidth: on ? 0 : 1.5, borderColor: theme.border,
+                alignItems: 'center', justifyContent: 'center' }}>
+                {on && <Text style={{ fontSize: 13, color: '#fff', fontWeight: '700', lineHeight: 16 }}>✓</Text>}
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 15, fontWeight: '500', color: theme.text }}>{l}</Text>
+                {on && (
+                  <View style={{ flexDirection: 'row', gap: 5, marginTop: 6 }}>
                     {[['go','Start',theme.typeGo],['st','Stop',theme.typeSt],['ne','Neutral',theme.typeNe]].map(([t, lbl, col]) => {
                       const active = ts[t] !== false;
                       return (
-                        <Pressable key={t} onPress={() => toggleType(t)} style={{
-                          paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10,
-                          backgroundColor: active ? col + '22' : theme.surface2,
-                          borderWidth: 1, borderColor: active ? col + '55' : theme.border,
-                        }}>
+                        <Pressable key={t} onPress={() => toggleType(t)} hitSlop={4}
+                          style={{ paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8,
+                            backgroundColor: active ? col + '22' : theme.surface2,
+                            borderWidth: 1, borderColor: active ? col + '55' : theme.border }}>
                           <Text style={{ fontSize: 11, fontWeight: '600', color: active ? col : theme.muted }}>{lbl}</Text>
                         </Pressable>
                       );
@@ -836,10 +859,24 @@ export default function SettingsScreen({ onNavigate }) {
                   </View>
                 )}
               </View>
-            );
-          })}
-        </Sheet>
-      )}
+            </Pressable>
+          );
+        };
+        return (
+          <Sheet title="Logging Fields" onClose={() => setModal(null)}>
+            {shown.map(renderRow)}
+            {hidden.length > 0 && (
+              <>
+                <Text style={{ fontSize: 11, fontWeight: '700', color: theme.muted,
+                  textTransform: 'uppercase', letterSpacing: 0.7, paddingTop: 16, paddingBottom: 6 }}>
+                  Hidden
+                </Text>
+                {hidden.map(renderRow)}
+              </>
+            )}
+          </Sheet>
+        );
+      })()}
 
       {/* ── Analytics Sections Modal ── */}
       {modal === 'sections' && !sectionsEdit && (() => {

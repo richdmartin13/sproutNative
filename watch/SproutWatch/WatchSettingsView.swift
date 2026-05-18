@@ -19,21 +19,6 @@ struct WatchSettingsView: View {
                     }
                 }
 
-                // ── Category filter ───────────────────────────────────────
-                Divider().padding(.vertical, 2)
-                label("CATEGORY")
-                catChip(nil)
-                if model.watchPrefs.categories.isEmpty {
-                    Text("No categories found — assign categories in the iPhone app.")
-                        .font(.system(size: 10))
-                        .foregroundStyle(.secondary)
-                        .padding(.horizontal, 2)
-                } else {
-                    ForEach(model.watchPrefs.categories, id: \.self) { cat in
-                        catChip(cat)
-                    }
-                }
-
                 // ── Display ───────────────────────────────────────────────
                 Divider().padding(.vertical, 2)
                 label("DISPLAY")
@@ -102,42 +87,6 @@ struct WatchSettingsView: View {
         }
         .buttonStyle(.plain)
         .foregroundStyle(selected ? accent : .secondary)
-    }
-
-    @ViewBuilder
-    private func catChip(_ cat: String?) -> some View {
-        let isSelected = model.selectedCategory == cat
-        let accent = model.watchPrefs.accentColor
-        Button {
-            model.selectedCategory = cat
-            dismiss()
-        } label: {
-            HStack(spacing: 6) {
-                if isSelected {
-                    Image(systemName: "checkmark.circle.fill")
-                        .font(.system(size: 13))
-                        .foregroundStyle(accent)
-                } else {
-                    Image(systemName: "circle")
-                        .font(.system(size: 13))
-                        .foregroundStyle(.secondary)
-                }
-                Text(cat ?? "All")
-                    .font(.system(size: 13, weight: isSelected ? .semibold : .regular))
-                    .foregroundStyle(isSelected ? accent : .primary)
-                Spacer()
-            }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 7)
-            .padding(.horizontal, 10)
-            .background(isSelected ? accent.opacity(0.15) : Color(white: 0.13))
-            .clipShape(RoundedRectangle(cornerRadius: 9))
-            .overlay(
-                RoundedRectangle(cornerRadius: 9)
-                    .stroke(isSelected ? accent.opacity(0.5) : Color.clear, lineWidth: 1)
-            )
-        }
-        .buttonStyle(.plain)
     }
 
     @ViewBuilder

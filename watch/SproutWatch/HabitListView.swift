@@ -108,15 +108,14 @@ struct HabitListView: View {
             WatchSettingsView()
         }
         .toolbar {
-            // Leading: category filter (filled icon = active filter)
+            // Leading: category filter (.tint controls toolbar button color on watchOS)
             ToolbarItem(placement: .topBarLeading) {
                 Button { showCategoryPicker = true } label: {
                     Image(systemName: model.selectedCategory != nil
                           ? "line.3.horizontal.decrease.circle.fill"
                           : "line.3.horizontal.decrease.circle")
-                        .foregroundStyle(model.selectedCategory != nil
-                                         ? model.watchPrefs.accentColor : .white)
                 }
+                .tint(model.selectedCategory != nil ? model.watchPrefs.accentColor : .white)
             }
             // Trailing: settings
             ToolbarItem(placement: .topBarTrailing) {
