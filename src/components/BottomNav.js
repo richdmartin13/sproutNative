@@ -41,8 +41,7 @@ function NavBtn({ item, active, onPress, liquidGlass }) {
 
   const labelWidth = widthAnim.interpolate({ inputRange:[0,1], outputRange:[0, 78] });
 
-  // Active icon/text color: light-mode glass needs dark text (white washes out on light glass)
-  const activeTextColor = (liquidGlass && !d) ? theme.text : '#fff';
+  const activeTextColor = '#fff';
   const inactiveTextColor = theme.muted;
 
   return (
@@ -85,25 +84,15 @@ function NavBtn({ item, active, onPress, liquidGlass }) {
           borderRadius: 999, gap: 7,
         }}>
 
-          {/* Active indicator — LiquidGlassView in glass mode (parent is plain View, no nesting)
-              or solid accent fill in non-glass mode */}
+          {/* Active indicator — solid accent fill. When glass is on the pill itself is
+              LiquidGlassView so we must NOT nest another LiquidGlassView here. */}
           {active && (
-            liquidGlass ? (
-              <LiquidGlassView
-                style={{ position:'absolute', top:0, bottom:0, left:0, right:0, borderRadius:999 }}
-                tintColor={theme.accent}
-                colorScheme={d ? 'dark' : 'light'}
-                pointerEvents="none"
-              />
-            ) : (
-              <View style={{
-                position: 'absolute', top: 0, bottom: 0, left: 0, right: 0,
-                borderRadius: 999,
-                backgroundColor: d ? theme.accentMid : theme.accent,
-                borderWidth: 1,
-                borderColor: d ? theme.accentBorder : 'rgba(255,255,255,0.30)',
-              }} />
-            )
+            <View style={{
+              position: 'absolute', top: 0, bottom: 0, left: 0, right: 0,
+              borderRadius: 999,
+              backgroundColor: theme.accent,
+              opacity: d ? 0.82 : 0.92,
+            }} />
           )}
 
           <View style={{ zIndex:1 }}>
@@ -149,27 +138,33 @@ export default function BottomNav({ tab, onChange, onFab }) {
     }} pointerEvents="box-none">
 
       {/* ── Nav pill ── */}
-      <View style={{
-        flexDirection: 'row', alignItems: 'center',
-        borderRadius: 999,
-        paddingHorizontal: 8, paddingVertical: 7, gap: 2,
-        overflow: 'visible',
-        // In glass mode: dark translucent background (no glass blur — prevents nesting artifact)
-        // In non-glass mode: solid surface with shadow
-        ...(liquidGlass ? {
-          backgroundColor: d ? 'rgba(30,30,30,0.55)' : 'rgba(255,255,255,0.72)',
-          borderWidth: 1,
-          borderColor: d ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)',
-        } : {
+      {liquidGlass ? (
+        <LiquidGlassView
+          colorScheme={d ? 'dark' : 'light'}
+          style={{
+            flexDirection: 'row', alignItems: 'center',
+            borderRadius: 999,
+            paddingHorizontal: 8, paddingVertical: 7, gap: 2,
+            overflow: 'visible',
+          }}
+        >
+          {TABS.map(item => (
+            <NavBtn key={item.id} item={item} active={tab === item.id}
+              onPress={() => onChange(item.id)} liquidGlass={!!liquidGlass} />
+          ))}
+        </LiquidGlassView>
+      ) : (
+        <View style={{
+          flexDirection: 'row', alignItems: 'center',
+          borderRadius: 999,
+          paddingHorizontal: 8, paddingVertical: 7, gap: 2,
+          overflow: 'visible',
           shadowColor: theme.accent,
           shadowOffset: { width: 0, height: 3 },
           shadowOpacity: d ? 0.28 : 0.16,
           shadowRadius: 14,
           elevation: 10,
-        }),
-      }}>
-        {/* Solid background for non-glass mode */}
-        {!liquidGlass && (
+        }}>
           <View style={{
             position: 'absolute', top:0, left:0, right:0, bottom:0,
             borderRadius: 999,
@@ -177,13 +172,12 @@ export default function BottomNav({ tab, onChange, onFab }) {
             borderWidth: 1,
             borderColor: d ? 'rgba(255,255,255,0.10)' : theme.border,
           }} />
-        )}
-
-        {TABS.map(item => (
-          <NavBtn key={item.id} item={item} active={tab === item.id}
-            onPress={() => onChange(item.id)} liquidGlass={!!liquidGlass} />
-        ))}
-      </View>
+          {TABS.map(item => (
+            <NavBtn key={item.id} item={item} active={tab === item.id}
+              onPress={() => onChange(item.id)} liquidGlass={!!liquidGlass} />
+          ))}
+        </View>
+      )}
 
       {/* ── FAB — only rendered when a handler is provided ── */}
       {onFab ? (

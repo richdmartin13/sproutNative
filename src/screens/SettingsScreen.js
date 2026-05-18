@@ -28,8 +28,8 @@ function MRow({ label, sub, value, onChange }) {
   );
 }
 
-const APP_VERSION = '1.0.20';
-const APP_BUILD  = 20;
+const APP_VERSION = '1.0.21';
+const APP_BUILD  = 21;
 
 const CHANGELOG = [
   {
