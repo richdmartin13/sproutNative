@@ -2,6 +2,7 @@ import SwiftUI
 
 struct HabitListView: View {
     @EnvironmentObject var model: WatchDataModel
+    @State private var showGrid = false
 
     var body: some View {
         Group {
@@ -27,16 +28,63 @@ struct HabitListView: View {
                 }
                 .padding()
             } else {
-                List(model.habits) { habit in
-                    NavigationLink(destination: QuickLogView(habit: habit)) {
-                        HabitRowView(habit: habit)
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 10) {
+
+                        // Hourly activity sparkline — only when there's data today
+                        let hourly = model.watchPrefs.hourlyActivity
+                        if hourly.contains(where: { $0 > 0 }) {
+                            HourlyActivityView(counts: hourly)
+                                .padding(.horizontal, 2)
+                        }
+
+                        // Grid or list
+                        if showGrid {
+                            LazyVGrid(
+                                columns: [GridItem(.flexible()), GridItem(.flexible())],
+                                spacing: 8
+                            ) {
+                                ForEach(model.habits) { habit in
+                                    NavigationLink(destination: QuickLogView(habit: habit)) {
+                                        HabitGridTile(habit: habit)
+                                    }
+                                    .buttonStyle(.plain)
+                                }
+                            }
+                        } else {
+                            LazyVStack(spacing: 0) {
+                                ForEach(model.habits) { habit in
+                                    NavigationLink(destination: QuickLogView(habit: habit)) {
+                                        HabitRowView(habit: habit)
+                                    }
+                                    if habit.id != model.habits.last?.id {
+                                        Divider().opacity(0.25)
+                                    }
+                                }
+                            }
+                        }
                     }
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 6)
                 }
-                .listStyle(.carousel)
             }
         }
-        .onAppear { model.requestUpdate() }
+        .onAppear {
+            model.requestUpdate()
+            showGrid = model.watchPrefs.showGrid
+        }
+        .onChange(of: model.watchPrefs.showGrid) { _, newVal in
+            showGrid = newVal
+        }
         .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                Button {
+                    withAnimation(.spring(duration: 0.25)) { showGrid.toggle() }
+                } label: {
+                    Image(systemName: showGrid ? "list.bullet" : "square.grid.2x2")
+                        .font(.caption)
+                }
+            }
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
                     model.requestUpdate()

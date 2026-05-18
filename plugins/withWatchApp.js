@@ -47,7 +47,10 @@ const SWIFT_SOURCES = [
   'WatchDataModel.swift',
   'HabitListView.swift',
   'HabitRowView.swift',
+  'HabitGridTile.swift',
+  'HourlyActivityView.swift',
   'QuickLogView.swift',
+  'SproutShortcuts.swift',
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────

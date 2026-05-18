@@ -4,7 +4,7 @@ import { sendHabitsToWatch, onWatchLog, onWatchUndo, onWatchResist } from './Wat
 /**
  * Keeps the Apple Watch in sync with the current habits state.
  * Filters out archived habits before sending to watch.
- * Passes watch prefs (dismiss delay, haptic, showStats) alongside habits.
+ * Passes watch prefs (dismiss delay, haptic, showStats, showGrid, hourlyActivity) with habits.
  */
 export function useWatchSync(habits, prefs, onLog, onUndo, onResist) {
   const timer = useRef(null);
@@ -14,6 +14,7 @@ export function useWatchSync(habits, prefs, onLog, onUndo, onResist) {
     timer.current = setTimeout(() => {
       const today = todayStr();
       const active = habits.filter(h => !h.archived);
+
       const payload = active.map(h => {
         const todayCount = h.logs.filter(l => l.date === today).length;
         let streak = 0;
@@ -38,16 +39,29 @@ export function useWatchSync(habits, prefs, onLog, onUndo, onResist) {
         };
       });
 
+      // Hourly activity across all habits for today
+      const hourly = Array(24).fill(0);
+      for (const h of active) {
+        for (const log of h.logs) {
+          if (log.date === today && log.ts) {
+            const hour = new Date(log.ts).getHours();
+            if (hour >= 0 && hour < 24) hourly[hour]++;
+          }
+        }
+      }
+
       const watchPrefs = {
-        dismissDelay: prefs?.watchDismiss ?? 2,
-        haptic:       prefs?.watchHaptic !== false,
-        showStats:    prefs?.watchShowStats !== false,
+        dismissDelay:   prefs?.watchDismiss ?? 2,
+        haptic:         prefs?.watchHaptic !== false,
+        showStats:      prefs?.watchShowStats !== false,
+        showGrid:       prefs?.watchShowGrid === true,
+        hourlyActivity: hourly,
       };
 
       sendHabitsToWatch(payload, watchPrefs);
     }, 400);
     return () => clearTimeout(timer.current);
-  }, [habits, prefs?.watchDismiss, prefs?.watchHaptic, prefs?.watchShowStats]);
+  }, [habits, prefs?.watchDismiss, prefs?.watchHaptic, prefs?.watchShowStats, prefs?.watchShowGrid]);
 
   useEffect(() => { return onWatchLog(id => onLog(id)); }, [onLog]);
   useEffect(() => { if (!onUndo) return; return onWatchUndo(id => onUndo(id)); }, [onUndo]);

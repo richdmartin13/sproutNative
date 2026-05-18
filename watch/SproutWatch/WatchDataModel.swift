@@ -13,9 +13,30 @@ struct WatchHabit: Identifiable, Codable, Hashable {
 }
 
 struct WatchPrefs: Codable {
-    var dismissDelay: Double = 2.0
-    var haptic: Bool = true
-    var showStats: Bool = true
+    var dismissDelay: Double
+    var haptic: Bool
+    var showStats: Bool
+    var showGrid: Bool
+    var hourlyActivity: [Int]   // 24 values — total logs per hour for today
+
+    init(dismissDelay: Double = 2.0, haptic: Bool = true, showStats: Bool = true,
+         showGrid: Bool = false, hourlyActivity: [Int] = Array(repeating: 0, count: 24)) {
+        self.dismissDelay    = dismissDelay
+        self.haptic          = haptic
+        self.showStats       = showStats
+        self.showGrid        = showGrid
+        self.hourlyActivity  = hourlyActivity
+    }
+
+    // Tolerant decode — new keys fall back to defaults so old builds keep working
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        dismissDelay   = try c.decodeIfPresent(Double.self, forKey: .dismissDelay)   ?? 2.0
+        haptic         = try c.decodeIfPresent(Bool.self,   forKey: .haptic)         ?? true
+        showStats      = try c.decodeIfPresent(Bool.self,   forKey: .showStats)      ?? true
+        showGrid       = try c.decodeIfPresent(Bool.self,   forKey: .showGrid)       ?? false
+        hourlyActivity = try c.decodeIfPresent([Int].self,  forKey: .hourlyActivity) ?? Array(repeating: 0, count: 24)
+    }
 }
 
 class WatchDataModel: NSObject, ObservableObject {

@@ -28,10 +28,19 @@ function MRow({ label, sub, value, onChange }) {
   );
 }
 
-const APP_VERSION = '1.0.11';
-const APP_BUILD  = 12;
+const APP_VERSION = '1.0.12';
+const APP_BUILD  = 13;
 
 const CHANGELOG = [
+  {
+    version: '1.0.12',
+    changes: [
+      'Watch: grid view toggle — show habits in a 2-column layout on Apple Watch',
+      'Watch: hourly activity sparkline — 24-bar chart of today\'s logs at the top of the watch list',
+      'Watch: Siri Shortcut — "Open Sprout" shortcut for watch face complications and Siri',
+      'Dev: Liquid Glass toggle now correctly applies @callstack/liquid-glass on iOS 26+ native builds',
+    ],
+  },
   {
     version: '1.0.11',
     changes: [
@@ -614,6 +623,8 @@ export default function SettingsScreen() {
             value={prefs.watchHaptic !== false} onChange={v => setP({ watchHaptic: v })} />
           <MRow label="Show stats" sub="Display streak and today count on watch"
             value={prefs.watchShowStats !== false} onChange={v => setP({ watchShowStats: v })} />
+          <MRow label="Grid view" sub="Show habits in a 2-column grid instead of a list"
+            value={prefs.watchShowGrid === true} onChange={v => setP({ watchShowGrid: v })} />
         </Sheet>
       )}
 

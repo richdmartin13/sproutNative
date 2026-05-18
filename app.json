@@ -2,7 +2,7 @@
   "expo": {
     "name": "Sprout",
     "slug": "sprout-richdmart-in",
-    "version": "1.0.11",
+    "version": "1.0.12",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "splash": {
@@ -13,7 +13,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "sprout.richdmart.in",
-      "buildNumber": "12",
+      "buildNumber": "13",
       "teamId": "66A37BK2N7",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
