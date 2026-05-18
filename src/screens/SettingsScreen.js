@@ -29,8 +29,8 @@ function MRow({ label, sub, value, onChange }) {
   );
 }
 
-const APP_VERSION = '1.0.22';
-const APP_BUILD  = 22;
+const APP_VERSION = '1.0.23';
+const APP_BUILD  = 23;
 
 const CHANGELOG = [
   {

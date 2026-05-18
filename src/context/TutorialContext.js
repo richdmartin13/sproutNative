@@ -70,7 +70,7 @@ export const TUTORIAL_STEPS = {
       id: 'scroll',
       icon: '↕',
       title: 'Scroll to explore',
-      body: 'Below you'll find heatmaps, hourly activity, trends, mood charts, rankings, correlations, and resistance tracking.',
+      body: "Below you'll find heatmaps, hourly activity, trends, mood charts, rankings, correlations, and resistance tracking.",
       type: 'info',
     },
     {
