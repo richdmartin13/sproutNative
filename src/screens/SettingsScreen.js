@@ -4,7 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import * as DocumentPicker from 'expo-document-picker';
-import { ChevronRight, Download, Upload, Trash2, Palette, LayoutGrid, PenLine, BarChart3, Database, ScrollText, List, Grid, Clock, Undo2, Archive, FlaskConical, Home, Settings, ArrowRight } from '../components/Icon.js';
+import { ChevronRight, Download, Upload, Trash2, Palette, LayoutGrid, PenLine, BarChart3, Database, ScrollText, List, Grid, Clock, Undo2, Archive, FlaskConical, Home } from '../components/Icon.js';
 import { useApp } from '../context/AppContext.js';
 import { useTutorial } from '../context/TutorialContext.js';
 import GlassCard from '../components/GlassCard.js';
@@ -29,10 +29,21 @@ function MRow({ label, sub, value, onChange }) {
   );
 }
 
-const APP_VERSION = '1.0.24';
-const APP_BUILD  = 24;
+const APP_VERSION = '1.0.25';
+const APP_BUILD  = 25;
 
 const CHANGELOG = [
+  {
+    version: '1.0.25',
+    changes: [
+      'Tutorials: home tour rewritten — describes filters, habit form, and tap screen accurately',
+      'Tutorials: analytics tour rewritten — only describes what exists (daily/all-time, 30-day and hourly ranges)',
+      'Tutorials: settings tour removed',
+      'Guided Tours moved into the About modal; no longer a top-level settings section',
+      'Guided Tours: Reset all tours button added',
+      'Tutorial: open_new_habit and habit_saved action hooks wired in NativeNav',
+    ],
+  },
   {
     version: '1.0.20',
     changes: [
@@ -561,45 +572,6 @@ export default function SettingsScreen({ onNavigate }) {
           ))}
         </GlassCard>
 
-        {/* ── Guided Tours ── */}
-        <GlassCard style={{ marginBottom:16 }} radius={20} variant="section">
-          <Text style={{ fontSize:11, fontWeight:'700', color:theme.muted,
-            textTransform:'uppercase', letterSpacing:0.8, padding:16, paddingBottom:10 }}>
-            Guided Tours
-          </Text>
-          {[
-            { id:'home',     label:'Habits',    sub:'Logging, filters, and layout',        Icon:Home     },
-            { id:'insights', label:'Analytics', sub:'Charts, timeframes, and sections',    Icon:BarChart3 },
-            { id:'settings', label:'Settings',  sub:'Colors, logging fields, and options', Icon:Settings  },
-          ].map(({ id, label, sub, Icon }, i) => (
-            <Pressable key={id}
-              onPress={() => {
-                setPrefs({ ...prefs, tutorialSeen: { ...(prefs.tutorialSeen || {}), [id]: undefined } });
-                if (id === 'settings') {
-                  startTutorial('settings');
-                } else {
-                  onNavigate?.(id);
-                }
-              }}
-              style={({ pressed }) => ({
-                flexDirection:'row', alignItems:'center', gap:12,
-                paddingHorizontal:16, paddingVertical:14,
-                borderTopWidth:1, borderTopColor:theme.border,
-                backgroundColor: pressed ? (theme.isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)') : 'transparent',
-              })}>
-              <View style={{ width:34, height:34, borderRadius:9,
-                backgroundColor:theme.accentDim, alignItems:'center', justifyContent:'center' }}>
-                <Icon size={17} strokeWidth={2} color={theme.accent} />
-              </View>
-              <View style={{ flex:1 }}>
-                <Text style={{ fontSize:15, fontWeight:'600', color:theme.text }}>{label}</Text>
-                <Text style={{ fontSize:12, color:theme.muted, marginTop:1 }}>{sub}</Text>
-              </View>
-              <Text style={{ fontSize:12, color:theme.accent, fontWeight:'600' }}>Retrigger</Text>
-            </Pressable>
-          ))}
-        </GlassCard>
-
         <Text style={{ fontSize:11, color:theme.muted, textAlign:'center', marginBottom:24, marginTop:8 }}>
           richdmart.in
         </Text>
@@ -1065,6 +1037,48 @@ export default function SettingsScreen({ onNavigate }) {
             borderBottomWidth:1, borderBottomColor:theme.border }}>
             A lightweight habit tracker for iOS and Apple Watch. All data lives on your device — no accounts, no servers.
           </Text>
+
+          {/* Guided Tours */}
+          <View style={{ paddingTop:16, paddingBottom:4, borderBottomWidth:1, borderBottomColor:theme.border }}>
+            <Text style={{ fontSize:11, fontWeight:'700', color:theme.muted,
+              textTransform:'uppercase', letterSpacing:0.7, marginBottom:10 }}>
+              Guided Tours
+            </Text>
+            {[
+              { id:'home',     label:'Habits',    sub:'Logging, filters, and layout',     Icon:Home      },
+              { id:'insights', label:'Analytics', sub:'Charts, timeframes, and sections', Icon:BarChart3 },
+            ].map(({ id, label, sub, Icon }) => (
+              <Pressable key={id}
+                onPress={() => {
+                  setPrefs({ ...prefs, tutorialSeen: { ...(prefs.tutorialSeen || {}), [id]: undefined } });
+                  setModal(null);
+                  onNavigate?.(id);
+                }}
+                style={({ pressed }) => ({
+                  flexDirection:'row', alignItems:'center', gap:12,
+                  paddingVertical:12, borderBottomWidth:1, borderBottomColor:theme.border,
+                  opacity: pressed ? 0.7 : 1,
+                })}>
+                <View style={{ width:34, height:34, borderRadius:9,
+                  backgroundColor:theme.accentDim, alignItems:'center', justifyContent:'center' }}>
+                  <Icon size={17} strokeWidth={2} color={theme.accent} />
+                </View>
+                <View style={{ flex:1 }}>
+                  <Text style={{ fontSize:15, fontWeight:'600', color:theme.text }}>{label}</Text>
+                  <Text style={{ fontSize:12, color:theme.muted, marginTop:1 }}>{sub}</Text>
+                </View>
+                <Text style={{ fontSize:12, color:theme.accent, fontWeight:'600' }}>Retrigger</Text>
+              </Pressable>
+            ))}
+            <Pressable
+              onPress={() => setPrefs({ ...prefs, tutorialSeen: undefined })}
+              style={({ pressed }) => ({
+                alignItems:'center', paddingVertical:13, opacity: pressed ? 0.7 : 1,
+              })}>
+              <Text style={{ fontSize:13, fontWeight:'600', color:theme.muted }}>Reset all tours</Text>
+            </Pressable>
+          </View>
+
           {/* Changelog inline */}
           <View style={{ paddingTop:16 }}>
             <Text style={{ fontSize:11, fontWeight:'700', color:theme.muted,

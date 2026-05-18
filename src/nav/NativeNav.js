@@ -182,7 +182,7 @@ function HomeStack() {
 // ─── Root navigator ───────────────────────────────────────────────────────────
 export default function NativeNav() {
   const { habits, data, theme, ready, sysAlert, clearSysAlert, upsertHabit, deleteHabit, archiveHabit, addLog, updateLog, deleteLog, setPrefs } = useApp();
-  const { startTutorial } = useTutorial();
+  const { startTutorial, advanceOnAction } = useTutorial();
   const { width } = useWindowDimensions();
   const isTablet  = width >= 768;
 
@@ -198,6 +198,7 @@ export default function NativeNav() {
 
   // Auto-start tutorial when visiting a tab for the first time
   useEffect(() => {
+    if (tab === 'settings') return;
     const p = prefsRef.current;
     const seen = p.tutorialSeen || {};
     if (!seen[tab]) {
@@ -211,7 +212,10 @@ export default function NativeNav() {
     }
   }, [tab]);
 
-  const openNewHabit = useCallback(() => setSheet({ kind:'habit', habit:null }), []);
+  const openNewHabit = useCallback(() => {
+    advanceOnAction('open_new_habit');
+    setSheet({ kind:'habit', habit:null });
+  }, [advanceOnAction]);
 
   const onOptions = useCallback((h, goBack) => {
     setActionSheet({ habit: h, goBack });
@@ -273,7 +277,7 @@ export default function NativeNav() {
         {sheet?.kind === 'habit' && (
           <HabitSheet habit={sheet.habit} allHabits={habits}
             onClose={() => setSheet(null)}
-            onSave={next => { upsertHabit(next); setSheet(null); }} />
+            onSave={next => { advanceOnAction('habit_saved'); upsertHabit(next); setSheet(null); }} />
         )}
         {sheet?.kind === 'log' && sheet.habit && sheet.log && (
           <LogSheet habit={habits.find(h => h.id === sheet.habit.id) ?? sheet.habit}
