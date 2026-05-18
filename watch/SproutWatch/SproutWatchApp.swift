@@ -12,6 +12,8 @@ struct SproutWatchApp: App {
                     .navigationBarTitleDisplayMode(.large)
             }
             .environmentObject(model)
+            .preferredColorScheme(model.watchPrefs.isDark ? .dark : .light)
+            .tint(model.watchPrefs.accentColor)
         }
     }
 }

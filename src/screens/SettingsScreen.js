@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { View, Text, Pressable, ScrollView, Image } from 'react-native';
+import { View, Text, Pressable, ScrollView, Image, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
@@ -28,10 +28,25 @@ function MRow({ label, sub, value, onChange }) {
   );
 }
 
-const APP_VERSION = '1.0.12';
-const APP_BUILD  = 13;
+const APP_VERSION = '1.0.13';
+const APP_BUILD  = 14;
 
 const CHANGELOG = [
+  {
+    version: '1.0.13',
+    changes: [
+      'Liquid Glass: cards and nav correctly appear dark in dark mode (colorScheme prop wired up)',
+      'Liquid Glass: filter chips, type chips, and Day/All selector now use liquid glass with accent tinting',
+      'Liquid Glass: FAB is now accent-tinted, nav active tab has a glassy liquid glass selector',
+      'Liquid Glass: modals and bottom sheets use glass surface with correct light/dark tinting',
+      'Liquid Glass: LiquidGlassContainerView wraps nav+FAB so elements interact as connected glass',
+      'Theme: app now follows device light/dark mode by default (toggle "Follow device" in Appearance)',
+      'Watch: accent color and dark/light mode synced from iPhone settings — watch matches app branding',
+      'Watch: list row style fixed — no more excessive rounding or misalignment',
+      'Watch: hourly sparkline always visible; fades in from placeholder when data arrives',
+      'Watch: Apple Watch section hidden on iPad (not applicable)',
+    ],
+  },
   {
     version: '1.0.12',
     changes: [
@@ -446,7 +461,7 @@ export default function SettingsScreen() {
     { id:'behavior',   label:'Layout & Behavior',  sub:'Card density, sort, tap behavior',    Icon:LayoutGrid },
     { id:'fields',     label:'Logging Fields',     sub:'Which fields appear when logging',    Icon:PenLine },
     { id:'sections',   label:'Analytics Sections', sub:'Which insights to show and their order', Icon:BarChart3 },
-    { id:'watch',      label:'Apple Watch',        sub:'Dismiss timing, haptics, stats',      Icon:Clock },
+    ...(!Platform.isPad ? [{ id:'watch', label:'Apple Watch', sub:'Dismiss timing, haptics, stats', Icon:Clock }] : []),
     ...(archivedHabits.length ? [{ id:'archived', label:'Archived Habits', sub:`${archivedHabits.length} hidden habit${archivedHabits.length !== 1 ? 's' : ''}`, Icon:Archive }] : []),
     { id:'data',       label:'Data',               sub:'Backup, restore, and clear',          Icon:Database },
     ...(prefs.devUnlocked ? [{ id:'dev', label:'Developer', sub:'Experimental features & debug', Icon:FlaskConical }] : []),

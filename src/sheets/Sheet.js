@@ -8,11 +8,14 @@ import { X } from '../components/Icon.js';
 import GlassCard from '../components/GlassCard.js';
 import { FONTS } from '../lib/fonts.js';
 import { useApp } from '../context/AppContext.js';
+import { LiquidGlassView, isLiquidGlassSupported } from '../components/../lib/liquidGlass.js';
 
 const H = Dimensions.get('window').height;
 
 export default function Sheet({ title, subtitle, onClose, children }) {
   const { theme } = useApp();
+  const d = theme.isDark;
+  const liquidGlass = theme.liquidGlassOn && isLiquidGlassSupported && LiquidGlassView;
   const insets  = useSafeAreaInsets();
   const slideY  = useRef(new Animated.Value(H)).current;
   const bgAlpha = useRef(new Animated.Value(0)).current;
@@ -44,18 +47,26 @@ export default function Sheet({ title, subtitle, onClose, children }) {
         pointerEvents="box-none">
         <Animated.View style={{
           transform: [{ translateY: slideY }],
-          backgroundColor: theme.solid,
+          ...(liquidGlass ? {} : {
+            backgroundColor: theme.solid,
+            borderTopWidth: 1, borderLeftWidth: 1, borderRightWidth: 1,
+            borderColor: theme.border,
+          }),
           borderTopLeftRadius: 28, borderTopRightRadius: 28,
-          borderTopWidth: 1, borderLeftWidth: 1, borderRightWidth: 1,
-          borderColor: theme.border,
           maxHeight: H * 0.92,
           paddingBottom: insets.bottom + 16,
           shadowColor: '#000', shadowOffset: { width: 0, height: -4 },
-          shadowOpacity: theme.isDark ? 0.28 : 0.14, shadowRadius: 20, elevation: 24,
+          shadowOpacity: d ? 0.28 : 0.14, shadowRadius: 20, elevation: 24,
         }}>
+          {liquidGlass && (
+            <LiquidGlassView style={{
+              position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+              borderTopLeftRadius: 28, borderTopRightRadius: 28,
+            }} colorScheme={d ? 'dark' : 'light'} />
+          )}
           {/* Grab handle */}
           <View style={{ alignItems: 'center', paddingTop: 10, paddingBottom: 2 }}>
-            <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: theme.border2 }} />
+            <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: liquidGlass ? 'rgba(128,128,128,0.35)' : theme.border2 }} />
           </View>
           {/* Header */}
           <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 12 }}>
@@ -64,7 +75,7 @@ export default function Sheet({ title, subtitle, onClose, children }) {
               {subtitle ? <Text style={{ fontSize: 12, color: theme.muted, marginTop: 2 }}>{subtitle}</Text> : null}
             </View>
             <Pressable onPress={close}
-              style={{ width: 30, height: 30, borderRadius: 15, backgroundColor: theme.solid3, alignItems: 'center', justifyContent: 'center' }}>
+              style={{ width: 30, height: 30, borderRadius: 15, backgroundColor: liquidGlass ? 'rgba(128,128,128,0.20)' : theme.solid3, alignItems: 'center', justifyContent: 'center' }}>
               <X size={16} strokeWidth={2} color={theme.muted} />
             </Pressable>
           </View>

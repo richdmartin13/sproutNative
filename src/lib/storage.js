@@ -4,7 +4,7 @@ import { normHabit } from './util.js';
 export const STORAGE_KEY = 'sprout_v1';
 
 export const DEF_PREFS = {
-  dark: true,
+  dark: null,
   scheme: 'sprout',
   viewMode: 'list',
   showStreak: true,

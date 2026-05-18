@@ -18,7 +18,7 @@ struct HabitListView: View {
                 VStack(spacing: 10) {
                     Image(systemName: "leaf.circle.fill")
                         .font(.system(size: 36))
-                        .foregroundStyle(.green)
+                        .foregroundStyle(model.watchPrefs.accentColor)
                     Text(model.isReachable
                          ? "No habits yet.\nOpen Sprout on iPhone."
                          : "iPhone out of range.")
@@ -31,12 +31,10 @@ struct HabitListView: View {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 10) {
 
-                        // Hourly activity sparkline — only when there's data today
+                        // Hourly sparkline — always shown, fades in when data arrives
                         let hourly = model.watchPrefs.hourlyActivity
-                        if hourly.contains(where: { $0 > 0 }) {
-                            HourlyActivityView(counts: hourly)
-                                .padding(.horizontal, 2)
-                        }
+                        HourlyActivityView(counts: hourly, accentColor: model.watchPrefs.accentColor)
+                            .padding(.horizontal, 2)
 
                         // Grid or list
                         if showGrid {
@@ -57,6 +55,7 @@ struct HabitListView: View {
                                     NavigationLink(destination: QuickLogView(habit: habit)) {
                                         HabitRowView(habit: habit)
                                     }
+                                    .buttonStyle(.plain)
                                     if habit.id != model.habits.last?.id {
                                         Divider().opacity(0.25)
                                     }

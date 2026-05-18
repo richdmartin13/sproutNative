@@ -114,7 +114,7 @@ export function AppProvider({ children }) {
   }, []);
 
   // Keep Apple Watch in sync whenever habits or watch prefs change
-  useWatchSync(data?.habits ?? [], data?.prefs ?? {}, handleWatchLog, handleWatchUndo, handleWatchResist);
+  useWatchSync(data?.habits ?? [], data?.prefs ?? {}, theme, handleWatchLog, handleWatchUndo, handleWatchResist);
 
   const systemColorScheme = useColorScheme();
   const theme = getTheme(data?.prefs, systemColorScheme === 'dark');

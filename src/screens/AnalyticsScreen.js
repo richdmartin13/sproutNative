@@ -13,6 +13,7 @@ import {
   significantCorrelations, stopInfluences,
 } from '../lib/stats.js';
 import { heatColor, TYPE_COLORS } from '../lib/theme.js';
+import { LiquidGlassView, isLiquidGlassSupported } from '../lib/liquidGlass.js';
 import { FONTS } from '../lib/fonts.js';
 
 const DEFAULT_SECTION_ORDER = ['heatmap','hourly','trends','spider','rankings','correlations','mood','time','tags'];
@@ -63,31 +64,51 @@ function HourlySection({ filtered, date }) {
 // ─── Top filter bar — same as HomeScreen, drives all sections ───────────────
 function FilterBar({ habits, category, setCategory, types, setTypes }) {
   const { theme } = useApp();
+  const d = theme.isDark;
+  const liquidGlass = theme.liquidGlassOn && isLiquidGlassSupported && LiquidGlassView;
   const cats = useMemo(() => [...new Set(habits.map(h=>h.category).filter(Boolean))],[habits]);
   const TC = { go:theme.typeGo, st:theme.typeSt, ne:theme.typeNe };
-  const chip = (label, active, color, onPress) => (
-    // Outer wrapper overflow:visible so shadow doesn't clip vertically
-    <View key={label} style={{ marginRight:6, overflow:'visible' }}>
-      <Pressable onPress={onPress}
-        style={{
-          paddingHorizontal:14, paddingVertical:7, borderRadius:20,
-          backgroundColor: active ? (color || theme.accent) : theme.solid2,
-          borderWidth: 1,
-          borderColor: active ? (color || theme.accent) : theme.border,
-          ...(active ? {
-            shadowColor: color || theme.accent,
-            shadowOffset: { width:0, height:0 },
-            shadowOpacity: theme.isDark ? 0.55 : 0.28,
-            shadowRadius: 10,
-          } : {}),
-          elevation: 0,
-        }}>
-        <Text style={{ fontSize:14, fontWeight:'600', color: active ? '#fff' : theme.text2 }}>
-          {label}
-        </Text>
-      </Pressable>
-    </View>
-  );
+  const chip = (label, active, color, onPress) => {
+    if (liquidGlass) {
+      return (
+        <View key={label} style={{ marginRight: 6, overflow: 'visible' }}>
+          <LiquidGlassView
+            style={{ borderRadius: 20 }}
+            tintColor={active ? (color || theme.accent) : undefined}
+            colorScheme={d ? 'dark' : 'light'}
+          >
+            <Pressable onPress={onPress} style={{ paddingHorizontal: 14, paddingVertical: 7 }}>
+              <Text style={{ fontSize: 14, fontWeight: '600', color: active ? '#fff' : theme.text2 }}>
+                {label}
+              </Text>
+            </Pressable>
+          </LiquidGlassView>
+        </View>
+      );
+    }
+    return (
+      <View key={label} style={{ marginRight:6, overflow:'visible' }}>
+        <Pressable onPress={onPress}
+          style={{
+            paddingHorizontal:14, paddingVertical:7, borderRadius:20,
+            backgroundColor: active ? (color || theme.accent) : theme.solid2,
+            borderWidth: 1,
+            borderColor: active ? (color || theme.accent) : theme.border,
+            ...(active ? {
+              shadowColor: color || theme.accent,
+              shadowOffset: { width:0, height:0 },
+              shadowOpacity: d ? 0.55 : 0.28,
+              shadowRadius: 10,
+            } : {}),
+            elevation: 0,
+          }}>
+          <Text style={{ fontSize:14, fontWeight:'600', color: active ? '#fff' : theme.text2 }}>
+            {label}
+          </Text>
+        </Pressable>
+      </View>
+    );
+  };
   return (
     <View style={{ marginBottom:4 }}>
       <ScrollView horizontal showsHorizontalScrollIndicator={false}

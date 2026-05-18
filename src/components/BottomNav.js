@@ -2,7 +2,7 @@ import React, { useRef, useEffect } from 'react';
 import { View, Text, Pressable, Animated } from 'react-native';
 import { Home, BarChart3, Settings, Plus } from '../components/Icon.js';
 import { useApp } from '../context/AppContext.js';
-import { LiquidGlassView, isLiquidGlassSupported } from '../lib/liquidGlass.js';
+import { LiquidGlassView, LiquidGlassContainerView, isLiquidGlassSupported } from '../lib/liquidGlass.js';
 
 const TABS = [
   { id:'home',     label:'Habits',    Icon:Home      },
@@ -13,6 +13,7 @@ const TABS = [
 function NavBtn({ item, active, onPress }) {
   const { theme } = useApp();
   const d = theme.isDark;
+  const liquidGlass = theme.liquidGlassOn && isLiquidGlassSupported && LiquidGlassView;
 
   const widthAnim  = useRef(new Animated.Value(active ? 1 : 0)).current;
   const opacAnim   = useRef(new Animated.Value(active ? 1 : 0)).current;
@@ -44,7 +45,7 @@ function NavBtn({ item, active, onPress }) {
   return (
     <View style={{ overflow: 'visible', position: 'relative' }}>
 
-      {/* Ambient glow disc — accent-colored, blooms around the active pill */}
+      {/* Ambient glow disc */}
       <Animated.View pointerEvents="none" style={{
         position: 'absolute',
         top: -8, bottom: -8, left: -8, right: -8,
@@ -64,7 +65,7 @@ function NavBtn({ item, active, onPress }) {
         }} />
       </Animated.View>
 
-      {/* Active pill — raised, accent-tinted surface with glow shadow */}
+      {/* Active pill */}
       <Animated.View style={[
         { transform: [{ scale: scaleAnim }] },
         active && {
@@ -80,15 +81,22 @@ function NavBtn({ item, active, onPress }) {
           height: 48, paddingHorizontal: active ? 16 : 13,
           borderRadius: 999, gap: 7,
         }}>
-          {/* Active pill surface */}
+          {/* Active pill surface — glass tint in LG mode, subtle solid otherwise */}
           {active && (
-            <View style={{
-              position: 'absolute', top: 0, bottom: 0, left: 0, right: 0,
-              borderRadius: 999,
-              backgroundColor: d ? theme.accentSubtle : theme.solid,
-              borderWidth: 1.5,
-              borderColor: d ? theme.accentMid : theme.accentBorder,
-            }} />
+            liquidGlass ? (
+              <LiquidGlassView style={{
+                position: 'absolute', top: 0, bottom: 0, left: 0, right: 0,
+                borderRadius: 999,
+              }} tintColor={theme.accent} colorScheme={d ? 'dark' : 'light'} />
+            ) : (
+              <View style={{
+                position: 'absolute', top: 0, bottom: 0, left: 0, right: 0,
+                borderRadius: 999,
+                backgroundColor: d ? theme.accentDim : theme.solid,
+                borderWidth: 1.5,
+                borderColor: d ? theme.accentMid : theme.accentBorder,
+              }} />
+            )
           )}
 
           <View style={{ zIndex:1 }}>
@@ -112,6 +120,7 @@ export default function BottomNav({ tab, onChange, onFab }) {
   const d = theme.isDark;
   const liquidGlass = theme.liquidGlassOn && isLiquidGlassSupported && LiquidGlassView;
   const NavPill = liquidGlass ? LiquidGlassView : View;
+  const Container = liquidGlass ? LiquidGlassContainerView : View;
 
   const fabScale = useRef(new Animated.Value(1)).current;
   const handleFab = () => {
@@ -122,7 +131,7 @@ export default function BottomNav({ tab, onChange, onFab }) {
   };
 
   return (
-    <View style={{
+    <Container style={{
       position: 'absolute',
       bottom: 15,
       left: 16, right: 16,
@@ -143,7 +152,7 @@ export default function BottomNav({ tab, onChange, onFab }) {
           shadowRadius: 14,
           elevation: 10,
         } : {}),
-      }}>
+      }} {...(liquidGlass ? { colorScheme: d ? 'dark' : 'light' } : {})}>
         {/* Solid background — only when not using liquid glass */}
         {!liquidGlass && (
           <View style={{
@@ -181,7 +190,8 @@ export default function BottomNav({ tab, onChange, onFab }) {
         <Animated.View style={{ transform:[{ scale: fabScale }], opacity: onFab ? 1 : 0 }}
           pointerEvents={onFab ? 'auto' : 'none'}>
           {liquidGlass ? (
-            <LiquidGlassView style={{ width: 58, height: 58, borderRadius: 29 }}>
+            <LiquidGlassView style={{ width: 58, height: 58, borderRadius: 29 }}
+              tintColor={theme.accent} colorScheme={d ? 'dark' : 'light'}>
               <Pressable onPress={handleFab} style={{
                 width: '100%', height: '100%',
                 alignItems: 'center', justifyContent: 'center',
@@ -203,6 +213,6 @@ export default function BottomNav({ tab, onChange, onFab }) {
           )}
         </Animated.View>
       </View>
-    </View>
+    </Container>
   );
 }

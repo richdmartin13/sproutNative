@@ -1,6 +1,64 @@
 import React, { useEffect, useRef } from 'react';
 import { Modal, View, Text, Pressable, Animated, StyleSheet } from 'react-native';
 import { useApp } from '../context/AppContext.js';
+import { LiquidGlassView, isLiquidGlassSupported } from '../lib/liquidGlass.js';
+
+function ModalContent({ d, theme, title, message, actionBtns, cancelBtn }) {
+  return (
+    <>
+      <View style={{ paddingHorizontal: 26, paddingTop: 32, paddingBottom: 6, alignItems: 'center' }}>
+        <Text style={{
+          fontSize: 20, fontWeight: '700', color: theme.text,
+          letterSpacing: -0.5, textAlign: 'center',
+          marginBottom: message ? 10 : 0,
+        }}>
+          {title}
+        </Text>
+        {message ? (
+          <Text style={{ fontSize: 14.5, color: theme.text2, lineHeight: 22, textAlign: 'center' }}>
+            {message}
+          </Text>
+        ) : null}
+      </View>
+      <View style={{ padding: 20, paddingTop: 22, gap: 10 }}>
+        {actionBtns.map((btn, i) => {
+          const isDestructive = btn.style === 'destructive';
+          const bg = isDestructive ? theme.typeSt : theme.accent;
+          return (
+            <Pressable key={btn.text + i} onPress={() => btn.onPress?.()}
+              style={({ pressed }) => ({
+                borderRadius: 18, paddingVertical: 16,
+                backgroundColor: bg, alignItems: 'center', opacity: pressed ? 0.82 : 1,
+                shadowColor: bg,
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: d ? 0.55 : 0.28,
+                shadowRadius: 14, elevation: 8,
+                borderWidth: 1, borderColor: 'rgba(255,255,255,0.20)',
+              })}>
+              <Text style={{ fontSize: 16, fontWeight: '700', color: '#fff', letterSpacing: -0.2 }}>
+                {btn.text}
+              </Text>
+            </Pressable>
+          );
+        })}
+        {cancelBtn && (
+          <Pressable onPress={() => cancelBtn.onPress?.()}
+            style={({ pressed }) => ({
+              borderRadius: 18, paddingVertical: 15, alignItems: 'center',
+              backgroundColor: d
+                ? pressed ? 'rgba(255,255,255,0.10)' : 'rgba(255,255,255,0.05)'
+                : pressed ? 'rgba(0,0,0,0.07)' : 'rgba(0,0,0,0.03)',
+              borderWidth: 1, borderColor: d ? 'rgba(255,255,255,0.12)' : theme.border,
+            })}>
+            <Text style={{ fontSize: 16, fontWeight: '500', color: theme.text2, letterSpacing: -0.2 }}>
+              {cancelBtn.text}
+            </Text>
+          </Pressable>
+        )}
+      </View>
+    </>
+  );
+}
 
 // buttons: [{ text, style?: 'default'|'cancel'|'destructive', onPress? }]
 export default function AppModal({ visible, title, message, buttons = [], onDismiss }) {
@@ -23,6 +81,7 @@ export default function AppModal({ visible, title, message, buttons = [], onDism
 
   if (!visible) return null;
 
+  const liquidGlass = theme.liquidGlassOn && isLiquidGlassSupported && LiquidGlassView;
   const cancelBtn  = buttons.find(b => b.style === 'cancel');
   const actionBtns = buttons.filter(b => b.style !== 'cancel');
 
@@ -39,83 +98,26 @@ export default function AppModal({ visible, title, message, buttons = [], onDism
           width: '100%', maxWidth: 340,
           transform: [{ scale: scaleAnim }],
           borderRadius: 30,
-          // Soft accent glow
           shadowColor: '#000',
           shadowOffset: { width: 0, height: 8 },
           shadowOpacity: d ? 0.35 : 0.20,
           shadowRadius: 24,
           elevation: 20,
         }}>
-          {/* Card shell — flat solid, scheme-tinted border */}
-          <View style={{
-            borderRadius: 30,
-            overflow: 'hidden',
-            backgroundColor: d ? theme.solid2 : theme.solid,
-            borderWidth: 1,
-            borderColor: d ? theme.accentBorder : theme.border,
-          }}>
-            {/* Content */}
-            <View style={{ paddingHorizontal: 26, paddingTop: 32, paddingBottom: 6, alignItems: 'center' }}>
-              <Text style={{
-                fontSize: 20, fontWeight: '700', color: theme.text,
-                letterSpacing: -0.5, textAlign: 'center',
-                marginBottom: message ? 10 : 0,
-              }}>
-                {title}
-              </Text>
-              {message ? (
-                <Text style={{ fontSize: 14.5, color: theme.text2, lineHeight: 22, textAlign: 'center' }}>
-                  {message}
-                </Text>
-              ) : null}
+          {/* Card shell — liquid glass or flat solid */}
+          {liquidGlass ? (
+            <LiquidGlassView style={{ borderRadius: 30 }} colorScheme={d ? 'dark' : 'light'}>
+              <ModalContent d={d} theme={theme} title={title} message={message} actionBtns={actionBtns} cancelBtn={cancelBtn} />
+            </LiquidGlassView>
+          ) : (
+            <View style={{
+              borderRadius: 30, overflow: 'hidden',
+              backgroundColor: d ? theme.solid2 : theme.solid,
+              borderWidth: 1, borderColor: d ? theme.accentBorder : theme.border,
+            }}>
+              <ModalContent d={d} theme={theme} title={title} message={message} actionBtns={actionBtns} cancelBtn={cancelBtn} />
             </View>
-
-            {/* Buttons */}
-            <View style={{ padding: 20, paddingTop: 22, gap: 10 }}>
-
-              {/* Action buttons — filled with type-appropriate color + soft glow */}
-              {actionBtns.map((btn, i) => {
-                const isDestructive = btn.style === 'destructive';
-                const bg = isDestructive ? theme.typeSt : theme.accent;
-                return (
-                  <Pressable key={btn.text + i} onPress={() => btn.onPress?.()}
-                    style={({ pressed }) => ({
-                      borderRadius: 18, paddingVertical: 16,
-                      backgroundColor: bg,
-                      alignItems: 'center', opacity: pressed ? 0.82 : 1,
-                      shadowColor: bg,
-                      shadowOffset: { width: 0, height: 4 },
-                      shadowOpacity: d ? 0.55 : 0.28,
-                      shadowRadius: 14, elevation: 8,
-                      borderWidth: 1,
-                      borderColor: 'rgba(255,255,255,0.20)',
-                    })}>
-                    <Text style={{ fontSize: 16, fontWeight: '700', color: '#fff', letterSpacing: -0.2 }}>
-                      {btn.text}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-
-              {/* Cancel — ghost pill */}
-              {cancelBtn && (
-                <Pressable onPress={() => cancelBtn.onPress?.()}
-                  style={({ pressed }) => ({
-                    borderRadius: 18, paddingVertical: 15, alignItems: 'center',
-                    backgroundColor: d
-                      ? pressed ? 'rgba(255,255,255,0.10)' : 'rgba(255,255,255,0.05)'
-                      : pressed ? 'rgba(0,0,0,0.07)' : 'rgba(0,0,0,0.03)',
-                    borderWidth: 1,
-                    borderColor: d ? 'rgba(255,255,255,0.12)' : theme.border,
-                  })}>
-                  <Text style={{ fontSize: 16, fontWeight: '500', color: theme.text2, letterSpacing: -0.2 }}>
-                    {cancelBtn.text}
-                  </Text>
-                </Pressable>
-              )}
-
-            </View>
-          </View>
+          )}
         </Animated.View>
       </Animated.View>
     </Modal>

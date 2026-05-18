@@ -6,7 +6,7 @@ import { sendHabitsToWatch, onWatchLog, onWatchUndo, onWatchResist } from './Wat
  * Filters out archived habits before sending to watch.
  * Passes watch prefs (dismiss delay, haptic, showStats, showGrid, hourlyActivity) with habits.
  */
-export function useWatchSync(habits, prefs, onLog, onUndo, onResist) {
+export function useWatchSync(habits, prefs, themeInfo, onLog, onUndo, onResist) {
   const timer = useRef(null);
 
   useEffect(() => {
@@ -56,16 +56,19 @@ export function useWatchSync(habits, prefs, onLog, onUndo, onResist) {
         showStats:      prefs?.watchShowStats !== false,
         showGrid:       prefs?.watchShowGrid === true,
         hourlyActivity: hourly,
+        accentHex:      themeInfo?.accent ?? '#2d6e47',
+        isDark:         themeInfo?.isDark ?? true,
       };
 
       sendHabitsToWatch(payload, watchPrefs);
     }, 400);
     return () => clearTimeout(timer.current);
-  }, [habits, prefs?.watchDismiss, prefs?.watchHaptic, prefs?.watchShowStats, prefs?.watchShowGrid]);
+  }, [habits, prefs?.watchDismiss, prefs?.watchHaptic, prefs?.watchShowStats, prefs?.watchShowGrid, themeInfo?.accent, themeInfo?.isDark]);
 
   useEffect(() => { return onWatchLog(id => onLog(id)); }, [onLog]);
   useEffect(() => { if (!onUndo) return; return onWatchUndo(id => onUndo(id)); }, [onUndo]);
   useEffect(() => { if (!onResist) return; return onWatchResist(id => onResist(id)); }, [onResist]);
+
 }
 
 function todayStr() {

@@ -12,16 +12,17 @@ struct HabitRowView: View {
     }
 
     var body: some View {
-        HStack(spacing: 8) {
-            RoundedRectangle(cornerRadius: 2)
+        HStack(spacing: 10) {
+            // Left type stripe — fills the full row height
+            Rectangle()
                 .fill(typeColor)
                 .frame(width: 3)
-                .padding(.vertical, 2)
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(habit.name)
                     .font(.system(size: 14, weight: .semibold))
                     .lineLimit(1)
+                    .frame(maxWidth: .infinity, alignment: .leading)
 
                 HStack(spacing: 8) {
                     if habit.todayCount > 0 {
@@ -41,7 +42,10 @@ struct HabitRowView: View {
                 }
                 .foregroundStyle(.secondary)
             }
+
+            Spacer(minLength: 0)
         }
-        .padding(.vertical, 4)
+        .frame(minHeight: 44)
+        .contentShape(Rectangle())
     }
 }

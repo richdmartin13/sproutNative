@@ -36,7 +36,10 @@ export default React.memo(function GlassCard({ style, radius = 20, children, var
 
   if (liquidGlass) {
     return (
-      <LiquidGlassView style={[{ borderRadius: radius, overflow: 'hidden' }, style]}>
+      <LiquidGlassView
+        style={[{ borderRadius: radius }, style]}
+        colorScheme={d ? 'dark' : 'light'}
+      >
         {children}
       </LiquidGlassView>
     );

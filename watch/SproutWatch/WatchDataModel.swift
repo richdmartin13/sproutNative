@@ -1,6 +1,7 @@
 import Foundation
 import WatchConnectivity
 import WatchKit
+import SwiftUI
 
 struct WatchHabit: Identifiable, Codable, Hashable {
     let id: String
@@ -18,14 +19,19 @@ struct WatchPrefs: Codable {
     var showStats: Bool
     var showGrid: Bool
     var hourlyActivity: [Int]   // 24 values — total logs per hour for today
+    var accentHex: String       // e.g. "#2d6e47"
+    var isDark: Bool
 
     init(dismissDelay: Double = 2.0, haptic: Bool = true, showStats: Bool = true,
-         showGrid: Bool = false, hourlyActivity: [Int] = Array(repeating: 0, count: 24)) {
+         showGrid: Bool = false, hourlyActivity: [Int] = Array(repeating: 0, count: 24),
+         accentHex: String = "#2d6e47", isDark: Bool = true) {
         self.dismissDelay    = dismissDelay
         self.haptic          = haptic
         self.showStats       = showStats
         self.showGrid        = showGrid
         self.hourlyActivity  = hourlyActivity
+        self.accentHex       = accentHex
+        self.isDark          = isDark
     }
 
     // Tolerant decode — new keys fall back to defaults so old builds keep working
@@ -36,6 +42,26 @@ struct WatchPrefs: Codable {
         showStats      = try c.decodeIfPresent(Bool.self,   forKey: .showStats)      ?? true
         showGrid       = try c.decodeIfPresent(Bool.self,   forKey: .showGrid)       ?? false
         hourlyActivity = try c.decodeIfPresent([Int].self,  forKey: .hourlyActivity) ?? Array(repeating: 0, count: 24)
+        accentHex      = try c.decodeIfPresent(String.self, forKey: .accentHex)      ?? "#2d6e47"
+        isDark         = try c.decodeIfPresent(Bool.self,   forKey: .isDark)         ?? true
+    }
+
+    var accentColor: Color { Color(hex: accentHex) }
+}
+
+// Hex color initializer for SwiftUI Color
+extension Color {
+    init(hex: String) {
+        let h = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
+        var int: UInt64 = 0
+        Scanner(string: h).scanHexInt64(&int)
+        let r, g, b: UInt64
+        switch h.count {
+        case 3:  (r, g, b) = ((int >> 8) * 17, (int >> 4 & 0xF) * 17, (int & 0xF) * 17)
+        case 6:  (r, g, b) = (int >> 16, int >> 8 & 0xFF, int & 0xFF)
+        default: (r, g, b) = (0, 0, 0)
+        }
+        self.init(.sRGB, red: Double(r)/255, green: Double(g)/255, blue: Double(b)/255)
     }
 }
 

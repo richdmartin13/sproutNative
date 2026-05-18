@@ -3,6 +3,7 @@ import { View, Text, FlatList, ScrollView, Pressable, useWindowDimensions } from
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { List, Grid, Flame, Clock } from '../components/Icon.js';
 import { useApp } from '../context/AppContext.js';
+import { LiquidGlassView, isLiquidGlassSupported } from '../lib/liquidGlass.js';
 import GlassCard from '../components/GlassCard.js';
 import { totalCountFor, streakFor, todayCountFor, daysSinceLastFor, dailyCountsFor, lastLog } from '../lib/stats.js';
 import { TYPE_COLORS, TYPE_LABELS } from '../lib/theme.js';
@@ -10,30 +11,51 @@ import { FONTS } from '../lib/fonts.js';
 
 function Filters({ habits, category, setCategory, types, setTypes }) {
   const { theme } = useApp();
+  const d = theme.isDark;
+  const liquidGlass = theme.liquidGlassOn && isLiquidGlassSupported && LiquidGlassView;
   const cats = useMemo(() => [...new Set(habits.map(h => h.category).filter(Boolean))], [habits]);
   const TC = { go: theme.typeGo, st: theme.typeSt, ne: theme.typeNe };
-  const chip = (label, active, color, onPress) => (
-    <View key={label} style={{ marginRight:6, overflow:'visible' }}>
-      <Pressable onPress={onPress}
-        style={{
-          paddingHorizontal:14, paddingVertical:7, borderRadius:20,
-          backgroundColor: active ? (color || theme.accent) : theme.solid2,
-          borderWidth: 1,
-          borderColor: active ? (color || theme.accent) : theme.border,
-          ...(active ? {
-            shadowColor: color || theme.accent,
-            shadowOffset: { width:0, height:0 },
-            shadowOpacity: theme.isDark ? 0.55 : 0.28,
-            shadowRadius: 10,
-          } : {}),
-          elevation: 0,
-        }}>
-        <Text style={{ fontSize:14, fontWeight:'600', color: active ? '#fff' : theme.text2 }}>
-          {label}
-        </Text>
-      </Pressable>
-    </View>
-  );
+  const chip = (label, active, color, onPress) => {
+    if (liquidGlass) {
+      return (
+        <View key={label} style={{ marginRight: 6, overflow: 'visible' }}>
+          <LiquidGlassView
+            style={{ borderRadius: 20 }}
+            tintColor={active ? (color || theme.accent) : undefined}
+            colorScheme={d ? 'dark' : 'light'}
+          >
+            <Pressable onPress={onPress} style={{ paddingHorizontal: 14, paddingVertical: 7 }}>
+              <Text style={{ fontSize: 14, fontWeight: '600', color: active ? '#fff' : theme.text2 }}>
+                {label}
+              </Text>
+            </Pressable>
+          </LiquidGlassView>
+        </View>
+      );
+    }
+    return (
+      <View key={label} style={{ marginRight:6, overflow:'visible' }}>
+        <Pressable onPress={onPress}
+          style={{
+            paddingHorizontal:14, paddingVertical:7, borderRadius:20,
+            backgroundColor: active ? (color || theme.accent) : theme.solid2,
+            borderWidth: 1,
+            borderColor: active ? (color || theme.accent) : theme.border,
+            ...(active ? {
+              shadowColor: color || theme.accent,
+              shadowOffset: { width:0, height:0 },
+              shadowOpacity: d ? 0.55 : 0.28,
+              shadowRadius: 10,
+            } : {}),
+            elevation: 0,
+          }}>
+          <Text style={{ fontSize:14, fontWeight:'600', color: active ? '#fff' : theme.text2 }}>
+            {label}
+          </Text>
+        </Pressable>
+      </View>
+    );
+  };
   return (
     <View style={{ marginBottom: 4 }}>
       <ScrollView horizontal showsHorizontalScrollIndicator={false}
