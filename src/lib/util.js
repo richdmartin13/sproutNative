@@ -132,19 +132,27 @@ export function normLog(log) {
   };
 }
 
-// Returns true if a category should be visible right now given prefs.categorySettings.
-// { hidden: true }              → always hidden
-// { timeGate: { enabled, startH, endH } } → only visible in [startH, endH) window
-export function isCatVisible(cat, categorySettings) {
-  const s = categorySettings?.[cat];
-  if (!s) return true;
-  if (s.hidden) return false;
-  if (s.timeGate?.enabled) {
-    const h = new Date().getHours();
-    const { startH = 0, endH = 23 } = s.timeGate;
-    if (startH < endH)  return h >= startH && h < endH;
-    if (startH > endH)  return h >= startH || h < endH; // overnight
-  }
+// Returns true if h is inside the [startH, endH) window.
+function inWindow(h, startH, endH) {
+  if (startH === endH) return false;
+  if (startH < endH)  return h >= startH && h < endH;
+  return h >= startH || h < endH; // overnight gate
+}
+
+// Returns true if a category should be visible right now given prefs.timeGates.
+// prefs.timeGates = { 'Health': { enabled: bool, gates: [{ id, startH, endH, mode }] } }
+// mode 'available'   → category only shows during this window (others hide it)
+// mode 'unavailable' → category is blocked during this window
+export function isCatVisible(cat, timeGates) {
+  const setting = timeGates?.[cat];
+  if (!setting?.enabled || !setting.gates?.length) return true;
+  const h = new Date().getHours();
+  const gates = setting.gates;
+  // Unavailable gates take priority — block immediately if matched
+  if (gates.some(g => g.mode === 'unavailable' && inWindow(h, g.startH ?? 0, g.endH ?? 23))) return false;
+  // Available gates: if any exist the category must match at least one
+  const avail = gates.filter(g => g.mode !== 'unavailable');
+  if (avail.length) return avail.some(g => inWindow(h, g.startH ?? 0, g.endH ?? 23));
   return true;
 }
 

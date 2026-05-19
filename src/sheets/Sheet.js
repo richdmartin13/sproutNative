@@ -12,7 +12,7 @@ import { LiquidGlassView, isLiquidGlassSupported } from '../components/../lib/li
 
 const H = Dimensions.get('window').height;
 
-export default function Sheet({ title, subtitle, onClose, children, scrollEnabled = true }) {
+export default function Sheet({ title, subtitle, onClose, children, scrollEnabled = true, noScroll = false }) {
   const { theme } = useApp();
   const d = theme.isDark;
   const liquidGlass = theme.liquidGlassOn && isLiquidGlassSupported && LiquidGlassView;
@@ -99,11 +99,17 @@ export default function Sheet({ title, subtitle, onClose, children, scrollEnable
               </Pressable>
             </View>
           </View>
-          <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}
-            scrollEnabled={scrollEnabled}
-            contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 12 }}>
-            {children}
-          </ScrollView>
+          {noScroll ? (
+            <View style={{ paddingHorizontal: 20, paddingBottom: 12 }}>
+              {children}
+            </View>
+          ) : (
+            <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}
+              scrollEnabled={scrollEnabled}
+              contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 12 }}>
+              {children}
+            </ScrollView>
+          )}
         </Animated.View>
       </KeyboardAvoidingView>
     </Modal>

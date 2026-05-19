@@ -213,7 +213,6 @@ export default function NativeNav() {
 
   // Auto-start tutorial when visiting a tab for the first time
   useEffect(() => {
-    if (tab === 'settings') return;
     const p = prefsRef.current;
     const seen = p.tutorialSeen || {};
     if (!seen[tab]) {

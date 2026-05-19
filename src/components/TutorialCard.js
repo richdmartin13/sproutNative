@@ -5,7 +5,7 @@ import { useTutorial } from '../context/TutorialContext.js';
 import { useApp } from '../context/AppContext.js';
 import {
   Home, BarChart3, Settings, Plus, Zap, List, Clock,
-  TrendingUp, Palette, PenLine, ArrowRight,
+  TrendingUp, Palette, PenLine, ArrowRight, LayoutGrid, Database,
 } from './Icon.js';
 import { FONTS } from '../lib/fonts.js';
 import { LiquidGlassView, isLiquidGlassSupported } from '../lib/liquidGlass.js';
@@ -14,7 +14,7 @@ const H = Dimensions.get('window').height;
 
 const ICON_MAP = {
   Home, BarChart3, Settings, Plus, Zap, List, Clock,
-  TrendingUp, Palette, PenLine, ArrowRight,
+  TrendingUp, Palette, PenLine, ArrowRight, LayoutGrid, Database,
 };
 
 export default function TutorialCard() {

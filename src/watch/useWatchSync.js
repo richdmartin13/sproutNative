@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { sendHabitsToWatch, onWatchLog, onWatchUndo, onWatchResist } from './WatchBridge.js';
+import { isCatVisible } from '../lib/util.js';
 
 /**
  * Keeps the Apple Watch in sync with the current habits state.
@@ -13,7 +14,8 @@ export function useWatchSync(habits, prefs, themeInfo, onLog, onUndo, onResist) 
     clearTimeout(timer.current);
     timer.current = setTimeout(() => {
       const today = todayStr();
-      const active = habits.filter(h => !h.archived);
+      const timeGates = prefs?.timeGates;
+      const active = habits.filter(h => !h.archived && (!h.category || isCatVisible(h.category, timeGates)));
 
       const payload = active.map(h => {
         const todayCount = h.logs.filter(l => l.date === today).length;

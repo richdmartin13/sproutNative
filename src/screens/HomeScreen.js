@@ -10,13 +10,13 @@ import { isCatVisible } from '../lib/util.js';
 import { TYPE_COLORS, TYPE_LABELS } from '../lib/theme.js';
 import { FONTS } from '../lib/fonts.js';
 
-function Filters({ habits, category, setCategory, types, setTypes, categorySettings }) {
+function Filters({ habits, category, setCategory, types, setTypes, timeGates }) {
   const { theme } = useApp();
   const d = theme.isDark;
   const glassChips = theme.glassChipsOn && isLiquidGlassSupported && LiquidGlassView;
   const cats = useMemo(
-    () => [...new Set(habits.map(h => h.category).filter(Boolean))].filter(c => isCatVisible(c, categorySettings)),
-    [habits, categorySettings],
+    () => [...new Set(habits.map(h => h.category).filter(Boolean))].filter(c => isCatVisible(c, timeGates)),
+    [habits, timeGates],
   );
   const TC = { go: theme.typeGo, st: theme.typeSt, ne: theme.typeNe };
   const chip = (label, active, color, onPress) => {
@@ -238,7 +238,7 @@ export default function HomeScreen({ onOpenHabit, onLongPressHabit, onNewHabit }
   const filtered = useMemo(() => {
     let l = habits.filter(h => !h.archived);
     // Hide habits whose category is hidden or outside its time gate
-    l = l.filter(h => !h.category || isCatVisible(h.category, prefs.categorySettings));
+    l = l.filter(h => !h.category || isCatVisible(h.category, prefs.timeGates));
     if (category)     l = l.filter(h => h.category === category);
     if (types.length) l = l.filter(h => types.includes(h.type));
     const sort = prefs.habitsSort || 'mostLogged';
@@ -257,7 +257,7 @@ export default function HomeScreen({ onOpenHabit, onLongPressHabit, onNewHabit }
       l = [...l].sort((a,b) => totalCountFor(b) - totalCountFor(a));
     }
     return l;
-  }, [habits, category, types, prefs.habitsSort, prefs.categorySettings]);
+  }, [habits, category, types, prefs.habitsSort, prefs.timeGates]);
 
   const { width } = useWindowDimensions();
   const isTablet = width >= 768;
@@ -299,7 +299,7 @@ export default function HomeScreen({ onOpenHabit, onLongPressHabit, onNewHabit }
             })}
           </View>
         </View>
-      <Filters habits={habits} category={category} setCategory={setCategory} types={types} setTypes={setTypes} categorySettings={prefs.categorySettings} />
+      <Filters habits={habits} category={category} setCategory={setCategory} types={types} setTypes={setTypes} timeGates={prefs.timeGates} />
 
       {filtered.length === 0 ? (
         <GlassCard style={{ margin:20, padding:32, alignItems:'center' }} radius={22}>

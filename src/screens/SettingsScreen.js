@@ -4,7 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import * as DocumentPicker from 'expo-document-picker';
-import { ChevronRight, Download, Upload, Trash2, Palette, LayoutGrid, PenLine, BarChart3, Database, ScrollText, List, Grid, Clock, Undo2, Archive, FlaskConical, Home, GripVertical, Tag } from '../components/Icon.js';
+import { ChevronRight, Download, Upload, Trash2, Palette, LayoutGrid, PenLine, BarChart3, Database, ScrollText, List, Grid, Clock, Undo2, Archive, FlaskConical, Home, GripVertical, Tag, Plus, X } from '../components/Icon.js';
 import { DraggableList } from '../components/DraggableList.js';
 import { useApp } from '../context/AppContext.js';
 import { useTutorial } from '../context/TutorialContext.js';
@@ -32,10 +32,20 @@ function MRow({ label, sub, value, onChange }) {
   );
 }
 
-const APP_VERSION = '1.0.32';
-const APP_BUILD  = 32;
+const APP_VERSION = '1.0.33';
+const APP_BUILD  = 33;
 
 const CHANGELOG = [
+  {
+    version: '1.0.33',
+    changes: [
+      'Settings: Categories section replaced with Time Gates — enable gates per category, set Available or Unavailable windows, stack multiple gates',
+      'Settings: Drag-to-reorder fixed — Fields and Sections modals render without a parent ScrollView so dragging never fights scrolling',
+      'Watch: archived and time-gated habits are now excluded from the watch app habit list',
+      'Tutorial: Settings tour added — walks through Appearance, Layout, Fields, Time Gates, Analytics, and Data on first visit',
+      'Tutorial: Home filters step updated to mention time-gated category chips',
+    ],
+  },
   {
     version: '1.0.32',
     changes: [
@@ -506,21 +516,56 @@ const DEFAULT_SECTIONS_ORDER = SECTIONS.map(([k]) => k);
 const TRACKS = [['mood','Mood'],['energy','Energy'],['ease','Ease (stars)'],['duration','Duration'],['resist','Resistance outcome'],['trigger','Trigger'],['context','Context'],['tags','Tags'],['notes','Notes']];
 const DEFAULT_FIELDS_ORDER = TRACKS.map(([k]) => k);
 
-function CategoriesModal({ data, prefs, setPrefs, theme, onClose }) {
-  const [expandedCat, setExpandedCat] = useState(null);
+function TimeGatesModal({ data, prefs, setPrefs, theme, onClose }) {
+  const [expanded, setExpanded] = useState({});
   const allCats = useMemo(
     () => [...new Set((data?.habits || []).map(h => h.category).filter(Boolean))].sort(),
     [data],
   );
-  const catSettings = prefs.categorySettings || {};
+  const timeGates = prefs.timeGates || {};
 
-  const setCatPref = (cat, updates) => setPrefs({
+  const setGates = (cat, updates) => setPrefs({
     ...prefs,
-    categorySettings: { ...catSettings, [cat]: { ...catSettings[cat], ...updates } },
+    timeGates: { ...timeGates, [cat]: { ...timeGates[cat], ...updates } },
   });
 
+  const addGate = cat => {
+    const existing = timeGates[cat]?.gates || [];
+    setGates(cat, { gates: [...existing, { id: String(Date.now()), startH: 6, endH: 10, mode: 'available' }] });
+  };
+
+  const updateGate = (cat, id, updates) => {
+    const existing = timeGates[cat]?.gates || [];
+    setGates(cat, { gates: existing.map(g => g.id === id ? { ...g, ...updates } : g) });
+  };
+
+  const deleteGate = (cat, id) => {
+    const existing = timeGates[cat]?.gates || [];
+    setGates(cat, { gates: existing.filter(g => g.id !== id) });
+  };
+
+  const HourPicker = ({ cat, gate, field, def }) => {
+    const val = gate[field] ?? def;
+    return (
+      <View style={{ flexDirection: 'row', alignItems: 'center',
+        backgroundColor: theme.surface2, borderRadius: 9, borderWidth: 1, borderColor: theme.border }}>
+        <Pressable onPress={() => updateGate(cat, gate.id, { [field]: Math.max(0, val - 1) })}
+          hitSlop={6} style={{ paddingVertical: 7, paddingHorizontal: 11 }}>
+          <Text style={{ fontSize: 16, fontWeight: '700', color: theme.text }}>−</Text>
+        </Pressable>
+        <Text style={{ minWidth: 52, textAlign: 'center', fontSize: 12, fontWeight: '600', color: theme.text }}>
+          {fmtHour(val)}
+        </Text>
+        <Pressable onPress={() => updateGate(cat, gate.id, { [field]: Math.min(23, val + 1) })}
+          hitSlop={6} style={{ paddingVertical: 7, paddingHorizontal: 11 }}>
+          <Text style={{ fontSize: 16, fontWeight: '700', color: theme.text }}>+</Text>
+        </Pressable>
+      </View>
+    );
+  };
+
   return (
-    <Sheet title="Categories" onClose={onClose}>
+    <Sheet title="Time Gates" subtitle="Schedule when categories appear" onClose={onClose}>
       {allCats.length === 0 ? (
         <Text style={{ fontSize: 14, color: theme.muted, textAlign: 'center', paddingVertical: 32 }}>
           No categories yet. Add one to a habit to get started.
@@ -528,82 +573,83 @@ function CategoriesModal({ data, prefs, setPrefs, theme, onClose }) {
       ) : (
         <>
           <Text style={{ fontSize: 12, color: theme.muted, marginBottom: 12, lineHeight: 18 }}>
-            Hidden categories and their habits won't appear on the home screen. Tap the clock to add a time gate.
+            Available gates show a category only during their window. Unavailable gates hide it during theirs. Multiple gates per category are supported.
           </Text>
           {allCats.map(cat => {
-            const s = catSettings[cat] || {};
-            const visible = !s.hidden;
-            const tg = s.timeGate || {};
-            const hasTg = !!tg.enabled;
-            const isExpanded = expandedCat === cat;
+            const setting = timeGates[cat] || {};
+            const enabled = !!setting.enabled;
+            const gates = setting.gates || [];
+            const isOpen = !!expanded[cat];
             return (
               <View key={cat}>
+                {/* Category header row */}
                 <View style={{ flexDirection: 'row', alignItems: 'center',
-                  borderBottomWidth: isExpanded ? 0 : 1, borderBottomColor: theme.border }}>
-                  {/* Visibility circle toggle */}
-                  <Pressable onPress={() => setCatPref(cat, { hidden: visible })} hitSlop={8}
-                    style={{ paddingVertical: 12 }}>
-                    <View style={{ width: 22, height: 22, borderRadius: 11, marginRight: 12,
-                      backgroundColor: visible ? theme.accent : 'transparent',
-                      borderWidth: visible ? 0 : 1.5, borderColor: theme.border,
-                      alignItems: 'center', justifyContent: 'center' }}>
-                      {visible && <Text style={{ fontSize: 13, color: '#fff', fontWeight: '700', lineHeight: 16 }}>✓</Text>}
-                    </View>
+                  borderBottomWidth: isOpen ? 0 : 1, borderBottomColor: theme.border }}>
+                  <Pressable onPress={() => setExpanded(e => ({ ...e, [cat]: !e[cat] }))}
+                    style={{ flex: 1, flexDirection: 'row', alignItems: 'center', paddingVertical: 14, gap: 8 }}>
+                    <Text style={{ flex: 1, fontSize: 15, fontWeight: '500',
+                      color: enabled ? theme.text : theme.muted }}>{cat}</Text>
+                    {enabled && gates.length > 0 && (
+                      <Text style={{ fontSize: 11, color: theme.accent }}>
+                        {gates.length} gate{gates.length !== 1 ? 's' : ''}
+                      </Text>
+                    )}
+                    <ChevronRight size={14} strokeWidth={2} color={theme.muted}
+                      style={{ transform: [{ rotate: isOpen ? '90deg' : '0deg' }] }} />
                   </Pressable>
-                  <Text style={{ flex: 1, fontSize: 15, fontWeight: '500', color: theme.text,
-                    paddingVertical: 12 }}>{cat}</Text>
-                  {hasTg && (
-                    <Text style={{ fontSize: 11, color: theme.accent, marginRight: 6 }}>
-                      {fmtHour(tg.startH ?? 6)}–{fmtHour(tg.endH ?? 20)}
-                    </Text>
-                  )}
-                  {/* Clock button expands time gate */}
-                  <Pressable onPress={() => setExpandedCat(isExpanded ? null : cat)}
-                    hitSlop={8} style={{ padding: 12 }}>
-                    <Clock size={16} strokeWidth={2} color={hasTg ? theme.accent : theme.border} />
-                  </Pressable>
+                  <Toggle value={enabled} onChange={v => setGates(cat, { enabled: v })} />
                 </View>
 
-                {isExpanded && (
-                  <View style={{ paddingLeft: 34, paddingBottom: 14,
+                {/* Expanded gate list */}
+                {isOpen && (
+                  <View style={{ paddingLeft: 2, paddingBottom: 12,
                     borderBottomWidth: 1, borderBottomColor: theme.border }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 8 }}>
-                      <Text style={{ flex: 1, fontSize: 13, color: theme.text, fontWeight: '500' }}>Time gate</Text>
-                      <Toggle value={hasTg}
-                        onChange={v => setCatPref(cat, {
-                          timeGate: { ...tg, enabled: v, startH: tg.startH ?? 6, endH: tg.endH ?? 20 },
-                        })} />
-                    </View>
-                    {hasTg && (
-                      <View style={{ gap: 10, paddingTop: 4 }}>
-                        {[['From', 'startH', 6], ['Until', 'endH', 20]].map(([label, key, def]) => {
-                          const val = tg[key] ?? def;
-                          return (
-                            <View key={key} style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                              <Text style={{ width: 42, fontSize: 13, color: theme.muted }}>{label}</Text>
-                              <View style={{ flexDirection: 'row', alignItems: 'center',
-                                backgroundColor: theme.surface2, borderRadius: 10,
-                                borderWidth: 1, borderColor: theme.border }}>
-                                <Pressable
-                                  onPress={() => setCatPref(cat, { timeGate: { ...tg, [key]: Math.max(0, val - 1) } })}
-                                  hitSlop={8} style={{ padding: 10, paddingHorizontal: 14 }}>
-                                  <Text style={{ fontSize: 18, fontWeight: '700', color: theme.text }}>−</Text>
-                                </Pressable>
-                                <Text style={{ minWidth: 58, textAlign: 'center', fontSize: 13,
-                                  fontWeight: '600', color: theme.text }}>{fmtHour(val)}</Text>
-                                <Pressable
-                                  onPress={() => setCatPref(cat, { timeGate: { ...tg, [key]: Math.min(23, val + 1) } })}
-                                  hitSlop={8} style={{ padding: 10, paddingHorizontal: 14 }}>
-                                  <Text style={{ fontSize: 18, fontWeight: '700', color: theme.text }}>+</Text>
-                                </Pressable>
-                              </View>
-                            </View>
-                          );
-                        })}
-                        <Text style={{ fontSize: 11, color: theme.muted, marginTop: 2, lineHeight: 16 }}>
-                          Habits in this category only appear from {fmtHour(tg.startH ?? 6)} to {fmtHour(tg.endH ?? 20)}.
-                        </Text>
+                    {!enabled && (
+                      <Text style={{ fontSize: 12, color: theme.muted, paddingVertical: 10 }}>
+                        Enable time gates for {cat} using the toggle.
+                      </Text>
+                    )}
+                    {enabled && gates.length === 0 && (
+                      <Text style={{ fontSize: 12, color: theme.muted, paddingVertical: 10 }}>
+                        No gates yet — tap Add gate below.
+                      </Text>
+                    )}
+                    {enabled && gates.map((gate, gi) => (
+                      <View key={gate.id} style={{ paddingTop: 12,
+                        borderTopWidth: gi > 0 ? 1 : 0, borderTopColor: theme.border }}>
+                        {/* From / To pickers + delete */}
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                          <Text style={{ fontSize: 11, color: theme.muted, width: 28 }}>From</Text>
+                          <HourPicker cat={cat} gate={gate} field="startH" def={6} />
+                          <Text style={{ fontSize: 11, color: theme.muted }}>to</Text>
+                          <HourPicker cat={cat} gate={gate} field="endH" def={10} />
+                          <Pressable onPress={() => deleteGate(cat, gate.id)} hitSlop={8}
+                            style={{ marginLeft: 'auto', padding: 6 }}>
+                            <X size={14} strokeWidth={2.5} color={theme.muted} />
+                          </Pressable>
+                        </View>
+                        {/* Available / Unavailable selector */}
+                        <View style={{ flexDirection: 'row', backgroundColor: theme.surface2,
+                          borderRadius: 10, borderWidth: 1, borderColor: theme.border, padding: 2, gap: 1 }}>
+                          {[['available', 'Available'], ['unavailable', 'Unavailable']].map(([mode, lbl]) => (
+                            <Pressable key={mode}
+                              onPress={() => updateGate(cat, gate.id, { mode })}
+                              style={{ flex: 1, alignItems: 'center', paddingVertical: 7, borderRadius: 8,
+                                backgroundColor: gate.mode === mode ? theme.solid : 'transparent' }}>
+                              <Text style={{ fontSize: 12, fontWeight: '600',
+                                color: gate.mode === mode ? theme.text : theme.muted }}>{lbl}</Text>
+                            </Pressable>
+                          ))}
+                        </View>
                       </View>
+                    ))}
+                    {enabled && (
+                      <Pressable onPress={() => addGate(cat)}
+                        style={{ flexDirection: 'row', alignItems: 'center', gap: 6,
+                          paddingTop: 12, paddingBottom: 2 }}>
+                        <Plus size={14} strokeWidth={2.5} color={theme.accent} />
+                        <Text style={{ fontSize: 13, color: theme.accent, fontWeight: '600' }}>Add gate</Text>
+                      </Pressable>
                     )}
                   </View>
                 )}
@@ -624,7 +670,6 @@ export default function SettingsScreen({ onNavigate }) {
   const [modal,    setModal]   = useState(null);
   const [tapHint,  setTapHint] = useState('');
   const [settAlert,       setSettAlert]    = useState(null); // { title, message, buttons }
-  const [isDragging, setIsDragging] = useState(false);
 
   const tapRef   = useRef(0);
   const timerRef = useRef(null);
@@ -725,7 +770,7 @@ export default function SettingsScreen({ onNavigate }) {
     { id:'appearance', label:'Appearance',         sub:'Theme and accent color',              Icon:Palette },
     { id:'behavior',   label:'Layout & Behavior',  sub:'Card density, sort, tap behavior',    Icon:LayoutGrid },
     { id:'fields',     label:'Logging Fields',     sub:'Which fields appear when logging',    Icon:PenLine },
-    { id:'categories', label:'Categories',          sub:'Visibility and time gates per category', Icon:Tag },
+    { id:'timegates',  label:'Time Gates',          sub:'Schedule when categories appear',     Icon:Clock },
     { id:'sections',   label:'Analytics Sections', sub:'Which insights to show and their order', Icon:BarChart3 },
     ...(!Platform.isPad ? [{ id:'watch', label:'Apple Watch', sub:'Dismiss timing, haptics, connection', Icon:Clock }] : []),
     { id:'archived', label:'Archived Habits',
@@ -972,7 +1017,7 @@ export default function SettingsScreen({ onNavigate }) {
           </View>
         );
         return (
-          <Sheet title="Logging Fields" onClose={() => setModal(null)} scrollEnabled={!isDragging}>
+          <Sheet title="Logging Fields" onClose={() => setModal(null)} noScroll>
             <Text style={{ fontSize: 12, color: theme.muted, marginBottom: 12, lineHeight: 18 }}>
               Drag to reorder. Toggle to show or hide.
             </Text>
@@ -982,8 +1027,6 @@ export default function SettingsScreen({ onNavigate }) {
               renderRow={renderRow}
               onReorder={newItems => setPrefs({ ...prefs, fieldsOrder: newItems.map(i => i.key) })}
               theme={theme}
-              onDragStart={() => setIsDragging(true)}
-              onDragEnd={() => setIsDragging(false)}
             />
           </Sheet>
         );
@@ -1007,7 +1050,7 @@ export default function SettingsScreen({ onNavigate }) {
           </View>
         );
         return (
-          <Sheet title="Analytics Sections" onClose={() => setModal(null)} scrollEnabled={!isDragging}>
+          <Sheet title="Analytics Sections" onClose={() => setModal(null)} noScroll>
             <Text style={{ fontSize: 12, color: theme.muted, marginBottom: 12, lineHeight: 18 }}>
               Drag to reorder. Toggle to show or hide.
             </Text>
@@ -1017,16 +1060,14 @@ export default function SettingsScreen({ onNavigate }) {
               renderRow={renderRow}
               onReorder={newItems => setPrefs({ ...prefs, sectionsOrder: newItems.map(i => i.key) })}
               theme={theme}
-              onDragStart={() => setIsDragging(true)}
-              onDragEnd={() => setIsDragging(false)}
             />
           </Sheet>
         );
       })()}
 
-      {/* ── Categories Modal ── */}
-      {modal === 'categories' && (
-        <CategoriesModal
+      {/* ── Time Gates Modal ── */}
+      {modal === 'timegates' && (
+        <TimeGatesModal
           data={data}
           prefs={prefs}
           setPrefs={setPrefs}
