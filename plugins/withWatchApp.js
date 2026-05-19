@@ -28,7 +28,10 @@
  *   into project.hash.project.objects, with duplicate guards on every phase write.
  */
 
-const WATCH_READY = process.env.INCLUDE_WATCH_APP !== 'false';
+const WATCH_READY        = process.env.INCLUDE_WATCH_APP !== 'false';
+// Watch widget profile needs bundle ID sprout.richdmart.in.watchkitapp.SproutWatchWidget
+// Create that App ID + profile in developer.apple.com, then set this to true.
+const WATCH_WIDGET_READY = false;
 
 const {
   withXcodeProject,
@@ -134,14 +137,16 @@ async function copyFiles(cfg) {
   fs.writeFileSync(path.join(widgetDst, 'SproutWidget.entitlements'), extensionEntitlements(APP_GROUP));
 
   // ── watchOS widget extension ─────────────────────────────────────────────
-  const watchWidgetSrc = path.join(projectRoot, 'watch', WATCH_WIDGET_TARGET);
-  const watchWidgetDst = path.join(platformProjectRoot, WATCH_WIDGET_TARGET);
-  mkdirp(watchWidgetDst);
-  for (const f of WATCH_WIDGET_SOURCES) {
-    cp(path.join(watchWidgetSrc, f), path.join(watchWidgetDst, f));
+  if (WATCH_WIDGET_READY) {
+    const watchWidgetSrc = path.join(projectRoot, 'watch', WATCH_WIDGET_TARGET);
+    const watchWidgetDst = path.join(platformProjectRoot, WATCH_WIDGET_TARGET);
+    mkdirp(watchWidgetDst);
+    for (const f of WATCH_WIDGET_SOURCES) {
+      cp(path.join(watchWidgetSrc, f), path.join(watchWidgetDst, f));
+    }
+    fs.writeFileSync(path.join(watchWidgetDst, 'Info.plist'), widgetInfoPlist('SproutWatchWidget'));
+    fs.writeFileSync(path.join(watchWidgetDst, 'SproutWatchWidget.entitlements'), extensionEntitlements(APP_GROUP));
   }
-  fs.writeFileSync(path.join(watchWidgetDst, 'Info.plist'), widgetInfoPlist('SproutWatchWidget'));
-  fs.writeFileSync(path.join(watchWidgetDst, 'SproutWatchWidget.entitlements'), extensionEntitlements(APP_GROUP));
 
   if (!WATCH_READY) return cfg;
 
@@ -429,9 +434,10 @@ function modifyProject(cfg) {
   patchEmbedPhase(project, mainUuid, watchTarget);
 
   // ── STEP 6b: Watch widget extension (complication) ────────────────────────
+  if (!WATCH_WIDGET_READY) return cfg;
   const allTargets2 = Object.values(project.pbxNativeTargetSection());
   if (!allTargets2.some(t => t.name === WATCH_WIDGET_TARGET || t.name === `"${WATCH_WIDGET_TARGET}"`)) {
-    const watchWidgetId     = `${bundleId}.${WATCH_WIDGET_TARGET}`;
+    const watchWidgetId     = `${bundleId}${WATCH_SUFFIX}.${WATCH_WIDGET_TARGET}`;
     const watchWidgetTarget = project.addTarget(WATCH_WIDGET_TARGET, 'app_extension', WATCH_WIDGET_TARGET, watchWidgetId);
 
     project.addBuildPhase([], 'PBXSourcesBuildPhase',    'Sources',    watchWidgetTarget.uuid);

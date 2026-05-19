@@ -10,7 +10,7 @@ iOS distribution credentials for Codemagic CI builds.
 | `main_appstore.mobileprovision` | Main app — App Store | `sprout.richdmart.in` |
 | `watch_appstore.mobileprovision` | Watch app — App Store | `sprout.richdmart.in.watchkitapp` |
 | `widget_appstore.mobileprovision` | iOS widget extension — App Store | `sprout.richdmart.in.SproutWidget` |
-| `watch_widget_appstore.mobileprovision` | watchOS widget extension — App Store | `sprout.richdmart.in.SproutWatchWidget` |
+| `watch_widget_appstore.mobileprovision` | watchOS widget extension — App Store | `sprout.richdmart.in.watchkitapp.SproutWatchWidget` |
 
 All four profiles must include the App Group `group.sprout.richdmart.in`.
 
