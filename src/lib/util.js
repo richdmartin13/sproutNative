@@ -132,6 +132,28 @@ export function normLog(log) {
   };
 }
 
+// Returns true if a category should be visible right now given prefs.categorySettings.
+// { hidden: true }              → always hidden
+// { timeGate: { enabled, startH, endH } } → only visible in [startH, endH) window
+export function isCatVisible(cat, categorySettings) {
+  const s = categorySettings?.[cat];
+  if (!s) return true;
+  if (s.hidden) return false;
+  if (s.timeGate?.enabled) {
+    const h = new Date().getHours();
+    const { startH = 0, endH = 23 } = s.timeGate;
+    if (startH < endH)  return h >= startH && h < endH;
+    if (startH > endH)  return h >= startH || h < endH; // overnight
+  }
+  return true;
+}
+
+export function fmtHour(h) {
+  if (h === 0)  return '12 AM';
+  if (h === 12) return '12 PM';
+  return h < 12 ? `${h} AM` : `${h - 12} PM`;
+}
+
 export function normHabit(h) {
   return {
     id: h.id || uid('h'),

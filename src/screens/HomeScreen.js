@@ -6,14 +6,18 @@ import { useApp } from '../context/AppContext.js';
 import { LiquidGlassView, isLiquidGlassSupported } from '../lib/liquidGlass.js';
 import GlassCard from '../components/GlassCard.js';
 import { totalCountFor, streakFor, todayCountFor, daysSinceLastFor, dailyCountsFor, lastLog } from '../lib/stats.js';
+import { isCatVisible } from '../lib/util.js';
 import { TYPE_COLORS, TYPE_LABELS } from '../lib/theme.js';
 import { FONTS } from '../lib/fonts.js';
 
-function Filters({ habits, category, setCategory, types, setTypes }) {
+function Filters({ habits, category, setCategory, types, setTypes, categorySettings }) {
   const { theme } = useApp();
   const d = theme.isDark;
   const glassChips = theme.glassChipsOn && isLiquidGlassSupported && LiquidGlassView;
-  const cats = useMemo(() => [...new Set(habits.map(h => h.category).filter(Boolean))], [habits]);
+  const cats = useMemo(
+    () => [...new Set(habits.map(h => h.category).filter(Boolean))].filter(c => isCatVisible(c, categorySettings)),
+    [habits, categorySettings],
+  );
   const TC = { go: theme.typeGo, st: theme.typeSt, ne: theme.typeNe };
   const chip = (label, active, color, onPress) => {
     if (glassChips) {
@@ -233,6 +237,8 @@ export default function HomeScreen({ onOpenHabit, onLongPressHabit, onNewHabit }
 
   const filtered = useMemo(() => {
     let l = habits.filter(h => !h.archived);
+    // Hide habits whose category is hidden or outside its time gate
+    l = l.filter(h => !h.category || isCatVisible(h.category, prefs.categorySettings));
     if (category)     l = l.filter(h => h.category === category);
     if (types.length) l = l.filter(h => types.includes(h.type));
     const sort = prefs.habitsSort || 'mostLogged';
@@ -251,7 +257,7 @@ export default function HomeScreen({ onOpenHabit, onLongPressHabit, onNewHabit }
       l = [...l].sort((a,b) => totalCountFor(b) - totalCountFor(a));
     }
     return l;
-  }, [habits, category, types, prefs.habitsSort]);
+  }, [habits, category, types, prefs.habitsSort, prefs.categorySettings]);
 
   const { width } = useWindowDimensions();
   const isTablet = width >= 768;
@@ -293,7 +299,7 @@ export default function HomeScreen({ onOpenHabit, onLongPressHabit, onNewHabit }
             })}
           </View>
         </View>
-      <Filters habits={habits} category={category} setCategory={setCategory} types={types} setTypes={setTypes} />
+      <Filters habits={habits} category={category} setCategory={setCategory} types={types} setTypes={setTypes} categorySettings={prefs.categorySettings} />
 
       {filtered.length === 0 ? (
         <GlassCard style={{ margin:20, padding:32, alignItems:'center' }} radius={22}>

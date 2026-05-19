@@ -1,10 +1,10 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { View, Text, Pressable, ScrollView, Image, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import * as DocumentPicker from 'expo-document-picker';
-import { ChevronRight, Download, Upload, Trash2, Palette, LayoutGrid, PenLine, BarChart3, Database, ScrollText, List, Grid, Clock, Undo2, Archive, FlaskConical, Home, GripVertical } from '../components/Icon.js';
+import { ChevronRight, Download, Upload, Trash2, Palette, LayoutGrid, PenLine, BarChart3, Database, ScrollText, List, Grid, Clock, Undo2, Archive, FlaskConical, Home, GripVertical, Tag } from '../components/Icon.js';
 import { DraggableList } from '../components/DraggableList.js';
 import { useApp } from '../context/AppContext.js';
 import { useTutorial } from '../context/TutorialContext.js';
@@ -13,6 +13,7 @@ import GlassCard from '../components/GlassCard.js';
 import AppModal from '../components/AppModal.js';
 import { SCHEMES } from '../lib/theme.js';
 import { exportJson, importJson } from '../lib/storage.js';
+import { isCatVisible, fmtHour } from '../lib/util.js';
 import Sheet from '../sheets/Sheet.js';
 import { Toggle } from '../components/Themed.js';
 import { FONTS } from '../lib/fonts.js';
@@ -31,10 +32,19 @@ function MRow({ label, sub, value, onChange }) {
   );
 }
 
-const APP_VERSION = '1.0.30';
-const APP_BUILD  = 30;
+const APP_VERSION = '1.0.31';
+const APP_BUILD  = 31;
 
 const CHANGELOG = [
+  {
+    version: '1.0.31',
+    changes: [
+      'Settings crash fix: TRACKS constant moved to module scope — eliminated TDZ ReferenceError when opening Settings',
+      'Sheets: swipe down on the handle or header to dismiss',
+      'Watch: category filter button now has accent-color circle background with white icon — visually distinct from settings button',
+      'Categories: can now be individually hidden/shown; optional time gate restricts visibility to a chosen time window',
+    ],
+  },
   {
     version: '1.0.30',
     changes: [
@@ -483,6 +493,119 @@ const SECTIONS = [
 const SECTIONS_MAP           = Object.fromEntries(SECTIONS.map(([k,l]) => [k,l]));
 const DEFAULT_SECTIONS_ORDER = SECTIONS.map(([k]) => k);
 
+const TRACKS = [['mood','Mood'],['energy','Energy'],['ease','Ease (stars)'],['duration','Duration'],['resist','Resistance outcome'],['trigger','Trigger'],['context','Context'],['tags','Tags'],['notes','Notes']];
+const DEFAULT_FIELDS_ORDER = TRACKS.map(([k]) => k);
+
+function CategoriesModal({ data, prefs, setPrefs, theme, onClose }) {
+  const [expandedCat, setExpandedCat] = useState(null);
+  const allCats = useMemo(
+    () => [...new Set((data?.habits || []).map(h => h.category).filter(Boolean))].sort(),
+    [data],
+  );
+  const catSettings = prefs.categorySettings || {};
+
+  const setCatPref = (cat, updates) => setPrefs({
+    ...prefs,
+    categorySettings: { ...catSettings, [cat]: { ...catSettings[cat], ...updates } },
+  });
+
+  return (
+    <Sheet title="Categories" onClose={onClose}>
+      {allCats.length === 0 ? (
+        <Text style={{ fontSize: 14, color: theme.muted, textAlign: 'center', paddingVertical: 32 }}>
+          No categories yet. Add one to a habit to get started.
+        </Text>
+      ) : (
+        <>
+          <Text style={{ fontSize: 12, color: theme.muted, marginBottom: 12, lineHeight: 18 }}>
+            Hidden categories and their habits won't appear on the home screen. Tap the clock to add a time gate.
+          </Text>
+          {allCats.map(cat => {
+            const s = catSettings[cat] || {};
+            const visible = !s.hidden;
+            const tg = s.timeGate || {};
+            const hasTg = !!tg.enabled;
+            const isExpanded = expandedCat === cat;
+            return (
+              <View key={cat}>
+                <View style={{ flexDirection: 'row', alignItems: 'center',
+                  borderBottomWidth: isExpanded ? 0 : 1, borderBottomColor: theme.border }}>
+                  {/* Visibility circle toggle */}
+                  <Pressable onPress={() => setCatPref(cat, { hidden: visible })} hitSlop={8}
+                    style={{ paddingVertical: 12 }}>
+                    <View style={{ width: 22, height: 22, borderRadius: 11, marginRight: 12,
+                      backgroundColor: visible ? theme.accent : 'transparent',
+                      borderWidth: visible ? 0 : 1.5, borderColor: theme.border,
+                      alignItems: 'center', justifyContent: 'center' }}>
+                      {visible && <Text style={{ fontSize: 13, color: '#fff', fontWeight: '700', lineHeight: 16 }}>✓</Text>}
+                    </View>
+                  </Pressable>
+                  <Text style={{ flex: 1, fontSize: 15, fontWeight: '500', color: theme.text,
+                    paddingVertical: 12 }}>{cat}</Text>
+                  {hasTg && (
+                    <Text style={{ fontSize: 11, color: theme.accent, marginRight: 6 }}>
+                      {fmtHour(tg.startH ?? 6)}–{fmtHour(tg.endH ?? 20)}
+                    </Text>
+                  )}
+                  {/* Clock button expands time gate */}
+                  <Pressable onPress={() => setExpandedCat(isExpanded ? null : cat)}
+                    hitSlop={8} style={{ padding: 12 }}>
+                    <Clock size={16} strokeWidth={2} color={hasTg ? theme.accent : theme.border} />
+                  </Pressable>
+                </View>
+
+                {isExpanded && (
+                  <View style={{ paddingLeft: 34, paddingBottom: 14,
+                    borderBottomWidth: 1, borderBottomColor: theme.border }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 8 }}>
+                      <Text style={{ flex: 1, fontSize: 13, color: theme.text, fontWeight: '500' }}>Time gate</Text>
+                      <Toggle value={hasTg}
+                        onChange={v => setCatPref(cat, {
+                          timeGate: { ...tg, enabled: v, startH: tg.startH ?? 6, endH: tg.endH ?? 20 },
+                        })} />
+                    </View>
+                    {hasTg && (
+                      <View style={{ gap: 10, paddingTop: 4 }}>
+                        {[['From', 'startH', 6], ['Until', 'endH', 20]].map(([label, key, def]) => {
+                          const val = tg[key] ?? def;
+                          return (
+                            <View key={key} style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                              <Text style={{ width: 42, fontSize: 13, color: theme.muted }}>{label}</Text>
+                              <View style={{ flexDirection: 'row', alignItems: 'center',
+                                backgroundColor: theme.surface2, borderRadius: 10,
+                                borderWidth: 1, borderColor: theme.border }}>
+                                <Pressable
+                                  onPress={() => setCatPref(cat, { timeGate: { ...tg, [key]: Math.max(0, val - 1) } })}
+                                  hitSlop={8} style={{ padding: 10, paddingHorizontal: 14 }}>
+                                  <Text style={{ fontSize: 18, fontWeight: '700', color: theme.text }}>−</Text>
+                                </Pressable>
+                                <Text style={{ minWidth: 58, textAlign: 'center', fontSize: 13,
+                                  fontWeight: '600', color: theme.text }}>{fmtHour(val)}</Text>
+                                <Pressable
+                                  onPress={() => setCatPref(cat, { timeGate: { ...tg, [key]: Math.min(23, val + 1) } })}
+                                  hitSlop={8} style={{ padding: 10, paddingHorizontal: 14 }}>
+                                  <Text style={{ fontSize: 18, fontWeight: '700', color: theme.text }}>+</Text>
+                                </Pressable>
+                              </View>
+                            </View>
+                          );
+                        })}
+                        <Text style={{ fontSize: 11, color: theme.muted, marginTop: 2, lineHeight: 16 }}>
+                          Habits in this category only appear from {fmtHour(tg.startH ?? 6)} to {fmtHour(tg.endH ?? 20)}.
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                )}
+              </View>
+            );
+          })}
+        </>
+      )}
+    </Sheet>
+  );
+}
+
 export default function SettingsScreen({ onNavigate }) {
   const { data, theme, setPrefs, setData, restoreHabit, deleteHabit } = useApp();
   const { startTutorial } = useTutorial();
@@ -582,7 +705,6 @@ export default function SettingsScreen({ onNavigate }) {
   const sectionsOrder = prefs.sectionsOrder || DEFAULT_SECTIONS_ORDER;
 
   // ── Logging fields order ──
-  const DEFAULT_FIELDS_ORDER = TRACKS.map(([k]) => k);
   const fieldsOrder   = prefs.fieldsOrder || DEFAULT_FIELDS_ORDER;
   const orderedTracks = fieldsOrder.map(k => TRACKS.find(([tk]) => tk === k)).filter(Boolean);
 
@@ -592,6 +714,7 @@ export default function SettingsScreen({ onNavigate }) {
     { id:'appearance', label:'Appearance',         sub:'Theme and accent color',              Icon:Palette },
     { id:'behavior',   label:'Layout & Behavior',  sub:'Card density, sort, tap behavior',    Icon:LayoutGrid },
     { id:'fields',     label:'Logging Fields',     sub:'Which fields appear when logging',    Icon:PenLine },
+    { id:'categories', label:'Categories',          sub:'Visibility and time gates per category', Icon:Tag },
     { id:'sections',   label:'Analytics Sections', sub:'Which insights to show and their order', Icon:BarChart3 },
     ...(!Platform.isPad ? [{ id:'watch', label:'Apple Watch', sub:'Dismiss timing, haptics, connection', Icon:Clock }] : []),
     { id:'archived', label:'Archived Habits',
@@ -601,8 +724,6 @@ export default function SettingsScreen({ onNavigate }) {
     ...(prefs.devUnlocked ? [{ id:'dev', label:'Developer', sub:'Experimental features & debug', Icon:FlaskConical }] : []),
     { id:'about',      label:'About',              sub:'App info and changelog',               Icon:ScrollText },
   ];
-
-  const TRACKS = [['mood','Mood'],['energy','Energy'],['ease','Ease (stars)'],['duration','Duration'],['resist','Resistance outcome'],['trigger','Trigger'],['context','Context'],['tags','Tags'],['notes','Notes']];
 
   return (
     <View style={{ flex:1, backgroundColor:theme.bg }}>
@@ -897,6 +1018,17 @@ export default function SettingsScreen({ onNavigate }) {
           </Sheet>
         );
       })()}
+
+      {/* ── Categories Modal ── */}
+      {modal === 'categories' && (
+        <CategoriesModal
+          data={data}
+          prefs={prefs}
+          setPrefs={setPrefs}
+          theme={theme}
+          onClose={() => setModal(null)}
+        />
+      )}
 
       {/* ── Data Modal ── */}
       {modal === 'data' && (
