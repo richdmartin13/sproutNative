@@ -4,7 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import * as DocumentPicker from 'expo-document-picker';
-import { ChevronRight, Download, Upload, Trash2, Palette, LayoutGrid, PenLine, BarChart3, Database, ScrollText, List, Grid, Clock, Undo2, Archive, FlaskConical, Home, GripVertical, Tag, Plus, X } from '../components/Icon.js';
+import { ChevronRight, Download, Upload, Trash2, Palette, LayoutGrid, PenLine, BarChart3, Database, ScrollText, List, Grid, Clock, Undo2, Archive, FlaskConical, Home, Settings, GripVertical, Tag, Plus, X } from '../components/Icon.js';
 import { DraggableList } from '../components/DraggableList.js';
 import { useApp } from '../context/AppContext.js';
 import { useTutorial } from '../context/TutorialContext.js';
@@ -32,10 +32,20 @@ function MRow({ label, sub, value, onChange }) {
   );
 }
 
-const APP_VERSION = '1.0.34';
-const APP_BUILD  = 34;
+const APP_VERSION = '1.0.35';
+const APP_BUILD  = 35;
 
 const CHANGELOG = [
+  {
+    version: '1.0.35',
+    changes: [
+      'Drag-to-reorder: replaced custom PanResponder with react-native-draggable-flatlist — drag initiates from the grip handle only',
+      'Sort: selector is inline (text left, options right) with short labels that fit without wrapping',
+      'Time Gates: Edit and Add Gate are styled buttons at the bottom; Edit mode stages changes; Save commits them',
+      'Time Gates: gate editors (hours, mode) only visible in Edit mode; normal view is read-only',
+      'Settings tour: retriggerable from About → Guided Tours without leaving the Settings screen',
+    ],
+  },
   {
     version: '1.0.34',
     changes: [
@@ -529,41 +539,52 @@ const DEFAULT_FIELDS_ORDER = TRACKS.map(([k]) => k);
 function TimeGatesModal({ data, prefs, setPrefs, theme, onClose }) {
   const d = theme.isDark;
   const [editing, setEditing] = useState(false);
-  const [expanded, setExpanded] = useState({});
+  const [draft, setDraft] = useState(null);       // staged changes while editing
   const [pickingCat, setPickingCat] = useState(false);
 
   const allCats = useMemo(
     () => [...new Set((data?.habits || []).map(h => h.category).filter(Boolean))].sort(),
     [data],
   );
-  const timeGates = prefs.timeGates || {};
-  const catsWithGates = allCats.filter(cat => (timeGates[cat]?.gates || []).length > 0);
 
+  const liveGates = prefs.timeGates || {};
+  const gates = editing ? (draft ?? liveGates) : liveGates;
+  const catsWithGates = allCats.filter(cat => (gates[cat]?.gates || []).length > 0);
+
+  const startEdit = () => {
+    setDraft(JSON.parse(JSON.stringify(liveGates)));
+    setEditing(true);
+  };
+
+  const saveEdit = () => {
+    setPrefs({ ...prefs, timeGates: draft ?? liveGates });
+    setEditing(false);
+    setDraft(null);
+  };
+
+  // Add gate: always live (not staged), shown outside edit mode
   const addGate = cat => {
-    const existing = timeGates[cat]?.gates || [];
+    const existing = liveGates[cat]?.gates || [];
     const id = String(Date.now());
     setPrefs({
       ...prefs,
-      timeGates: { ...timeGates, [cat]: { gates: [...existing, { id, startH: 6, endH: 10, mode: 'available' }] } },
+      timeGates: { ...liveGates, [cat]: { gates: [...existing, { id, startH: 6, endH: 10, mode: 'available' }] } },
     });
-    setExpanded(e => ({ ...e, [id]: true }));
     setPickingCat(false);
   };
 
+  // Edit-mode mutations go to draft
   const updateGate = (cat, id, updates) => {
-    const existing = timeGates[cat]?.gates || [];
-    setPrefs({
-      ...prefs,
-      timeGates: { ...timeGates, [cat]: { gates: existing.map(g => g.id === id ? { ...g, ...updates } : g) } },
-    });
+    const existing = gates[cat]?.gates || [];
+    setDraft({ ...gates, [cat]: { gates: existing.map(g => g.id === id ? { ...g, ...updates } : g) } });
   };
 
   const deleteGate = (cat, id) => {
-    const existing = timeGates[cat]?.gates || [];
+    const existing = gates[cat]?.gates || [];
     const remaining = existing.filter(g => g.id !== id);
-    const next = { ...timeGates };
+    const next = { ...gates };
     if (remaining.length === 0) { delete next[cat]; } else { next[cat] = { gates: remaining }; }
-    setPrefs({ ...prefs, timeGates: next });
+    setDraft(next);
   };
 
   const HourPicker = ({ cat, gate, field, def }) => {
@@ -586,20 +607,21 @@ function TimeGatesModal({ data, prefs, setPrefs, theme, onClose }) {
     );
   };
 
-  const editBtn = catsWithGates.length > 0 ? (
-    <Pressable onPress={() => setEditing(e => !e)} hitSlop={10}>
-      <Text style={{ fontSize: 15, fontWeight: '600', color: editing ? theme.accent : theme.muted }}>
-        {editing ? 'Done' : 'Edit'}
-      </Text>
-    </Pressable>
-  ) : null;
+  const btnBase = ({ pressed, accent }) => ({
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7,
+    paddingVertical: 13, borderRadius: 14,
+    borderWidth: 1,
+    borderColor: accent ? theme.accent : theme.border,
+    backgroundColor: accent
+      ? pressed ? theme.accent : theme.accentDim
+      : pressed ? theme.surface2 : 'transparent',
+  });
 
   return (
     <Sheet
       title={pickingCat ? 'Add Gate' : 'Time Gates'}
       subtitle={pickingCat ? 'Choose a category' : 'Schedule when categories appear'}
       onClose={onClose}
-      headerRight={!pickingCat ? editBtn : null}
     >
       {/* ── Category picker ── */}
       {pickingCat ? (
@@ -630,96 +652,100 @@ function TimeGatesModal({ data, prefs, setPrefs, theme, onClose }) {
         </Text>
       ) : (
         <>
-          {catsWithGates.length === 0 && (
+          {catsWithGates.length === 0 && !editing && (
             <Text style={{ fontSize: 13, color: theme.muted, paddingBottom: 16, lineHeight: 19 }}>
               No gates yet. Tap Add Gate to schedule when a category appears or is hidden.
             </Text>
           )}
+
           {/* ── Gate list grouped by category ── */}
           {catsWithGates.map(cat => {
-            const gates = timeGates[cat]?.gates || [];
+            const catGates = gates[cat]?.gates || [];
             return (
               <View key={cat}>
                 <Text style={{ fontSize: 11, fontWeight: '700', color: theme.muted,
                   textTransform: 'uppercase', letterSpacing: 0.7, paddingTop: 16, paddingBottom: 4 }}>
                   {cat}
                 </Text>
-                {gates.map((gate, gi) => {
-                  const isExp = !!expanded[gate.id];
-                  return (
-                    <View key={gate.id} style={{ borderTopWidth: gi > 0 ? 1 : 0, borderTopColor: theme.border }}>
-                      <Pressable
-                        onPress={() => { if (!editing) setExpanded(e => ({ ...e, [gate.id]: !e[gate.id] })); }}
-                        style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 11, gap: 10 }}>
-                        {editing && (
-                          <Pressable onPress={() => deleteGate(cat, gate.id)} hitSlop={8}>
-                            <View style={{ width: 22, height: 22, borderRadius: 11,
-                              backgroundColor: theme.typeSt, alignItems: 'center', justifyContent: 'center' }}>
-                              <X size={12} strokeWidth={2.5} color="#fff" />
-                            </View>
-                          </Pressable>
-                        )}
-                        <Text style={{ flex: 1, fontSize: 14, color: theme.text2 }}>
-                          {fmtHour(gate.startH ?? 6)} → {fmtHour(gate.endH ?? 10)}
-                        </Text>
-                        <View style={{
-                          paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6,
-                          backgroundColor: gate.mode === 'available'
-                            ? theme.accentDim
-                            : d ? 'rgba(255,90,90,0.15)' : 'rgba(200,40,40,0.10)',
-                        }}>
-                          <Text style={{ fontSize: 11, fontWeight: '600',
-                            color: gate.mode === 'available' ? theme.accent : theme.typeSt }}>
-                            {gate.mode === 'available' ? 'Available' : 'Unavailable'}
-                          </Text>
-                        </View>
-                        {!editing && (
-                          <ChevronRight size={13} strokeWidth={2} color={theme.muted}
-                            style={{ transform: [{ rotate: isExp ? '90deg' : '0deg' }] }} />
-                        )}
-                      </Pressable>
-                      {/* Inline editor when expanded */}
-                      {isExp && !editing && (
-                        <View style={{ paddingBottom: 14, gap: 10 }}>
-                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                            <Text style={{ fontSize: 11, color: theme.muted, width: 28 }}>From</Text>
-                            <HourPicker cat={cat} gate={gate} field="startH" def={6} />
-                            <Text style={{ fontSize: 11, color: theme.muted }}>to</Text>
-                            <HourPicker cat={cat} gate={gate} field="endH" def={10} />
+                {catGates.map((gate, gi) => (
+                  <View key={gate.id} style={{ borderTopWidth: gi > 0 ? 1 : 0, borderTopColor: theme.border }}>
+                    {/* Summary row */}
+                    <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 11, gap: 10 }}>
+                      {editing && (
+                        <Pressable onPress={() => deleteGate(cat, gate.id)} hitSlop={8}>
+                          <View style={{ width: 22, height: 22, borderRadius: 11,
+                            backgroundColor: theme.typeSt, alignItems: 'center', justifyContent: 'center' }}>
+                            <X size={12} strokeWidth={2.5} color="#fff" />
                           </View>
-                          <View style={{ flexDirection: 'row', backgroundColor: theme.surface2,
-                            borderRadius: 10, borderWidth: 1, borderColor: theme.border, padding: 2, gap: 1 }}>
-                            {[['available', 'Available'], ['unavailable', 'Unavailable']].map(([mode, lbl]) => (
-                              <Pressable key={mode}
-                                onPress={() => updateGate(cat, gate.id, { mode })}
-                                style={{ flex: 1, alignItems: 'center', paddingVertical: 7, borderRadius: 8,
-                                  backgroundColor: gate.mode === mode ? theme.solid : 'transparent' }}>
-                                <Text style={{ fontSize: 12, fontWeight: '600',
-                                  color: gate.mode === mode ? theme.text : theme.muted }}>{lbl}</Text>
-                              </Pressable>
-                            ))}
-                          </View>
-                        </View>
+                        </Pressable>
                       )}
+                      <Text style={{ flex: 1, fontSize: 14, color: theme.text2 }}>
+                        {fmtHour(gate.startH ?? 6)} → {fmtHour(gate.endH ?? 10)}
+                      </Text>
+                      <View style={{
+                        paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6,
+                        backgroundColor: gate.mode === 'available'
+                          ? theme.accentDim
+                          : d ? 'rgba(255,90,90,0.15)' : 'rgba(200,40,40,0.10)',
+                      }}>
+                        <Text style={{ fontSize: 11, fontWeight: '600',
+                          color: gate.mode === 'available' ? theme.accent : theme.typeSt }}>
+                          {gate.mode === 'available' ? 'Available' : 'Unavailable'}
+                        </Text>
+                      </View>
                     </View>
-                  );
-                })}
+                    {/* Inline editor — only in edit mode */}
+                    {editing && (
+                      <View style={{ paddingBottom: 14, gap: 10 }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                          <Text style={{ fontSize: 11, color: theme.muted, width: 28 }}>From</Text>
+                          <HourPicker cat={cat} gate={gate} field="startH" def={6} />
+                          <Text style={{ fontSize: 11, color: theme.muted }}>to</Text>
+                          <HourPicker cat={cat} gate={gate} field="endH" def={10} />
+                        </View>
+                        <View style={{ flexDirection: 'row', backgroundColor: theme.surface2,
+                          borderRadius: 10, borderWidth: 1, borderColor: theme.border, padding: 2, gap: 1 }}>
+                          {[['available', 'Available'], ['unavailable', 'Unavailable']].map(([mode, lbl]) => (
+                            <Pressable key={mode}
+                              onPress={() => updateGate(cat, gate.id, { mode })}
+                              style={{ flex: 1, alignItems: 'center', paddingVertical: 7, borderRadius: 8,
+                                backgroundColor: gate.mode === mode ? theme.solid : 'transparent' }}>
+                              <Text style={{ fontSize: 12, fontWeight: '600',
+                                color: gate.mode === mode ? theme.text : theme.muted }}>{lbl}</Text>
+                            </Pressable>
+                          ))}
+                        </View>
+                      </View>
+                    )}
+                  </View>
+                ))}
               </View>
             );
           })}
-          {/* ── Add Gate button ── */}
-          {!editing && (
-            <Pressable onPress={() => setPickingCat(true)}
-              style={({ pressed }) => ({
-                flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-                paddingVertical: 14, marginTop: 20,
-                borderRadius: 14, borderWidth: 1, borderColor: theme.border,
-                backgroundColor: pressed ? theme.surface2 : 'transparent',
-              })}>
-              <Plus size={16} strokeWidth={2.5} color={theme.accent} />
-              <Text style={{ fontSize: 15, fontWeight: '600', color: theme.accent }}>Add Gate</Text>
-            </Pressable>
-          )}
+
+          {/* ── Bottom action buttons ── */}
+          <View style={{ flexDirection: 'row', gap: 10, marginTop: 20 }}>
+            {editing ? (
+              <Pressable onPress={saveEdit}
+                style={({ pressed }) => btnBase({ pressed, accent: true })}>
+                <Text style={{ fontSize: 15, fontWeight: '700', color: theme.accent }}>Save</Text>
+              </Pressable>
+            ) : (
+              <>
+                {catsWithGates.length > 0 && (
+                  <Pressable onPress={startEdit}
+                    style={({ pressed }) => btnBase({ pressed, accent: false })}>
+                    <Text style={{ fontSize: 15, fontWeight: '600', color: theme.text }}>Edit</Text>
+                  </Pressable>
+                )}
+                <Pressable onPress={() => setPickingCat(true)}
+                  style={({ pressed }) => btnBase({ pressed, accent: true })}>
+                  <Plus size={15} strokeWidth={2.5} color={theme.accent} />
+                  <Text style={{ fontSize: 15, fontWeight: '600', color: theme.accent }}>Add Gate</Text>
+                </Pressable>
+              </>
+            )}
+          </View>
         </>
       )}
     </Sheet>
@@ -970,24 +996,23 @@ export default function SettingsScreen({ onNavigate }) {
               ))}
             </View>
           </View>
-          <View style={{ paddingVertical:12, borderBottomWidth:1, borderBottomColor:theme.border }}>
-            <View style={{ flexDirection:'row', alignItems:'center', marginBottom:10 }}>
-              <View style={{ flex:1 }}>
-                <Text style={{ fontSize:15, fontWeight:'500', color:theme.text }}>Sort</Text>
-                <Text style={{ fontSize:11.5, color:theme.muted, marginTop:1 }}>Order of the habits list</Text>
-              </View>
+          <View style={{ flexDirection:'row', alignItems:'center', gap:10,
+            paddingVertical:12, borderBottomWidth:1, borderBottomColor:theme.border }}>
+            <View style={{ flex:1 }}>
+              <Text style={{ fontSize:15, fontWeight:'500', color:theme.text }}>Sort</Text>
+              <Text style={{ fontSize:11.5, color:theme.muted, marginTop:1 }}>Order of the habits list</Text>
             </View>
             <View style={{ flexDirection:'row', backgroundColor:theme.surface2,
               borderWidth:1, borderColor:theme.border, borderRadius:10,
               padding:2, gap:1 }}>
-              {[['mostLogged','Most Tapped'],['name','A–Z'],['type','Type'],['recent','Recent']].map(([v,lbl]) => {
+              {[['mostLogged','Taps'],['name','A–Z'],['type','Type'],['recent','New']].map(([v,lbl]) => {
                 const active = (prefs.habitsSort || 'mostLogged') === v;
                 return (
                   <Pressable key={v} onPress={() => setP({ habitsSort: v })}
-                    style={{ flex:1, alignItems:'center',
-                      paddingHorizontal:6, paddingVertical:7, borderRadius:8,
+                    style={{ alignItems:'center',
+                      paddingHorizontal:9, paddingVertical:7, borderRadius:8,
                       backgroundColor: active ? theme.solid : 'transparent' }}>
-                    <Text style={{ fontSize:11, fontWeight:'600',
+                    <Text style={{ fontSize:12, fontWeight:'600',
                       color: active ? theme.text : theme.muted }}>{lbl}</Text>
                   </Pressable>
                 );
@@ -1072,10 +1097,12 @@ export default function SettingsScreen({ onNavigate }) {
         const toggleField = k => setPrefs({
           ...prefs, track: { ...prefs.track, [k]: prefs.track?.[k] !== false ? false : undefined },
         });
-        const renderRow = item => (
+        const renderRow = (item, drag) => (
           <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 12,
             borderBottomWidth: 1, borderBottomColor: theme.border }}>
-            <GripVertical size={16} strokeWidth={2} color={theme.muted} style={{ marginRight: 12 }} />
+            <Pressable onPressIn={drag} hitSlop={8} style={{ marginRight: 12 }}>
+              <GripVertical size={16} strokeWidth={2} color={theme.muted} />
+            </Pressable>
             <Text style={{ flex: 1, fontSize: 15, fontWeight: '500',
               color: item.on ? theme.text : theme.muted }}>{item.label}</Text>
             <Toggle value={item.on} onChange={() => toggleField(item.key)} />
@@ -1084,14 +1111,13 @@ export default function SettingsScreen({ onNavigate }) {
         return (
           <Sheet title="Logging Fields" onClose={() => setModal(null)} noScroll>
             <Text style={{ fontSize: 12, color: theme.muted, marginBottom: 12, lineHeight: 18 }}>
-              Drag to reorder. Toggle to show or hide.
+              Hold the grip to drag. Toggle to show or hide.
             </Text>
             <DraggableList
               data={fieldsItems}
               keyFn={item => item.key}
               renderRow={renderRow}
               onReorder={newItems => setPrefs({ ...prefs, fieldsOrder: newItems.map(i => i.key) })}
-              theme={theme}
             />
           </Sheet>
         );
@@ -1105,10 +1131,12 @@ export default function SettingsScreen({ onNavigate }) {
         const toggleSection = k => setPrefs({
           ...prefs, sections: { ...prefs.sections, [k]: prefs.sections?.[k] !== false ? false : undefined },
         });
-        const renderRow = item => (
+        const renderRow = (item, drag) => (
           <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 12,
             borderBottomWidth: 1, borderBottomColor: theme.border }}>
-            <GripVertical size={16} strokeWidth={2} color={theme.muted} style={{ marginRight: 12 }} />
+            <Pressable onPressIn={drag} hitSlop={8} style={{ marginRight: 12 }}>
+              <GripVertical size={16} strokeWidth={2} color={theme.muted} />
+            </Pressable>
             <Text style={{ flex: 1, fontSize: 15, fontWeight: '500',
               color: item.visible ? theme.text : theme.muted }}>{item.label}</Text>
             <Toggle value={item.visible} onChange={() => toggleSection(item.key)} />
@@ -1117,14 +1145,13 @@ export default function SettingsScreen({ onNavigate }) {
         return (
           <Sheet title="Analytics Sections" onClose={() => setModal(null)} noScroll>
             <Text style={{ fontSize: 12, color: theme.muted, marginBottom: 12, lineHeight: 18 }}>
-              Drag to reorder. Toggle to show or hide.
+              Hold the grip to drag. Toggle to show or hide.
             </Text>
             <DraggableList
               data={sectItems}
               keyFn={item => item.key}
               renderRow={renderRow}
               onReorder={newItems => setPrefs({ ...prefs, sectionsOrder: newItems.map(i => i.key) })}
-              theme={theme}
             />
           </Sheet>
         );
@@ -1321,12 +1348,23 @@ export default function SettingsScreen({ onNavigate }) {
             {[
               { id:'home',     label:'Habits',    sub:'Logging, filters, and layout',     Icon:Home      },
               { id:'insights', label:'Analytics', sub:'Charts, timeframes, and sections', Icon:BarChart3 },
+              { id:'settings', label:'Settings',  sub:'Appearance, fields, time gates, and more', Icon:Settings },
             ].map(({ id, label, sub, Icon }) => (
               <Pressable key={id}
                 onPress={() => {
-                  setPrefs({ ...prefs, tutorialSeen: { ...(prefs.tutorialSeen || {}), [id]: undefined } });
-                  setModal(null);
-                  onNavigate?.(id);
+                  if (id === 'settings') {
+                    // Already on settings — start tutorial directly
+                    setModal(null);
+                    setTimeout(() => {
+                      startTutorial('settings', () =>
+                        setPrefs({ ...prefs, tutorialSeen: { ...(prefs.tutorialSeen || {}), settings: true } })
+                      );
+                    }, 350);
+                  } else {
+                    setPrefs({ ...prefs, tutorialSeen: { ...(prefs.tutorialSeen || {}), [id]: undefined } });
+                    setModal(null);
+                    onNavigate?.(id);
+                  }
                 }}
                 style={({ pressed }) => ({
                   flexDirection:'row', alignItems:'center', gap:12,

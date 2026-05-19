@@ -1,5 +1,7 @@
+import 'react-native-gesture-handler';
 import React, { useEffect, useCallback, useState } from 'react';
 import { View } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useFonts,
   PlayfairDisplay_500Medium,
@@ -49,15 +51,17 @@ export default function App() {
   }, []);
 
   return (
-    <SafeAreaProvider>
-      <AppProvider>
-        <TutorialProvider>
-          <AppReady fontsLoaded={!!fontsLoaded} />
-        </TutorialProvider>
-      </AppProvider>
-      {/* SplashOverlay lives outside AppProvider so it renders from frame 1,
-          masking the brief loading period before fonts + data are ready. */}
-      {!splashDone && <SplashOverlay onDone={() => setSplashDone(true)} />}
-    </SafeAreaProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaProvider>
+        <AppProvider>
+          <TutorialProvider>
+            <AppReady fontsLoaded={!!fontsLoaded} />
+          </TutorialProvider>
+        </AppProvider>
+        {/* SplashOverlay lives outside AppProvider so it renders from frame 1,
+            masking the brief loading period before fonts + data are ready. */}
+        {!splashDone && <SplashOverlay onDone={() => setSplashDone(true)} />}
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }
