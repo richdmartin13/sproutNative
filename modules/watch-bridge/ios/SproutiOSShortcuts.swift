@@ -1,6 +1,6 @@
 import AppIntents
 
-// Reads from the App Group that SproutWatchBridge writes to on every sync.
+@available(iOS 16, *)
 private func readiOSProgress() -> (logged: Int, total: Int) {
     guard
         let defaults = UserDefaults(suiteName: "group.sprout.richdmart.in"),
@@ -12,6 +12,7 @@ private func readiOSProgress() -> (logged: Int, total: Int) {
     return (logged, habits.count)
 }
 
+@available(iOS 16, *)
 struct TodayProgressIntent: AppIntent {
     static var title: LocalizedStringResource = "Today's Habit Progress"
     static var description = IntentDescription("See how many habits you've completed today")
@@ -33,6 +34,7 @@ struct TodayProgressIntent: AppIntent {
     }
 }
 
+@available(iOS 16, *)
 struct SproutiOSShortcuts: AppShortcutsProvider {
     static var appShortcuts: [AppShortcut] {
         AppShortcut(
