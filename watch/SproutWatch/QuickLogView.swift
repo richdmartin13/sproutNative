@@ -143,7 +143,7 @@ struct QuickLogView: View {
     private func primaryTap() {
         dismissWork?.cancel()
         withAnimation(.spring(duration: 0.3)) { logAction = "logged" }
-        model.logHabit(habit.id)
+        model.logHabit(habit.id, type: habit.type)
         scheduleDismiss()
     }
 

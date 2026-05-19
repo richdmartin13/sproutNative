@@ -32,10 +32,19 @@ function MRow({ label, sub, value, onChange }) {
   );
 }
 
-const APP_VERSION = '1.0.36';
-const APP_BUILD  = 36;
+const APP_VERSION = '1.0.37';
+const APP_BUILD  = 37;
 
 const CHANGELOG = [
+  {
+    version: '1.0.37',
+    changes: [
+      'Analytics: time-gated (hidden) categories now excluded by default — tap the "X gated" chip in the filter bar to include them',
+      'Analytics: Last 30 Days graph now shows one line per category instead of one per habit — far less cluttered legend',
+      'Watch: log haptics are now type-aware — positive chime for good habits, unpleasant buzz for bad habits, subtle click for neutral',
+      'Liquid Glass: gracefully falls back to standard layout in Expo Go and on devices without the native module',
+    ],
+  },
   {
     version: '1.0.36',
     changes: [

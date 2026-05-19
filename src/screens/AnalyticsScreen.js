@@ -5,7 +5,7 @@ import { Clock, InfinityIcon, ChevronLeft, ChevronRight, ArrowRight, ArrowLeftRi
 import SpiderChart from '../components/SpiderChart.js';
 import GlassCard from '../components/GlassCard.js';
 import { useApp } from '../context/AppContext.js';
-import { todayStr, fmtDateLong, shiftDate } from '../lib/util.js';
+import { todayStr, fmtDateLong, shiftDate, isCatVisible } from '../lib/util.js';
 import {
   totalCountFor, tagFrequency, dayOfWeekBuckets, trendsFor,
   moodCounts, energyCounts, hourlyBucketsFor, tagFrequencyForHabit,
@@ -62,7 +62,7 @@ function HourlySection({ filtered, date }) {
 }
 
 // ─── Top filter bar — same as HomeScreen, drives all sections ───────────────
-function FilterBar({ habits, category, setCategory, types, setTypes }) {
+function FilterBar({ habits, category, setCategory, types, setTypes, hiddenCount = 0, includeHidden = false, onToggleHidden }) {
   const { theme } = useApp();
   const d = theme.isDark;
   const glassChips = theme.glassChipsOn && isLiquidGlassSupported && LiquidGlassView;
@@ -125,6 +125,23 @@ function FilterBar({ habits, category, setCategory, types, setTypes }) {
           })
         )}
       </ScrollView>
+      {hiddenCount > 0 && (
+        <View style={{ paddingHorizontal: 20, paddingTop: 6, flexDirection: 'row' }}>
+          <Pressable onPress={onToggleHidden}
+            style={({ pressed }) => ({
+              flexDirection: 'row', alignItems: 'center', gap: 5,
+              paddingHorizontal: 11, paddingVertical: 5, borderRadius: 10,
+              opacity: pressed ? 0.7 : 1,
+              backgroundColor: includeHidden ? theme.accentDim : theme.surface2,
+              borderWidth: 1, borderColor: includeHidden ? theme.accentBorder : theme.border,
+            })}>
+            <Text style={{ fontSize: 12, fontWeight: '600',
+              color: includeHidden ? theme.accent : theme.muted }}>
+              {includeHidden ? 'All categories' : `${hiddenCount} gated`}
+            </Text>
+          </Pressable>
+        </View>
+      )}
     </View>
   );
 }
@@ -171,44 +188,68 @@ function Heatmap({ habits, prefs, onDateClick }) {
   );
 }
 
-// ─── Trends (all-time mode) ──────────────────────────────────────────────────
+// ─── Trends (all-time mode) — one line + chip per category ──────────────────
 function TrendsCard({ habits }) {
   const { theme } = useApp();
   const PALETTE = [theme.accent,'#fb7185','#34d399','#60a5fa','#f59e0b','#a78bfa'];
-  const allSeries = useMemo(()=>trendsFor(habits,30),[habits]);
-  const [enabled,setEnabled] = useState(()=>new Set(allSeries.slice(0,5).map(s=>s.habit.id)));
-  const visible = allSeries.filter(s=>enabled.has(s.habit.id));
-  if (!allSeries.length) return null;
-  const allPts = visible.flatMap(s=>s.points.map(p=>p.count));
-  const maxV = Math.max(1,...allPts);
-  const W=300, H=80, pL=4, pT=6, pB=6, innerW=W-pL*2, innerH=H-pT-pB;
+
+  // Aggregate per-habit series into per-category daily totals
+  const catSeries = useMemo(() => {
+    const perHabit = trendsFor(habits, 30);
+    if (!perHabit.length) return [];
+    const catMap = new Map();
+    for (const { habit, points } of perHabit) {
+      const cat = habit.category || '';
+      if (!catMap.has(cat)) catMap.set(cat, points.map(p => ({ date: p.date, count: 0 })));
+      const existing = catMap.get(cat);
+      points.forEach((p, i) => { if (existing[i]) existing[i] = { ...existing[i], count: existing[i].count + p.count }; });
+    }
+    return [...catMap.entries()]
+      .map(([cat, points]) => ({ cat, points }))
+      .sort((a, b) => b.points.reduce((s, p) => s + p.count, 0) - a.points.reduce((s, p) => s + p.count, 0));
+  }, [habits]);
+
+  // disabled-set pattern: new categories are always visible by default
+  const [disabled, setDisabled] = useState(() => new Set());
+  const visible = catSeries.filter(s => !disabled.has(s.cat));
+
+  if (!catSeries.length) return null;
+  const allPts = visible.flatMap(s => s.points.map(p => p.count));
+  const maxV = Math.max(1, ...allPts);
+  const H=80, pL=4, pT=6, pB=6, W=300, innerW=W-pL*2, innerH=H-pT-pB;
+
   return (
     <Section title="Last 30 days">
-      <View style={{ height:H, position:'relative', marginBottom:14 }}>
-        {visible.map((s,si)=>{
-          const color=PALETTE[si%PALETTE.length];
-          const pts=s.points; if(pts.length<2) return null;
-          return pts.slice(0,-1).map((_,pi)=>{
+      <View style={{ height: H, position: 'relative', marginBottom: 14 }}>
+        {visible.map(s => {
+          const ci = catSeries.findIndex(c => c.cat === s.cat);
+          const color = PALETTE[ci % PALETTE.length];
+          const pts = s.points; if (pts.length < 2) return null;
+          return pts.slice(0, -1).map((_, pi) => {
             const p1=pts[pi], p2=pts[pi+1];
             const x1=pL+(pi/(pts.length-1))*innerW, y1=pT+innerH-(p1.count/maxV)*innerH;
             const x2=pL+((pi+1)/(pts.length-1))*innerW, y2=pT+innerH-(p2.count/maxV)*innerH;
             const dx=x2-x1, dy=y2-y1, len=Math.sqrt(dx*dx+dy*dy), ang=Math.atan2(dy,dx)*180/Math.PI;
-            return <View key={`${si}-${pi}`} style={{ position:'absolute', left:x1, top:y1,
+            return <View key={`${s.cat}-${pi}`} style={{ position:'absolute', left:x1, top:y1,
               width:len, height:2, backgroundColor:color,
               transform:[{rotate:`${ang}deg`}], transformOrigin:'0 50%' }} />;
           });
         })}
       </View>
       <View style={{ flexDirection:'row', flexWrap:'wrap', gap:6 }}>
-        {allSeries.map((s,i)=>{
-          const on=enabled.has(s.habit.id), color=PALETTE[i%PALETTE.length];
+        {catSeries.map((s, i) => {
+          const on = !disabled.has(s.cat);
+          const color = PALETTE[i % PALETTE.length];
+          const label = s.cat === '' ? 'Other' : s.cat;
           return (
-            <Pressable key={s.habit.id} onPress={()=>{const n=new Set(enabled);on?n.delete(s.habit.id):n.add(s.habit.id);setEnabled(n);}}
+            <Pressable key={s.cat || '__none__'} onPress={() => {
+              const n = new Set(disabled); on ? n.add(s.cat) : n.delete(s.cat); setDisabled(n);
+            }}
               style={{ flexDirection:'row', alignItems:'center', gap:5, paddingHorizontal:10, paddingVertical:5,
                 borderRadius:12, backgroundColor:on?theme.accentDim:theme.surface2,
                 borderWidth:1, borderColor:on?theme.accentBorder:theme.border }}>
               <View style={{ width:8, height:8, borderRadius:4, backgroundColor:color }} />
-              <Text style={{ fontSize:12, color:on?theme.accent:theme.muted }}>{s.habit.name}</Text>
+              <Text style={{ fontSize:12, color:on?theme.accent:theme.muted }}>{label}</Text>
             </Pressable>
           );
         })}
@@ -637,13 +678,36 @@ function ResistSection({ habits }) {
 export default function AnalyticsScreen() {
   const insets = useSafeAreaInsets();
   const { habits: habitsRaw, data, theme } = useApp();
-  const allHabits = habitsRaw.filter(h => !h.archived);
   const prefs     = data?.prefs  || {};
 
-  const [mode,     setMode]     = useState(prefs.insDay?'day':'all');
-  const [date,     setDate]     = useState(todayStr());
-  const [category, setCategory] = useState('');
-  const [types,    setTypes]    = useState(['go', 'st', 'ne']);
+  const [mode,          setMode]          = useState(prefs.insDay?'day':'all');
+  const [date,          setDate]          = useState(todayStr());
+  const [category,      setCategory]      = useState('');
+  const [types,         setTypes]         = useState(['go', 'st', 'ne']);
+  const [includeHidden, setIncludeHidden] = useState(false);
+
+  // All non-archived habits
+  const habitsAll = useMemo(() => habitsRaw.filter(h => !h.archived), [habitsRaw]);
+
+  // Count habits hidden by time gates right now
+  const hiddenCount = useMemo(() => {
+    const gates = prefs.timeGates || {};
+    return habitsAll.filter(h => h.category && !isCatVisible(h.category, gates)).length;
+  }, [habitsAll, prefs.timeGates]);
+
+  // Respect time gates unless user opts in
+  const allHabits = useMemo(() => {
+    if (includeHidden) return habitsAll;
+    const gates = prefs.timeGates || {};
+    return habitsAll.filter(h => !h.category || isCatVisible(h.category, gates));
+  }, [habitsAll, includeHidden, prefs.timeGates]);
+
+  // Reset category filter if it disappears from the visible set
+  useEffect(() => {
+    if (!category) return;
+    const cats = new Set(allHabits.map(h => h.category).filter(Boolean));
+    if (!cats.has(category)) setCategory('');
+  }, [allHabits, category]);
 
   // Single filtered set — drives ALL sections below
   const filtered = useMemo(()=>{
@@ -756,7 +820,9 @@ export default function AnalyticsScreen() {
 
       {/* Single filter bar — drives all sections */}
       <FilterBar habits={allHabits} category={category} setCategory={setCategory}
-        types={types} setTypes={setTypes} />
+        types={types} setTypes={setTypes}
+        hiddenCount={hiddenCount} includeHidden={includeHidden}
+        onToggleHidden={() => setIncludeHidden(v => !v)} />
 
       <ScrollView contentContainerStyle={{ paddingHorizontal:20, paddingBottom:120, paddingTop:8 }}
         showsVerticalScrollIndicator={false}>

@@ -159,8 +159,14 @@ class WatchDataModel: NSObject, ObservableObject {
         })
     }
 
-    func logHabit(_ id: String) {
-        if haptic { WKInterfaceDevice.current().play(.click) }
+    func logHabit(_ id: String, type: String = "go") {
+        if haptic {
+            switch type {
+            case "go": WKInterfaceDevice.current().play(.success)
+            case "st": WKInterfaceDevice.current().play(.failure)
+            default:   WKInterfaceDevice.current().play(.click)
+            }
+        }
         guard WCSession.default.isReachable else { return }
         WCSession.default.sendMessage(
             ["action": "logHabit", "id": id],
