@@ -34,6 +34,7 @@ const {
   withXcodeProject,
   withDangerousMod,
   withInfoPlist,
+  withEntitlementsPlist,
 } = require('@expo/config-plugins');
 const path = require('path');
 const fs   = require('fs');
@@ -41,7 +42,10 @@ const fs   = require('fs');
 const WATCH_TARGET  = 'SproutWatch';
 const WATCH_SUFFIX  = '.watchkitapp';
 const WATCH_OS_MIN  = '10.0';
+const IOS_MIN       = '16.0';
 const SWIFT_VER     = '5.0';
+const APP_GROUP     = 'group.sprout.richdmart.in';
+
 const SWIFT_SOURCES = [
   'SproutWatchApp.swift',
   'WatchDataModel.swift',
@@ -55,14 +59,30 @@ const SWIFT_SOURCES = [
   'SproutShortcuts.swift',
 ];
 
+// Widget targets
+const WIDGET_TARGET        = 'SproutWidget';
+const WIDGET_SOURCES       = ['SproutWidget.swift', 'SproutWidgetBundle.swift'];
+const WATCH_WIDGET_TARGET  = 'SproutWatchWidget';
+const WATCH_WIDGET_SOURCES = ['SproutWatchWidget.swift', 'SproutWatchWidgetBundle.swift'];
+
 // ─────────────────────────────────────────────────────────────────────────────
 
 module.exports = function withWatchApp(config) {
   config = withInfoPlist(config, addDocumentTypes);
+  config = withEntitlementsPlist(config, addAppGroups);
   config = withDangerousMod(config, ['ios', copyFiles]);
   config = withXcodeProject(config, modifyProject);
   return config;
 };
+
+// ── App Groups entitlement on main iOS app ────────────────────────────────────
+function addAppGroups(cfg) {
+  const groups = cfg.modResults['com.apple.security.application-groups'] ?? [];
+  if (!groups.includes(APP_GROUP)) {
+    cfg.modResults['com.apple.security.application-groups'] = [...groups, APP_GROUP];
+  }
+  return cfg;
+}
 
 // ── Info.plist: accept JSON files via Share Sheet ─────────────────────────────
 function addDocumentTypes(cfg) {
@@ -98,9 +118,30 @@ async function copyFiles(cfg) {
   const bridgeSrc = path.join(projectRoot, 'modules', 'watch-bridge', 'ios');
   const bridgeDst = path.join(platformProjectRoot, 'SproutWatchBridge');
   mkdirp(bridgeDst);
-  for (const f of ['SproutWatchBridge.h', 'SproutWatchBridge.m']) {
+  for (const f of ['SproutWatchBridge.h', 'SproutWatchBridge.m', 'SproutWatchBridge.swift', 'SproutiOSShortcuts.swift']) {
     cp(path.join(bridgeSrc, f), path.join(bridgeDst, f));
   }
+
+  // ── iOS widget extension ─────────────────────────────────────────────────
+  const bundleId = cfg.ios?.bundleIdentifier ?? 'sprout.richdmart.in';
+  const widgetSrc = path.join(projectRoot, 'watch', WIDGET_TARGET);
+  const widgetDst = path.join(platformProjectRoot, WIDGET_TARGET);
+  mkdirp(widgetDst);
+  for (const f of WIDGET_SOURCES) {
+    cp(path.join(widgetSrc, f), path.join(widgetDst, f));
+  }
+  fs.writeFileSync(path.join(widgetDst, 'Info.plist'), widgetInfoPlist('SproutWidget'));
+  fs.writeFileSync(path.join(widgetDst, 'SproutWidget.entitlements'), extensionEntitlements(APP_GROUP));
+
+  // ── watchOS widget extension ─────────────────────────────────────────────
+  const watchWidgetSrc = path.join(projectRoot, 'watch', WATCH_WIDGET_TARGET);
+  const watchWidgetDst = path.join(platformProjectRoot, WATCH_WIDGET_TARGET);
+  mkdirp(watchWidgetDst);
+  for (const f of WATCH_WIDGET_SOURCES) {
+    cp(path.join(watchWidgetSrc, f), path.join(watchWidgetDst, f));
+  }
+  fs.writeFileSync(path.join(watchWidgetDst, 'Info.plist'), widgetInfoPlist('SproutWatchWidget'));
+  fs.writeFileSync(path.join(watchWidgetDst, 'SproutWatchWidget.entitlements'), extensionEntitlements(APP_GROUP));
 
   if (!WATCH_READY) return cfg;
 
@@ -212,6 +253,7 @@ function modifyProject(cfg) {
   const bundleId    = cfg.ios?.bundleIdentifier ?? 'sprout.richdmart.in';
   const watchId     = `${bundleId}${WATCH_SUFFIX}`;
   const mainUuid    = project.getFirstTarget().uuid;
+  const teamId      = cfg.ios?.teamId;
   // Expo copies scheme files from templates before ANY plugin mod runs,
   // so the scheme file already exists on disk here in the xcodeproj phase.
   const { platformProjectRoot, projectName } = cfg.modRequest;
@@ -225,7 +267,58 @@ function modifyProject(cfg) {
     const mRefId = ensureFileRef(project, 'SproutWatchBridge/SproutWatchBridge.m', 'SproutWatchBridge.m');
     addToGroup(project, mRefId, 'SproutWatchBridge.m', bridgeGroup.uuid);
     addToSourcesPhase(project, mRefId, 'SproutWatchBridge.m', mainUuid);
+    // Swift files in the bridge group
+    for (const swiftFile of ['SproutWatchBridge.swift', 'SproutiOSShortcuts.swift']) {
+      const swiftRefId = ensureFileRef(project, `SproutWatchBridge/${swiftFile}`, swiftFile);
+      addToGroup(project, swiftRefId, swiftFile, bridgeGroup.uuid);
+      addToSourcesPhase(project, swiftRefId, swiftFile, mainUuid);
+    }
     addFrameworkToTarget(project, 'WatchConnectivity.framework', mainUuid);
+  }
+
+  // ── STEP 1b: iOS widget extension ─────────────────────────────────────────
+  const allTargets = Object.values(project.pbxNativeTargetSection());
+  const bundleId   = cfg.ios?.bundleIdentifier ?? 'sprout.richdmart.in';
+  const teamId     = cfg.ios?.teamId;
+
+  if (!allTargets.some(t => t.name === WIDGET_TARGET || t.name === `"${WIDGET_TARGET}"`)) {
+    const widgetId     = `${bundleId}.${WIDGET_TARGET}`;
+    const widgetTarget = project.addTarget(WIDGET_TARGET, 'app_extension', WIDGET_TARGET, widgetId);
+
+    project.addBuildPhase([], 'PBXSourcesBuildPhase',    'Sources',    widgetTarget.uuid);
+    project.addBuildPhase([], 'PBXResourcesBuildPhase',  'Resources',  widgetTarget.uuid);
+    project.addBuildPhase([], 'PBXFrameworksBuildPhase', 'Frameworks', widgetTarget.uuid);
+
+    const widgetGroup = project.addPbxGroup([], WIDGET_TARGET, WIDGET_TARGET);
+    for (const f of WIDGET_SOURCES) {
+      const fRefId = ensureFileRef(project, `${WIDGET_TARGET}/${f}`, f);
+      addToGroup(project, fRefId, f, widgetGroup.uuid);
+      addToSourcesPhase(project, fRefId, f, widgetTarget.uuid);
+    }
+    const wPlistRef = ensureFileRef(project, `${WIDGET_TARGET}/Info.plist`, 'Info.plist', 'text.plist.xml');
+    addToGroup(project, wPlistRef, 'Info.plist', widgetGroup.uuid);
+
+    addFrameworkToTarget(project, 'WidgetKit.framework', widgetTarget.uuid);
+    addFrameworkToTarget(project, 'SwiftUI.framework',   widgetTarget.uuid);
+
+    const widgetProfileSpecifier = process.env.WIDGET_PROVISIONING_PROFILE;
+    applyBuildSettings(project, widgetTarget.uuid, {
+      SDKROOT:                   'iphoneos',
+      TARGETED_DEVICE_FAMILY:    '"1,2"',
+      SWIFT_VERSION:             `"${SWIFT_VER}"`,
+      IPHONEOS_DEPLOYMENT_TARGET:`"${IOS_MIN}"`,
+      PRODUCT_BUNDLE_IDENTIFIER: `"${widgetId}"`,
+      INFOPLIST_FILE:            `"${WIDGET_TARGET}/Info.plist"`,
+      PRODUCT_NAME:              '"$(TARGET_NAME)"',
+      CODE_SIGN_STYLE:           '"Manual"',
+      CODE_SIGN_IDENTITY:        '"Apple Distribution"',
+      CODE_SIGN_ENTITLEMENTS:    `"${WIDGET_TARGET}/SproutWidget.entitlements"`,
+      SKIP_INSTALL:              '"YES"',
+      ...(teamId ? { DEVELOPMENT_TEAM: teamId } : {}),
+      ...(widgetProfileSpecifier ? { PROVISIONING_PROFILE_SPECIFIER: `"${widgetProfileSpecifier}"` } : {}),
+    });
+
+    patchEmbedExtensionPhase(project, mainUuid, widgetTarget, 'ios');
   }
 
   if (!WATCH_READY) return cfg;
@@ -295,7 +388,6 @@ function modifyProject(cfg) {
   //
   // Fix: read ios.teamId from app.json and stamp it directly into the watch
   // target's build settings here.  The user must add "teamId" to app.json → ios.
-  const teamId = cfg.ios?.teamId;
 
   // For non-EAS CI (e.g. Codemagic): stamp PROVISIONING_PROFILE_SPECIFIER onto
   // the main target so xcodebuild can match the profile without EAS's xcargs injection.
@@ -339,6 +431,52 @@ function modifyProject(cfg) {
   // target with SproutWatch.app. We just need to add CodeSignOnCopy to that
   // build file. (Calling a second addBuildPhase would duplicate the phase.)
   patchEmbedPhase(project, mainUuid, watchTarget);
+
+  // ── STEP 6b: Watch widget extension (complication) ────────────────────────
+  const allTargets2 = Object.values(project.pbxNativeTargetSection());
+  if (!allTargets2.some(t => t.name === WATCH_WIDGET_TARGET || t.name === `"${WATCH_WIDGET_TARGET}"`)) {
+    const watchWidgetId     = `${bundleId}${WATCH_SUFFIX}.${WATCH_WIDGET_TARGET}`;
+    const watchWidgetTarget = project.addTarget(WATCH_WIDGET_TARGET, 'app_extension', WATCH_WIDGET_TARGET, watchWidgetId);
+
+    project.addBuildPhase([], 'PBXSourcesBuildPhase',    'Sources',    watchWidgetTarget.uuid);
+    project.addBuildPhase([], 'PBXResourcesBuildPhase',  'Resources',  watchWidgetTarget.uuid);
+    project.addBuildPhase([], 'PBXFrameworksBuildPhase', 'Frameworks', watchWidgetTarget.uuid);
+
+    const wwGroup = project.addPbxGroup([], WATCH_WIDGET_TARGET, WATCH_WIDGET_TARGET);
+    for (const f of WATCH_WIDGET_SOURCES) {
+      const fRefId = ensureFileRef(project, `${WATCH_WIDGET_TARGET}/${f}`, f);
+      addToGroup(project, fRefId, f, wwGroup.uuid);
+      addToSourcesPhase(project, fRefId, f, watchWidgetTarget.uuid);
+    }
+    const wwPlistRef = ensureFileRef(project, `${WATCH_WIDGET_TARGET}/Info.plist`, 'Info.plist', 'text.plist.xml');
+    addToGroup(project, wwPlistRef, 'Info.plist', wwGroup.uuid);
+
+    addFrameworkToTarget(project, 'WidgetKit.framework', watchWidgetTarget.uuid);
+    addFrameworkToTarget(project, 'SwiftUI.framework',   watchWidgetTarget.uuid);
+
+    const watchWidgetProfile = process.env.WATCH_WIDGET_PROVISIONING_PROFILE;
+    applyBuildSettings(project, watchWidgetTarget.uuid, {
+      SDKROOT:                    'watchos',
+      TARGETED_DEVICE_FAMILY:     '"4"',
+      SWIFT_VERSION:              `"${SWIFT_VER}"`,
+      WATCHOS_DEPLOYMENT_TARGET:  `"${WATCH_OS_MIN}"`,
+      PRODUCT_BUNDLE_IDENTIFIER:  `"${watchWidgetId}"`,
+      INFOPLIST_FILE:             `"${WATCH_WIDGET_TARGET}/Info.plist"`,
+      PRODUCT_NAME:               '"$(TARGET_NAME)"',
+      CODE_SIGN_STYLE:            '"Manual"',
+      CODE_SIGN_IDENTITY:         '"Apple Distribution"',
+      CODE_SIGN_ENTITLEMENTS:     `"${WATCH_WIDGET_TARGET}/SproutWatchWidget.entitlements"`,
+      SKIP_INSTALL:               '"YES"',
+      ARCHS:                      '"arm64_32 arm64"',
+      ONLY_ACTIVE_ARCH:           '"NO"',
+      ...(teamId ? { DEVELOPMENT_TEAM: teamId } : {}),
+      ...(watchWidgetProfile ? { PROVISIONING_PROFILE_SPECIFIER: `"${watchWidgetProfile}"` } : {}),
+    });
+
+    // Remove the auto-created embed phase from main target, re-create in watch target
+    removeAutoEmbedFromMain(project, mainUuid, watchWidgetTarget);
+    patchEmbedExtensionPhase(project, watchTarget.uuid, watchWidgetTarget, 'watchos');
+  }
 
   // ── STEP 7: Add watch target to the Xcode scheme's build action ───────────
   // xcodebuild archive only builds targets explicitly listed in the scheme's
@@ -701,4 +839,146 @@ function mkdirp(dir) {
 }
 function cp(src, dst) {
   if (fs.existsSync(src)) fs.copyFileSync(src, dst);
+}
+
+// ── Widget / extension helpers ────────────────────────────────────────────────
+
+function widgetInfoPlist(extensionName) {
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+\t<key>CFBundleDevelopmentRegion</key>
+\t<string>$(DEVELOPMENT_LANGUAGE)</string>
+\t<key>CFBundleDisplayName</key>
+\t<string>Sprout</string>
+\t<key>CFBundleExecutable</key>
+\t<string>$(EXECUTABLE_NAME)</string>
+\t<key>CFBundleIdentifier</key>
+\t<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+\t<key>CFBundleInfoDictionaryVersion</key>
+\t<string>6.0</string>
+\t<key>CFBundleName</key>
+\t<string>$(PRODUCT_NAME)</string>
+\t<key>CFBundlePackageType</key>
+\t<string>$(PRODUCT_BUNDLE_PACKAGE_TYPE)</string>
+\t<key>CFBundleShortVersionString</key>
+\t<string>1.0</string>
+\t<key>CFBundleVersion</key>
+\t<string>1</string>
+\t<key>NSExtension</key>
+\t<dict>
+\t\t<key>NSExtensionPointIdentifier</key>
+\t\t<string>com.apple.widgetkit-extension</string>
+\t</dict>
+</dict>
+</plist>`;
+}
+
+function extensionEntitlements(appGroup) {
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+\t<key>com.apple.security.application-groups</key>
+\t<array>
+\t\t<string>${appGroup}</string>
+\t</array>
+</dict>
+</plist>`;
+}
+
+/**
+ * Create or patch an "Embed App Extensions" copy phase in the given parent target
+ * to include the extension's product, signed on copy.
+ */
+function patchEmbedExtensionPhase(project, parentTargetUuid, extTarget, platform) {
+  const objs         = project.hash.project.objects;
+  const parentTarget = project.pbxNativeTargetSection()[parentTargetUuid];
+  if (!parentTarget) return;
+
+  // dstSubfolderSpec 13 = Extensions folder
+  const DST_SPEC = 13;
+  const PHASE_NAME = '"Embed App Extensions"';
+
+  // Find existing embed-app-extensions phase in this parent, if any
+  let embedPhaseUuid = null;
+  for (const phaseEntry of (parentTarget.buildPhases || [])) {
+    const phase = (objs['PBXCopyFilesBuildPhase'] || {})[phaseEntry.value];
+    if (phase && phase.dstSubfolderSpec == DST_SPEC) {
+      embedPhaseUuid = phaseEntry.value;
+      break;
+    }
+  }
+
+  if (!embedPhaseUuid) {
+    // Create the phase
+    embedPhaseUuid = project.generateUuid();
+    objs['PBXCopyFilesBuildPhase'] = objs['PBXCopyFilesBuildPhase'] || {};
+    objs['PBXCopyFilesBuildPhase'][embedPhaseUuid] = {
+      isa: 'PBXCopyFilesBuildPhase',
+      buildActionMask: '2147483647',
+      dstPath: '""',
+      dstSubfolderSpec: DST_SPEC,
+      files: [],
+      name: PHASE_NAME,
+      runOnlyForDeploymentPostprocessing: '0',
+    };
+    objs['PBXCopyFilesBuildPhase'][`${embedPhaseUuid}_comment`] = 'Embed App Extensions';
+    parentTarget.buildPhases = parentTarget.buildPhases || [];
+    parentTarget.buildPhases.push({ value: embedPhaseUuid, comment: 'Embed App Extensions' });
+  }
+
+  const embedPhase = objs['PBXCopyFilesBuildPhase'][embedPhaseUuid];
+  embedPhase.files = embedPhase.files || [];
+
+  // Get the extension's product file reference
+  const nt      = project.pbxNativeTargetSection()[extTarget.uuid];
+  const prodRef = nt?.productReference;
+  if (!prodRef) return;
+
+  // Duplicate guard
+  const alreadyIn = embedPhase.files.some(e => {
+    const bf = (objs['PBXBuildFile'] || {})[e.value];
+    return bf && bf.fileRef === prodRef;
+  });
+  if (alreadyIn) return;
+
+  const bfUuid = project.generateUuid();
+  const extName = (nt.name || '').replace(/^"|"$/g, '');
+  objs['PBXBuildFile'] = objs['PBXBuildFile'] || {};
+  objs['PBXBuildFile'][bfUuid] = {
+    isa: 'PBXBuildFile',
+    fileRef: prodRef,
+    fileRef_comment: `${extName}.appex`,
+    settings: { ATTRIBUTES: ['CodeSignOnCopy', 'RemoveHeadersOnCopy'] },
+  };
+  objs['PBXBuildFile'][`${bfUuid}_comment`] = `${extName}.appex in Embed App Extensions`;
+  embedPhase.files.push({ value: bfUuid, comment: `${extName}.appex in Embed App Extensions` });
+}
+
+/**
+ * Remove the auto-created "Embed App Extensions" entry (for the given ext target)
+ * from the MAIN app target — addTarget('app_extension') plants it there by default,
+ * but the watch widget should be embedded in the watch target instead.
+ */
+function removeAutoEmbedFromMain(project, mainTargetUuid, extTarget) {
+  const objs        = project.hash.project.objects;
+  const mainTarget  = project.pbxNativeTargetSection()[mainTargetUuid];
+  if (!mainTarget) return;
+
+  const nt      = project.pbxNativeTargetSection()[extTarget.uuid];
+  const prodRef = nt?.productReference;
+  if (!prodRef) return;
+
+  for (const phaseEntry of (mainTarget.buildPhases || [])) {
+    const phase = (objs['PBXCopyFilesBuildPhase'] || {})[phaseEntry.value];
+    if (!phase) continue;
+    const before = phase.files?.length ?? 0;
+    phase.files = (phase.files || []).filter(e => {
+      const bf = (objs['PBXBuildFile'] || {})[e.value];
+      return !(bf && bf.fileRef === prodRef);
+    });
+    if (phase.files.length < before) return; // found and removed
+  }
 }

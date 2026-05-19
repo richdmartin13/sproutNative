@@ -10,6 +10,8 @@ workflows:
       vars:
         WATCH_PROVISIONING_PROFILE: watch_appstore
         MAIN_PROVISIONING_PROFILE: Sprout
+        WIDGET_PROVISIONING_PROFILE: widget_appstore
+        WATCH_WIDGET_PROVISIONING_PROFILE: watch_widget_appstore
         TEAM_ID: 66A37BK2N7
       groups:
         - ios_signing   # DIST_CERT_BASE64, DIST_CERT_PASSWORD
@@ -45,6 +47,8 @@ workflows:
           mkdir -p "$PROFILES"
           cp certs/main_appstore.mobileprovision "$PROFILES/"
           cp certs/watch_appstore.mobileprovision "$PROFILES/"
+          [ -f certs/widget_appstore.mobileprovision ] && cp certs/widget_appstore.mobileprovision "$PROFILES/"
+          [ -f certs/watch_widget_appstore.mobileprovision ] && cp certs/watch_widget_appstore.mobileprovision "$PROFILES/"
 
       - name: Build archive
         script: |

@@ -1,7 +1,10 @@
 import Foundation
 import WatchConnectivity
+import WidgetKit
 // RCTEventEmitter is available via the Expo-generated ObjC bridging header;
 // no explicit `import React` needed (and it can cause issues with new arch).
+
+private let SPROUT_GROUP = "group.sprout.richdmart.in"
 
 // Singleton that owns the WCSession for the main iOS app.
 // React Native calls sendHabits(_:) to push data to the watch.
@@ -35,6 +38,14 @@ class SproutWatchBridge: RCTEventEmitter {
     @objc func sendHabits(_ habitsJSON: String) {
         guard let data = habitsJSON.data(using: .utf8) else { return }
         latestPayload = data
+
+        // Write to App Group so the iOS widget and Siri shortcut can read it.
+        if let defaults = UserDefaults(suiteName: SPROUT_GROUP) {
+            defaults.set(data, forKey: "sprout_habits")
+            defaults.set(Date().timeIntervalSince1970, forKey: "sprout_updated_at")
+        }
+        WidgetCenter.shared.reloadTimelines(ofKind: "SproutWidget")
+
         // Push via Application Context so the watch gets it even when not reachable.
         try? WCSession.default.updateApplicationContext(["habits": data])
         // Also send a direct message when reachable for instant update.

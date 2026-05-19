@@ -2,6 +2,7 @@ import Foundation
 import WatchConnectivity
 import WatchKit
 import SwiftUI
+import WidgetKit
 
 struct WatchHabit: Identifiable, Codable, Hashable {
     let id: String
@@ -201,6 +202,7 @@ class WatchDataModel: NSObject, ObservableObject {
             DispatchQueue.main.async {
                 self.habits = decoded
                 self.isLoading = false
+                self.persistHabitsForWidget(data)
             }
         }
         if let pd = payload["watchPrefs"] as? Data,
@@ -226,6 +228,15 @@ class WatchDataModel: NSObject, ObservableObject {
     private func applyContext(_ ctx: [String: Any]) {
         guard !ctx.isEmpty else { return }
         handlePayload(ctx)
+    }
+
+    // Write raw habits JSON to App Group so the watch widget complication can read it.
+    private func persistHabitsForWidget(_ data: Data) {
+        if let defaults = UserDefaults(suiteName: "group.sprout.richdmart.in") {
+            defaults.set(data, forKey: "sprout_watch_habits")
+            defaults.set(Date().timeIntervalSince1970, forKey: "sprout_watch_updated")
+        }
+        WidgetCenter.shared.reloadTimelines(ofKind: "SproutWatchWidget")
     }
 }
 

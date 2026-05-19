@@ -1,15 +1,17 @@
-// Guard @callstack/liquid-glass behind a TurboModuleRegistry.get check so the
-// native-module-not-found error is never thrown in the first place (Expo Go,
-// simulator, older iOS).  getEnforcing in NativeLiquidGlassModule.js fires at
-// module-evaluation time and can leave the JS runtime in a broken state even
-// when caught; the non-throwing .get() prevents that entirely.
+// Liquid Glass is only loaded in production standalone builds.
+// Expo Go ('storeClient') skips it entirely — no native module, no fallback noise.
+// In standalone builds the TurboModuleRegistry.get check still guards against
+// older iOS devices that lack the native module.
 import { TurboModuleRegistry } from 'react-native';
+import Constants from 'expo-constants';
+
+const isExpoGo = Constants.executionEnvironment === 'storeClient';
 
 let LiquidGlassView = null;
 let LiquidGlassContainerView = null;
 let isLiquidGlassSupported = false;
 
-if (TurboModuleRegistry.get('NativeLiquidGlassModule')) {
+if (!isExpoGo && TurboModuleRegistry.get('NativeLiquidGlassModule')) {
   try {
     const lg = require('@callstack/liquid-glass');
     LiquidGlassView          = lg.LiquidGlassView          ?? null;
