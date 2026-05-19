@@ -140,12 +140,13 @@ function inWindow(h, startH, endH) {
 }
 
 // Returns true if a category should be visible right now given prefs.timeGates.
-// prefs.timeGates = { 'Health': { enabled: bool, gates: [{ id, startH, endH, mode }] } }
-// mode 'available'   → category only shows during this window (others hide it)
+// prefs.timeGates = { 'Health': { gates: [{ id, startH, endH, mode }] } }
+// A category with no gates is always visible. Gates enable/disable based on mode:
+// mode 'available'   → category only shows during this window
 // mode 'unavailable' → category is blocked during this window
 export function isCatVisible(cat, timeGates) {
   const setting = timeGates?.[cat];
-  if (!setting?.enabled || !setting.gates?.length) return true;
+  if (!setting?.gates?.length) return true;
   const h = new Date().getHours();
   const gates = setting.gates;
   // Unavailable gates take priority — block immediately if matched

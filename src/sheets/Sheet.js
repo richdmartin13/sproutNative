@@ -12,7 +12,7 @@ import { LiquidGlassView, isLiquidGlassSupported } from '../components/../lib/li
 
 const H = Dimensions.get('window').height;
 
-export default function Sheet({ title, subtitle, onClose, children, scrollEnabled = true, noScroll = false }) {
+export default function Sheet({ title, subtitle, onClose, children, scrollEnabled = true, noScroll = false, headerRight = null }) {
   const { theme } = useApp();
   const d = theme.isDark;
   const liquidGlass = theme.liquidGlassOn && isLiquidGlassSupported && LiquidGlassView;
@@ -93,6 +93,7 @@ export default function Sheet({ title, subtitle, onClose, children, scrollEnable
                 <Text style={{ fontSize: 19, fontWeight: '700', color: theme.text, letterSpacing: -0.4 }}>{title}</Text>
                 {subtitle ? <Text style={{ fontSize: 12, color: theme.muted, marginTop: 2 }}>{subtitle}</Text> : null}
               </View>
+              {headerRight && <View style={{ marginRight: 8 }}>{headerRight}</View>}
               <Pressable onPress={close}
                 style={{ width: 30, height: 30, borderRadius: 15, backgroundColor: liquidGlass ? 'rgba(128,128,128,0.20)' : theme.solid3, alignItems: 'center', justifyContent: 'center' }}>
                 <X size={16} strokeWidth={2} color={theme.muted} />

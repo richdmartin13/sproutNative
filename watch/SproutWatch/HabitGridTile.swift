@@ -53,8 +53,11 @@ struct HabitGridTile: View {
         }
         .padding(10)
         .frame(maxWidth: .infinity, minHeight: 70, alignment: .topLeading)
-        .background(typeColor.opacity(0.14))
+        .background {
+            RoundedRectangle(cornerRadius: 14).fill(.regularMaterial)
+            RoundedRectangle(cornerRadius: 14).fill(typeColor.opacity(0.10))
+            RoundedRectangle(cornerRadius: 14).strokeBorder(typeColor.opacity(0.28), lineWidth: 0.5)
+        }
         .clipShape(RoundedRectangle(cornerRadius: 14))
-        .overlay(RoundedRectangle(cornerRadius: 14).stroke(typeColor.opacity(0.30), lineWidth: 0.5))
     }
 }

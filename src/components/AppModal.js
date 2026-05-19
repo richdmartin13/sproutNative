@@ -104,20 +104,19 @@ export default function AppModal({ visible, title, message, buttons = [], onDism
           shadowRadius: 24,
           elevation: 20,
         }}>
-          {/* Card shell — liquid glass or flat solid */}
-          {liquidGlass ? (
-            <LiquidGlassView style={{ borderRadius: 30 }} colorScheme={d ? 'dark' : 'light'}>
-              <ModalContent d={d} theme={theme} title={title} message={message} actionBtns={actionBtns} cancelBtn={cancelBtn} />
-            </LiquidGlassView>
-          ) : (
-            <View style={{
-              borderRadius: 30, overflow: 'hidden',
-              backgroundColor: d ? theme.solid2 : theme.solid,
-              borderWidth: 1, borderColor: d ? theme.accentBorder : theme.border,
-            }}>
-              <ModalContent d={d} theme={theme} title={title} message={message} actionBtns={actionBtns} cancelBtn={cancelBtn} />
-            </View>
-          )}
+          {/* Card shell — always solid background; liquid glass layered on top */}
+          <View style={{
+            borderRadius: 30, overflow: 'hidden',
+            backgroundColor: d ? theme.solid2 : theme.solid,
+            borderWidth: 1, borderColor: d ? theme.accentBorder : theme.border,
+          }}>
+            {liquidGlass && (
+              <LiquidGlassView style={{
+                position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderRadius: 30,
+              }} colorScheme={d ? 'dark' : 'light'} />
+            )}
+            <ModalContent d={d} theme={theme} title={title} message={message} actionBtns={actionBtns} cancelBtn={cancelBtn} />
+          </View>
         </Animated.View>
       </Animated.View>
     </Modal>

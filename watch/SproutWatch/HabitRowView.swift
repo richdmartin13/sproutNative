@@ -53,9 +53,12 @@ struct HabitRowView: View {
         }
         .padding(10)
         .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
-        .background(typeColor.opacity(0.14))
+        .background {
+            RoundedRectangle(cornerRadius: 12).fill(.regularMaterial)
+            RoundedRectangle(cornerRadius: 12).fill(typeColor.opacity(0.10))
+            RoundedRectangle(cornerRadius: 12).strokeBorder(typeColor.opacity(0.28), lineWidth: 0.5)
+        }
         .clipShape(RoundedRectangle(cornerRadius: 12))
-        .overlay(RoundedRectangle(cornerRadius: 12).stroke(typeColor.opacity(0.30), lineWidth: 0.5))
         .contentShape(Rectangle())
     }
 }

@@ -46,15 +46,21 @@ export function DraggableList({ data, keyFn, renderRow, onReorder, theme, itemHe
 
   const panResponder = useRef(PanResponder.create({
     onStartShouldSetPanResponder:  () => false,
-    onMoveShouldSetPanResponder:   (_, gs) => Math.abs(gs.dy) > 8,
+    onMoveShouldSetPanResponder:   (_, gs) => Math.abs(gs.dy) > 6 && Math.abs(gs.dy) > Math.abs(gs.dx),
     onPanResponderGrant: (_, gs) => {
       onDragStartRef.current?.();
-      measure();
-      const from = toItemIdx(gs.moveY - gs.dy);
-      dragFromRef.current = from;
-      insertRef.current   = from;
-      setDragFrom(from);
-      setInsertBefore(from);
+      // Re-measure at grant time (not onLayout) to get accurate pageY after
+      // the sheet's slide-in animation has completed.
+      const touchY = gs.y0;
+      containerRef.current?.measure((_, __, ___, ____, _x, py) => {
+        containerY.current = py;
+        const from = Math.max(0, Math.min(dataRef.current.length - 1,
+          Math.round((touchY - py) / itemHeight)));
+        dragFromRef.current = from;
+        insertRef.current   = from;
+        setDragFrom(from);
+        setInsertBefore(from);
+      });
     },
     onPanResponderMove: (e) => {
       const ins = toInsertIdx(e.nativeEvent.pageY);
