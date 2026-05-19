@@ -7,7 +7,7 @@ export const TUTORIAL_STEPS = {
       id: 'filters',
       icon: 'List',
       title: 'Your habits',
-      body: "Use the type chips to filter by Start (build), Stop (break), or Neutral (track). Category chips appear once you've added categories to habits — time-gated categories only show during their active window. The grid/list toggle switches your view.",
+      body: "Use the type chips to filter by Start (build), Stop (break), or Neutral (track). Category chips appear once you've added categories to habits — scheduled categories only show during their active window. The grid/list toggle switches your view.",
       type: 'intro',
     },
     {
@@ -132,8 +132,8 @@ export const TUTORIAL_STEPS = {
     {
       id: 'timegates',
       icon: 'Clock',
-      title: 'Time Gates',
-      body: "Schedule when categories appear. Mark a window as Available (only shows then) or Unavailable (hidden then). Stack multiple gates per category for complex schedules.",
+      title: 'Schedules',
+      body: "Schedule when categories appear. Mark a window as Available (only shows then) or Unavailable (hidden then). Stack multiple windows per category for complex schedules.",
       type: 'info',
     },
     {

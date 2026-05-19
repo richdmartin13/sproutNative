@@ -18,6 +18,7 @@ import AnalyticsScreen from '../screens/AnalyticsScreen.js';
 import SettingsScreen  from '../screens/SettingsScreen.js';
 import BottomNav     from '../components/BottomNav.js';
 import AppModal      from '../components/AppModal.js';
+import TutorialCard  from '../components/TutorialCard.js';
 import HabitSheet    from '../sheets/HabitSheet.js';
 import LogSheet      from '../sheets/LogSheet.js';
 import Sheet         from '../sheets/Sheet.js';
@@ -395,6 +396,8 @@ export default function NativeNav() {
           buttons={confirm?.buttons ?? []}
           onDismiss={() => setConfirm(null)}
         />
+
+        <TutorialCard />
       </View>
     </NavCtx.Provider>
   );

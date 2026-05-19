@@ -32,14 +32,25 @@ function MRow({ label, sub, value, onChange }) {
   );
 }
 
-const APP_VERSION = '1.0.37';
-const APP_BUILD  = 37;
+const APP_VERSION = '1.0.38';
+const APP_BUILD  = 38;
 
 const CHANGELOG = [
   {
+    version: '1.0.38',
+    changes: [
+      'Analytics: "Paused" chip in filter bar shows habits whose category schedule is currently inactive',
+      'Settings: "Time Gates" renamed to "Schedules" throughout the app',
+      'Tutorials: settings tour now shows correctly when retriggered from Guided Tours',
+      'Widgets & complications: iOS home screen widgets (small + medium), Lock Screen widgets, and watchOS complications added',
+      'Siri shortcuts: "How are my Sprout habits?" available on iPhone and Apple Watch',
+      'Build fix: watch widget bundle ID corrected to match provisioning profile',
+    ],
+  },
+  {
     version: '1.0.37',
     changes: [
-      'Analytics: time-gated (hidden) categories now excluded by default — tap the "X gated" chip in the filter bar to include them',
+      'Analytics: paused (scheduled-out) categories now excluded by default — tap the "Paused" chip in the filter bar to see them',
       'Analytics: Last 30 Days graph now shows one line per category instead of one per habit — far less cluttered legend',
       'Watch: log haptics are now type-aware — positive chime for good habits, unpleasant buzz for bad habits, subtle click for neutral',
       'Liquid Glass: gracefully falls back to standard layout in Expo Go and on devices without the native module',
@@ -635,7 +646,7 @@ function TimeGatesModal({ data, prefs, setPrefs, theme, onClose }) {
 
   return (
     <Sheet
-      title={pickingCat ? 'Add Gate' : 'Time Gates'}
+      title={pickingCat ? 'Add Schedule' : 'Schedules'}
       subtitle={pickingCat ? 'Choose a category' : 'Schedule when categories appear'}
       onClose={onClose}
     >
@@ -890,7 +901,7 @@ export default function SettingsScreen({ onNavigate }) {
     { id:'appearance', label:'Appearance',         sub:'Theme and accent color',              Icon:Palette },
     { id:'behavior',   label:'Layout & Behavior',  sub:'Card density, sort, tap behavior',    Icon:LayoutGrid },
     { id:'fields',     label:'Logging Fields',     sub:'Which fields appear when logging',    Icon:PenLine },
-    { id:'timegates',  label:'Time Gates',          sub:'Schedule when categories appear',     Icon:Clock },
+    { id:'timegates',  label:'Schedules',             sub:'Schedule when categories appear',     Icon:Clock },
     { id:'sections',   label:'Analytics Sections', sub:'Which insights to show and their order', Icon:BarChart3 },
     ...(!Platform.isPad ? [{ id:'watch', label:'Apple Watch', sub:'Dismiss timing, haptics, connection', Icon:Clock }] : []),
     { id:'archived', label:'Archived Habits',
@@ -1378,7 +1389,7 @@ export default function SettingsScreen({ onNavigate }) {
             {[
               { id:'home',     label:'Habits',    sub:'Logging, filters, and layout',     Icon:Home      },
               { id:'insights', label:'Analytics', sub:'Charts, timeframes, and sections', Icon:BarChart3 },
-              { id:'settings', label:'Settings',  sub:'Appearance, fields, time gates, and more', Icon:Settings },
+              { id:'settings', label:'Settings',  sub:'Appearance, fields, schedules, and more', Icon:Settings },
             ].map(({ id, label, sub, Icon }) => (
               <Pressable key={id}
                 onPress={() => {

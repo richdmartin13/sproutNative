@@ -62,7 +62,9 @@ function HourlySection({ filtered, date }) {
 }
 
 // ─── Top filter bar — same as HomeScreen, drives all sections ───────────────
-function FilterBar({ habits, category, setCategory, types, setTypes, hiddenCount = 0, includeHidden = false, onToggleHidden }) {
+const GATED_KEY = '__gated__';
+
+function FilterBar({ habits, category, setCategory, types, setTypes, gatedCount = 0 }) {
   const { theme } = useApp();
   const d = theme.isDark;
   const glassChips = theme.glassChipsOn && isLiquidGlassSupported && LiquidGlassView;
@@ -113,8 +115,10 @@ function FilterBar({ habits, category, setCategory, types, setTypes, hiddenCount
     <View style={{ marginBottom:4 }}>
       <ScrollView horizontal showsHorizontalScrollIndicator={false}
         style={{ paddingHorizontal:20, marginBottom:6 }} contentContainerStyle={{ paddingRight:18, alignItems:'center' }}>
-        {chip('All',!category,null,()=>setCategory(''))}
-        {cats.map(c=>chip(c,category===c,null,()=>setCategory(category===c?'':c)))}
+        {chip('All', !category, null, () => setCategory(''))}
+        {cats.map(c => chip(c, category===c, null, () => setCategory(category===c ? '' : c)))}
+        {gatedCount > 0 && chip('Paused', category===GATED_KEY, theme.muted,
+          () => setCategory(category===GATED_KEY ? '' : GATED_KEY))}
       </ScrollView>
       <ScrollView horizontal showsHorizontalScrollIndicator={false}
         style={{ paddingHorizontal:18 }} contentContainerStyle={{ paddingRight:18, alignItems:'center' }}>
@@ -125,23 +129,6 @@ function FilterBar({ habits, category, setCategory, types, setTypes, hiddenCount
           })
         )}
       </ScrollView>
-      {hiddenCount > 0 && (
-        <View style={{ paddingHorizontal: 20, paddingTop: 6, flexDirection: 'row' }}>
-          <Pressable onPress={onToggleHidden}
-            style={({ pressed }) => ({
-              flexDirection: 'row', alignItems: 'center', gap: 5,
-              paddingHorizontal: 11, paddingVertical: 5, borderRadius: 10,
-              opacity: pressed ? 0.7 : 1,
-              backgroundColor: includeHidden ? theme.accentDim : theme.surface2,
-              borderWidth: 1, borderColor: includeHidden ? theme.accentBorder : theme.border,
-            })}>
-            <Text style={{ fontSize: 12, fontWeight: '600',
-              color: includeHidden ? theme.accent : theme.muted }}>
-              {includeHidden ? 'All categories' : `${hiddenCount} gated`}
-            </Text>
-          </Pressable>
-        </View>
-      )}
     </View>
   );
 }
@@ -682,40 +669,44 @@ export default function AnalyticsScreen() {
 
   const [mode,          setMode]          = useState(prefs.insDay?'day':'all');
   const [date,          setDate]          = useState(todayStr());
-  const [category,      setCategory]      = useState('');
-  const [types,         setTypes]         = useState(['go', 'st', 'ne']);
-  const [includeHidden, setIncludeHidden] = useState(false);
+  const [category, setCategory] = useState('');
+  const [types,    setTypes]    = useState(['go', 'st', 'ne']);
 
   // All non-archived habits
   const habitsAll = useMemo(() => habitsRaw.filter(h => !h.archived), [habitsRaw]);
 
-  // Count habits hidden by time gates right now
-  const hiddenCount = useMemo(() => {
+  // Habits hidden by time gates right now
+  const gatedHabits = useMemo(() => {
     const gates = prefs.timeGates || {};
-    return habitsAll.filter(h => h.category && !isCatVisible(h.category, gates)).length;
+    return habitsAll.filter(h => h.category && !isCatVisible(h.category, gates));
   }, [habitsAll, prefs.timeGates]);
 
-  // Respect time gates unless user opts in
+  // Habits visible under normal time gating (excludes gated by default)
   const allHabits = useMemo(() => {
-    if (includeHidden) return habitsAll;
     const gates = prefs.timeGates || {};
     return habitsAll.filter(h => !h.category || isCatVisible(h.category, gates));
-  }, [habitsAll, includeHidden, prefs.timeGates]);
+  }, [habitsAll, prefs.timeGates]);
 
-  // Reset category filter if it disappears from the visible set
+  // Reset category filter if it no longer applies
   useEffect(() => {
+    if (category === GATED_KEY) {
+      if (gatedHabits.length === 0) setCategory('');
+      return;
+    }
     if (!category) return;
     const cats = new Set(allHabits.map(h => h.category).filter(Boolean));
     if (!cats.has(category)) setCategory('');
-  }, [allHabits, category]);
+  }, [allHabits, gatedHabits, category]);
 
   // Single filtered set — drives ALL sections below
-  const filtered = useMemo(()=>{
-    let l = allHabits.slice();
-    if (category) l = l.filter(h=>h.category===category);
-    if (types.length) l = l.filter(h=>types.includes(h.type));
+  // When GATED_KEY is active: only gated habits; otherwise: only visible habits
+  const filtered = useMemo(() => {
+    const base = category === GATED_KEY ? gatedHabits : allHabits;
+    let l = base.slice();
+    if (category && category !== GATED_KEY) l = l.filter(h => h.category === category);
+    if (types.length) l = l.filter(h => types.includes(h.type));
     return l;
-  },[allHabits,category,types]);
+  }, [allHabits, gatedHabits, category, types]);
 
   const df = mode==='day' ? date : null;
   const totalLogs = useMemo(()=>filtered.reduce((s,h)=>s+(df?h.logs.filter(l=>l.date===df).length:h.logs.length),0),[filtered,df]);
@@ -821,8 +812,7 @@ export default function AnalyticsScreen() {
       {/* Single filter bar — drives all sections */}
       <FilterBar habits={allHabits} category={category} setCategory={setCategory}
         types={types} setTypes={setTypes}
-        hiddenCount={hiddenCount} includeHidden={includeHidden}
-        onToggleHidden={() => setIncludeHidden(v => !v)} />
+        gatedCount={gatedHabits.length} />
 
       <ScrollView contentContainerStyle={{ paddingHorizontal:20, paddingBottom:120, paddingTop:8 }}
         showsVerticalScrollIndicator={false}>

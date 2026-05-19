@@ -431,7 +431,7 @@ function modifyProject(cfg) {
   // ── STEP 6b: Watch widget extension (complication) ────────────────────────
   const allTargets2 = Object.values(project.pbxNativeTargetSection());
   if (!allTargets2.some(t => t.name === WATCH_WIDGET_TARGET || t.name === `"${WATCH_WIDGET_TARGET}"`)) {
-    const watchWidgetId     = `${bundleId}${WATCH_SUFFIX}.${WATCH_WIDGET_TARGET}`;
+    const watchWidgetId     = `${bundleId}.${WATCH_WIDGET_TARGET}`;
     const watchWidgetTarget = project.addTarget(WATCH_WIDGET_TARGET, 'app_extension', WATCH_WIDGET_TARGET, watchWidgetId);
 
     project.addBuildPhase([], 'PBXSourcesBuildPhase',    'Sources',    watchWidgetTarget.uuid);
