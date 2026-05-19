@@ -434,7 +434,7 @@ function modifyProject(cfg) {
   patchEmbedPhase(project, mainUuid, watchTarget);
 
   // ── STEP 6b: Watch widget extension (complication) ────────────────────────
-  if (!WATCH_WIDGET_READY) return cfg;
+  if (WATCH_WIDGET_READY) {
   const allTargets2 = Object.values(project.pbxNativeTargetSection());
   if (!allTargets2.some(t => t.name === WATCH_WIDGET_TARGET || t.name === `"${WATCH_WIDGET_TARGET}"`)) {
     const watchWidgetId     = `${bundleId}${WATCH_SUFFIX}.${WATCH_WIDGET_TARGET}`;
@@ -479,6 +479,7 @@ function modifyProject(cfg) {
     removeAutoEmbedFromMain(project, mainUuid, watchWidgetTarget);
     patchEmbedExtensionPhase(project, watchTarget.uuid, watchWidgetTarget, 'watchos');
   }
+  } // end WATCH_WIDGET_READY
 
   // ── STEP 7: Add watch target to the Xcode scheme's build action ───────────
   // xcodebuild archive only builds targets explicitly listed in the scheme's
