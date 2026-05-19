@@ -1,15 +1,19 @@
 # certs/
 
-Place your iOS distribution credentials here before running `eas build --profile production`.
+iOS distribution credentials for Codemagic CI builds.
 
-Required files:
-- `dist.p12` — Distribution certificate exported from Keychain (or downloaded from developer.apple.com)
-- `main.mobileprovision` — App Store provisioning profile for bundle ID `sprout.richdmart.in`
-- `watch.mobileprovision` — App Store provisioning profile for bundle ID `sprout.richdmart.in.watchkitapp`
+## Files
 
-Then set the P12 password in `credentials.json` → `password`.
+| File | Purpose | Bundle ID |
+|------|---------|-----------|
+| `dist.p12` | Distribution certificate (gitignored) | — |
+| `main_appstore.mobileprovision` | Main app — App Store | `sprout.richdmart.in` |
+| `watch_appstore.mobileprovision` | Watch app — App Store | `sprout.richdmart.in.watchkitapp` |
+| `widget_appstore.mobileprovision` | iOS widget extension — App Store | `sprout.richdmart.in.SproutWidget` |
+| `watch_widget_appstore.mobileprovision` | watchOS widget extension — App Store | `sprout.richdmart.in.watchkitapp.SproutWatchWidget` |
 
-Generate provisioning profiles at:
-  https://developer.apple.com/account/resources/profiles/list
+All four profiles must include the App Group `group.sprout.richdmart.in`.
 
-This directory is gitignored — never commit actual certificate files.
+## Updating profiles
+
+Download the new `.mobileprovision` from developer.apple.com and rename it to match the filename above before committing. The P12 (`dist.p12`) stays local — it is gitignored.

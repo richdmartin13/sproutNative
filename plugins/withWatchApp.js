@@ -702,7 +702,7 @@ function readWatchTargetUuid(platformProjectRoot, projectName) {
  * xcodebuild archive only builds targets explicitly listed in the scheme's
  * <BuildActionEntries> with buildForArchiving="YES".  This adds that entry.
  *
- * Profile-installation note: certs/watch.mobileprovision is committed to the
+ * Profile-installation note: certs/watch_appstore.mobileprovision is committed to the
  * repo (only .p12 is gitignored), so EAS uploads it as a project file.
  * installWatchProfile() copies it into ~/Library/MobileDevice/Provisioning
  * Profiles/ during PREBUILD, before xcodebuild archive runs.
@@ -781,23 +781,29 @@ function applyBuildSettings(project, targetUuid, settings) {
 
 function installWatchProfile(projectRoot) {
   if (process.platform !== 'darwin') return;
-  const profileSrc = path.join(projectRoot, 'certs', 'watch.mobileprovision');
-  if (!fs.existsSync(profileSrc)) {
-    console.warn('[withWatchApp] watch.mobileprovision not found at', profileSrc);
-    return;
-  }
   const profilesDir = path.join(process.env.HOME, 'Library', 'MobileDevice', 'Provisioning Profiles');
-  try {
-    const { execSync } = require('child_process');
-    const xml = execSync(`security cms -D -i "${profileSrc}"`, { encoding: 'utf8' });
-    const m   = xml.match(/<key>UUID<\/key>\s*<string>([^<]+)<\/string>/);
-    if (!m?.[1]) { console.warn('[withWatchApp] Could not extract UUID from watch profile'); return; }
-    const uuid = m[1].trim();
-    mkdirp(profilesDir);
-    fs.copyFileSync(profileSrc, path.join(profilesDir, `${uuid}.mobileprovision`));
-    console.log('[withWatchApp] Installed watch provisioning profile:', uuid);
-  } catch (e) {
-    console.warn('[withWatchApp] Failed to install watch provisioning profile:', e.message);
+  mkdirp(profilesDir);
+  const { execSync } = require('child_process');
+
+  const toInstall = [
+    'watch_appstore.mobileprovision',
+    'widget_appstore.mobileprovision',
+    'watch_widget_appstore.mobileprovision',
+  ];
+
+  for (const filename of toInstall) {
+    const profileSrc = path.join(projectRoot, 'certs', filename);
+    if (!fs.existsSync(profileSrc)) continue;
+    try {
+      const xml  = execSync(`security cms -D -i "${profileSrc}"`, { encoding: 'utf8' });
+      const m    = xml.match(/<key>UUID<\/key>\s*<string>([^<]+)<\/string>/);
+      if (!m?.[1]) { console.warn(`[withWatchApp] Could not extract UUID from ${filename}`); continue; }
+      const uuid = m[1].trim();
+      fs.copyFileSync(profileSrc, path.join(profilesDir, `${uuid}.mobileprovision`));
+      console.log(`[withWatchApp] Installed profile ${filename} as ${uuid}`);
+    } catch (e) {
+      console.warn(`[withWatchApp] Failed to install ${filename}:`, e.message);
+    }
   }
 }
 
