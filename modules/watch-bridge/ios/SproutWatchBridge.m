@@ -1,5 +1,4 @@
 #import "SproutWatchBridge.h"
-@import WidgetKit;
 
 static NSString *const kAppGroup = @"group.sprout.richdmart.in";
 
@@ -46,9 +45,6 @@ RCT_EXPORT_METHOD(sendHabits:(NSString *)habitsJSON prefs:(NSString *)prefsJSON)
     if (shared) {
         [shared setObject:data forKey:@"sprout_habits"];
         [shared setDouble:[NSDate date].timeIntervalSince1970 forKey:@"sprout_updated_at"];
-    }
-    if (@available(iOS 14, *)) {
-        [WidgetCenter.shared reloadTimelinesOfKind:@"SproutWidget"];
     }
 
     NSMutableDictionary *ctx = [NSMutableDictionary dictionaryWithObject:data forKey:@"habits"];
