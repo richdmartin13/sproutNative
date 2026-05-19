@@ -121,7 +121,7 @@ async function copyFiles(cfg) {
   const bridgeSrc = path.join(projectRoot, 'modules', 'watch-bridge', 'ios');
   const bridgeDst = path.join(platformProjectRoot, 'SproutWatchBridge');
   mkdirp(bridgeDst);
-  for (const f of ['SproutWatchBridge.h', 'SproutWatchBridge.m', 'SproutWatchBridge.swift', 'SproutiOSShortcuts.swift']) {
+  for (const f of ['SproutWatchBridge.h', 'SproutWatchBridge.m', 'SproutiOSShortcuts.swift']) {
     cp(path.join(bridgeSrc, f), path.join(bridgeDst, f));
   }
 
@@ -272,7 +272,7 @@ function modifyProject(cfg) {
     addToGroup(project, mRefId, 'SproutWatchBridge.m', bridgeGroup.uuid);
     addToSourcesPhase(project, mRefId, 'SproutWatchBridge.m', mainUuid);
     // Swift files in the bridge group
-    for (const swiftFile of ['SproutWatchBridge.swift', 'SproutiOSShortcuts.swift']) {
+    for (const swiftFile of ['SproutiOSShortcuts.swift']) {
       const swiftRefId = ensureFileRef(project, `SproutWatchBridge/${swiftFile}`, swiftFile);
       addToGroup(project, swiftRefId, swiftFile, bridgeGroup.uuid);
       addToSourcesPhase(project, swiftRefId, swiftFile, mainUuid);
