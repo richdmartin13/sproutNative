@@ -117,8 +117,6 @@ function FilterBar({ habits, category, setCategory, types, setTypes, gatedCount 
         style={{ paddingHorizontal:20, marginBottom:6 }} contentContainerStyle={{ paddingRight:18, alignItems:'center' }}>
         {chip('All', !category, null, () => setCategory(''))}
         {cats.map(c => chip(c, category===c, null, () => setCategory(category===c ? '' : c)))}
-        {gatedCount > 0 && chip('Paused', category===GATED_KEY, theme.muted,
-          () => setCategory(category===GATED_KEY ? '' : GATED_KEY))}
       </ScrollView>
       <ScrollView horizontal showsHorizontalScrollIndicator={false}
         style={{ paddingHorizontal:18 }} contentContainerStyle={{ paddingRight:18, alignItems:'center' }}>
@@ -128,6 +126,8 @@ function FilterBar({ habits, category, setCategory, types, setTypes, gatedCount 
             if(next.length>0) setTypes(next);
           })
         )}
+        {gatedCount > 0 && chip('Paused', category===GATED_KEY, theme.muted,
+          () => setCategory(category===GATED_KEY ? '' : GATED_KEY))}
       </ScrollView>
     </View>
   );

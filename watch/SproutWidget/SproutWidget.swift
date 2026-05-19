@@ -217,12 +217,22 @@ struct SproutWidgetEntryView: View {
 
 // ─────────────────────────────── Widget ──────────────────────────────────────
 
+private struct WidgetContainerBackground: ViewModifier {
+    func body(content: Content) -> some View {
+        if #available(iOS 17, *) {
+            content.containerBackground(.fill.tertiary, for: .widget)
+        } else {
+            content
+        }
+    }
+}
+
 struct SproutWidget: Widget {
     let kind = "SproutWidget"
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: kind, provider: SproutProvider()) { entry in
             SproutWidgetEntryView(entry: entry)
-                .containerBackground(.fill.tertiary, for: .widget)
+                .modifier(WidgetContainerBackground())
         }
         .configurationDisplayName("Sprout")
         .description("Today's habit progress at a glance.")
