@@ -32,10 +32,17 @@ function MRow({ label, sub, value, onChange }) {
   );
 }
 
-const APP_VERSION = '1.0.35';
-const APP_BUILD  = 35;
+const APP_VERSION = '1.0.36';
+const APP_BUILD  = 36;
 
 const CHANGELOG = [
+  {
+    version: '1.0.36',
+    changes: [
+      'Settings tour (Guided Tours → Settings): tutorial now starts only after the About modal fully closes — no longer fires while the sheet is still animating out',
+      'Build fix: react-native-worklets added as required companion for react-native-reanimated v4',
+    ],
+  },
   {
     version: '1.0.35',
     changes: [
@@ -760,6 +767,7 @@ export default function SettingsScreen({ onNavigate }) {
   const [modal,    setModal]   = useState(null);
   const [tapHint,  setTapHint] = useState('');
   const [settAlert,       setSettAlert]    = useState(null); // { title, message, buttons }
+  const [pendingTutorial, setPendingTutorial] = useState(null);
 
   const tapRef   = useRef(0);
   const timerRef = useRef(null);
@@ -770,6 +778,19 @@ export default function SettingsScreen({ onNavigate }) {
     if (Platform.OS !== 'ios') return;
     return onWatchReachability(r => setWatchReachable(r));
   }, []);
+
+  // Fire pending tutorial only after the About modal has fully closed
+  useEffect(() => {
+    if (!pendingTutorial || modal !== null) return;
+    const id = pendingTutorial;
+    setPendingTutorial(null);
+    const t = setTimeout(() => {
+      startTutorial(id, () =>
+        setPrefs({ ...prefs, tutorialSeen: { ...(prefs.tutorialSeen || {}), [id]: true } })
+      );
+    }, 300);
+    return () => clearTimeout(t);
+  }, [pendingTutorial, modal]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const setP   = updates => setPrefs({ ...prefs, ...updates });
   const setDev = updates => setPrefs({ ...prefs, dev: { ...prefs.dev, ...updates } });
@@ -1353,13 +1374,8 @@ export default function SettingsScreen({ onNavigate }) {
               <Pressable key={id}
                 onPress={() => {
                   if (id === 'settings') {
-                    // Already on settings — start tutorial directly
+                    setPendingTutorial('settings');
                     setModal(null);
-                    setTimeout(() => {
-                      startTutorial('settings', () =>
-                        setPrefs({ ...prefs, tutorialSeen: { ...(prefs.tutorialSeen || {}), settings: true } })
-                      );
-                    }, 350);
                   } else {
                     setPrefs({ ...prefs, tutorialSeen: { ...(prefs.tutorialSeen || {}), [id]: undefined } });
                     setModal(null);
