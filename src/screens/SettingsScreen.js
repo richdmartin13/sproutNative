@@ -32,10 +32,20 @@ function MRow({ label, sub, value, onChange }) {
   );
 }
 
-const APP_VERSION = '1.0.31';
-const APP_BUILD  = 31;
+const APP_VERSION = '1.0.32';
+const APP_BUILD  = 32;
 
 const CHANGELOG = [
+  {
+    version: '1.0.32',
+    changes: [
+      'Settings: Sort moved into Display section as a compact inline selector matching the list/grid toggle',
+      'Settings: Logging Fields and Analytics Sections — grip handle moved to left, toggle moved to right, standard Toggle replaces circle checkbox',
+      'Settings: ScrollView locks during drag-to-reorder so the sheet doesn\'t scroll while moving items',
+      'Watch: category filter button matches settings button exactly — plain white icon, same style',
+      'Watch: list layout button no longer loses its icon when selected — fixed SF Symbol fill variant',
+    ],
+  },
   {
     version: '1.0.31',
     changes: [
@@ -614,6 +624,7 @@ export default function SettingsScreen({ onNavigate }) {
   const [modal,    setModal]   = useState(null);
   const [tapHint,  setTapHint] = useState('');
   const [settAlert,       setSettAlert]    = useState(null); // { title, message, buttons }
+  const [isDragging, setIsDragging] = useState(false);
 
   const tapRef   = useRef(0);
   const timerRef = useRef(null);
@@ -850,18 +861,24 @@ export default function SettingsScreen({ onNavigate }) {
               ))}
             </View>
           </View>
-          <Text style={{ fontSize:11, fontWeight:'700', color:theme.muted,
-            textTransform:'uppercase', letterSpacing:0.7, paddingTop:18, paddingBottom:4 }}>Sort</Text>
-          <View style={{ paddingBottom:10, borderBottomWidth:1, borderBottomColor:theme.border }}>
-            <View style={{ flexDirection:'row', gap:8, flexWrap:'wrap' }}>
+          <View style={{ flexDirection:'row', alignItems:'center', gap:10,
+            paddingVertical:10, borderBottomWidth:1, borderBottomColor:theme.border }}>
+            <View style={{ flex:1 }}>
+              <Text style={{ fontSize:15, fontWeight:'500', color:theme.text }}>Sort</Text>
+              <Text style={{ fontSize:11.5, color:theme.muted, marginTop:1 }}>Order of the habits list</Text>
+            </View>
+            <View style={{ flexDirection:'row', backgroundColor:theme.surface2,
+              borderWidth:1, borderColor:theme.border, borderRadius:10,
+              padding:2, gap:1 }}>
               {[['mostLogged','Taps'],['name','A–Z'],['type','Type'],['recent','Recent']].map(([v,lbl]) => {
                 const active = (prefs.habitsSort || 'mostLogged') === v;
                 return (
                   <Pressable key={v} onPress={() => setP({ habitsSort: v })}
-                    style={{ paddingHorizontal:14, paddingVertical:8, borderRadius:11,
-                      backgroundColor: active ? theme.accent : theme.surface2,
-                      borderWidth:1.5, borderColor: active ? theme.accent : theme.border }}>
-                    <Text style={{ fontSize:13, fontWeight:'600', color: active ? '#fff' : theme.text }}>{lbl}</Text>
+                    style={{ flex:1, alignItems:'center',
+                      paddingHorizontal:8, paddingVertical:7, borderRadius:8,
+                      backgroundColor: active ? theme.solid : 'transparent' }}>
+                    <Text style={{ fontSize:12, fontWeight:'600',
+                      color: active ? theme.text : theme.muted }}>{lbl}</Text>
                   </Pressable>
                 );
               })}
@@ -946,26 +963,18 @@ export default function SettingsScreen({ onNavigate }) {
           ...prefs, track: { ...prefs.track, [k]: prefs.track?.[k] !== false ? false : undefined },
         });
         const renderRow = item => (
-          <Pressable onPress={() => toggleField(item.key)}
-            style={({ pressed }) => ({
-              flexDirection: 'row', alignItems: 'center', paddingVertical: 12,
-              borderBottomWidth: 1, borderBottomColor: theme.border,
-              opacity: pressed ? 0.7 : item.on ? 1 : 0.45,
-            })}>
-            <View style={{ width: 22, height: 22, borderRadius: 11, marginRight: 12,
-              backgroundColor: item.on ? theme.accent : 'transparent',
-              borderWidth: item.on ? 0 : 1.5, borderColor: theme.border,
-              alignItems: 'center', justifyContent: 'center' }}>
-              {item.on && <Text style={{ fontSize: 13, color: '#fff', fontWeight: '700', lineHeight: 16 }}>✓</Text>}
-            </View>
-            <Text style={{ flex: 1, fontSize: 15, fontWeight: '500', color: theme.text }}>{item.label}</Text>
-            <GripVertical size={16} strokeWidth={2} color={theme.muted} style={{ marginLeft: 8 }} />
-          </Pressable>
+          <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 12,
+            borderBottomWidth: 1, borderBottomColor: theme.border }}>
+            <GripVertical size={16} strokeWidth={2} color={theme.muted} style={{ marginRight: 12 }} />
+            <Text style={{ flex: 1, fontSize: 15, fontWeight: '500',
+              color: item.on ? theme.text : theme.muted }}>{item.label}</Text>
+            <Toggle value={item.on} onChange={() => toggleField(item.key)} />
+          </View>
         );
         return (
-          <Sheet title="Logging Fields" onClose={() => setModal(null)}>
+          <Sheet title="Logging Fields" onClose={() => setModal(null)} scrollEnabled={!isDragging}>
             <Text style={{ fontSize: 12, color: theme.muted, marginBottom: 12, lineHeight: 18 }}>
-              Tap to show or hide. Drag to reorder.
+              Drag to reorder. Toggle to show or hide.
             </Text>
             <DraggableList
               data={fieldsItems}
@@ -973,6 +982,8 @@ export default function SettingsScreen({ onNavigate }) {
               renderRow={renderRow}
               onReorder={newItems => setPrefs({ ...prefs, fieldsOrder: newItems.map(i => i.key) })}
               theme={theme}
+              onDragStart={() => setIsDragging(true)}
+              onDragEnd={() => setIsDragging(false)}
             />
           </Sheet>
         );
@@ -987,26 +998,18 @@ export default function SettingsScreen({ onNavigate }) {
           ...prefs, sections: { ...prefs.sections, [k]: prefs.sections?.[k] !== false ? false : undefined },
         });
         const renderRow = item => (
-          <Pressable onPress={() => toggleSection(item.key)}
-            style={({ pressed }) => ({
-              flexDirection: 'row', alignItems: 'center', paddingVertical: 12,
-              borderBottomWidth: 1, borderBottomColor: theme.border,
-              opacity: pressed ? 0.7 : item.visible ? 1 : 0.45,
-            })}>
-            <View style={{ width: 22, height: 22, borderRadius: 11, marginRight: 12,
-              backgroundColor: item.visible ? theme.accent : 'transparent',
-              borderWidth: item.visible ? 0 : 1.5, borderColor: theme.border,
-              alignItems: 'center', justifyContent: 'center' }}>
-              {item.visible && <Text style={{ fontSize: 13, color: '#fff', fontWeight: '700', lineHeight: 16 }}>✓</Text>}
-            </View>
-            <Text style={{ flex: 1, fontSize: 15, fontWeight: '500', color: theme.text }}>{item.label}</Text>
-            <GripVertical size={16} strokeWidth={2} color={theme.muted} style={{ marginLeft: 8 }} />
-          </Pressable>
+          <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 12,
+            borderBottomWidth: 1, borderBottomColor: theme.border }}>
+            <GripVertical size={16} strokeWidth={2} color={theme.muted} style={{ marginRight: 12 }} />
+            <Text style={{ flex: 1, fontSize: 15, fontWeight: '500',
+              color: item.visible ? theme.text : theme.muted }}>{item.label}</Text>
+            <Toggle value={item.visible} onChange={() => toggleSection(item.key)} />
+          </View>
         );
         return (
-          <Sheet title="Analytics Sections" onClose={() => setModal(null)}>
+          <Sheet title="Analytics Sections" onClose={() => setModal(null)} scrollEnabled={!isDragging}>
             <Text style={{ fontSize: 12, color: theme.muted, marginBottom: 12, lineHeight: 18 }}>
-              Tap to show or hide. Drag to reorder.
+              Drag to reorder. Toggle to show or hide.
             </Text>
             <DraggableList
               data={sectItems}
@@ -1014,6 +1017,8 @@ export default function SettingsScreen({ onNavigate }) {
               renderRow={renderRow}
               onReorder={newItems => setPrefs({ ...prefs, sectionsOrder: newItems.map(i => i.key) })}
               theme={theme}
+              onDragStart={() => setIsDragging(true)}
+              onDragEnd={() => setIsDragging(false)}
             />
           </Sheet>
         );

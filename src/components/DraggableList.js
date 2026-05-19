@@ -20,7 +20,7 @@ import { View, PanResponder } from 'react-native';
 
 const DEFAULT_ITEM_H = 46;
 
-export function DraggableList({ data, keyFn, renderRow, onReorder, theme, itemHeight = DEFAULT_ITEM_H }) {
+export function DraggableList({ data, keyFn, renderRow, onReorder, theme, itemHeight = DEFAULT_ITEM_H, onDragStart, onDragEnd }) {
   const [dragFrom,    setDragFrom]    = useState(null);
   const [insertBefore, setInsertBefore] = useState(null);
 
@@ -30,6 +30,11 @@ export function DraggableList({ data, keyFn, renderRow, onReorder, theme, itemHe
   const insertRef       = useRef(null);
   const dataRef         = useRef(data);
   dataRef.current = data;
+  // Keep callbacks in refs so the PanResponder (created once) always calls the latest version
+  const onDragStartRef  = useRef(onDragStart);
+  onDragStartRef.current = onDragStart;
+  const onDragEndRef    = useRef(onDragEnd);
+  onDragEndRef.current   = onDragEnd;
 
   const measure = () =>
     containerRef.current?.measure((_, __, ___, ____, _x, py) => { containerY.current = py; });
@@ -43,6 +48,7 @@ export function DraggableList({ data, keyFn, renderRow, onReorder, theme, itemHe
     onStartShouldSetPanResponder:  () => false,
     onMoveShouldSetPanResponder:   (_, gs) => Math.abs(gs.dy) > 8,
     onPanResponderGrant: (_, gs) => {
+      onDragStartRef.current?.();
       measure();
       const from = toItemIdx(gs.moveY - gs.dy);
       dragFromRef.current = from;
@@ -58,6 +64,7 @@ export function DraggableList({ data, keyFn, renderRow, onReorder, theme, itemHe
       }
     },
     onPanResponderRelease: () => {
+      onDragEndRef.current?.();
       const from = dragFromRef.current;
       const ins  = insertRef.current;
       if (from !== null && ins !== null) {
@@ -75,6 +82,7 @@ export function DraggableList({ data, keyFn, renderRow, onReorder, theme, itemHe
       setInsertBefore(null);
     },
     onPanResponderTerminate: () => {
+      onDragEndRef.current?.();
       dragFromRef.current = null;
       insertRef.current   = null;
       setDragFrom(null);

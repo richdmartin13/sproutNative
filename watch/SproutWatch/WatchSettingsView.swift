@@ -11,10 +11,10 @@ struct WatchSettingsView: View {
                 // ── Layout ────────────────────────────────────────────────
                 label("LAYOUT")
                 HStack(spacing: 6) {
-                    layoutBtn("list.bullet", "List", selected: !model.showGrid) {
+                    layoutBtn("list.bullet", activeIcon: "list.bullet", "List", selected: !model.showGrid) {
                         model.showGrid = false
                     }
-                    layoutBtn("square.grid.2x2", "Grid", selected: model.showGrid) {
+                    layoutBtn("square.grid.2x2", activeIcon: "square.grid.2x2.fill", "Grid", selected: model.showGrid) {
                         model.showGrid = true
                     }
                 }
@@ -67,11 +67,11 @@ struct WatchSettingsView: View {
     }
 
     @ViewBuilder
-    private func layoutBtn(_ icon: String, _ title: String, selected: Bool, action: @escaping () -> Void) -> some View {
+    private func layoutBtn(_ icon: String, activeIcon: String, _ title: String, selected: Bool, action: @escaping () -> Void) -> some View {
         let accent = model.watchPrefs.accentColor
         Button(action: action) {
             VStack(spacing: 3) {
-                Image(systemName: selected ? "\(icon).fill" : icon)
+                Image(systemName: selected ? activeIcon : icon)
                     .font(.system(size: 15, weight: .medium))
                 Text(title)
                     .font(.system(size: 10, weight: selected ? .semibold : .regular))

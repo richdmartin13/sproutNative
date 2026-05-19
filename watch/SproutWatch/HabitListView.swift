@@ -108,21 +108,14 @@ struct HabitListView: View {
             WatchSettingsView()
         }
         .toolbar {
-            // Leading: category filter — accent background, white icon
             ToolbarItem(placement: .topBarLeading) {
                 Button { showCategoryPicker = true } label: {
                     Image(systemName: model.selectedCategory != nil
                           ? "line.3.horizontal.decrease.circle.fill"
                           : "line.3.horizontal.decrease.circle")
-                        .font(.system(size: 13, weight: .semibold))
                         .foregroundStyle(.white)
-                        .padding(6)
-                        .background(model.watchPrefs.accentColor)
-                        .clipShape(Circle())
                 }
-                .buttonStyle(.plain)
             }
-            // Trailing: settings — plain white icon
             ToolbarItem(placement: .topBarTrailing) {
                 Button { showSettings = true } label: {
                     Image(systemName: "slider.horizontal.3").foregroundStyle(.white)
