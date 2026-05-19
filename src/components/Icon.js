@@ -18,6 +18,7 @@ import {
   Archive,
   Zap, ArrowRight, ArrowLeftRight,
   FlaskConical,
+  GripVertical,
 } from 'lucide-react-native';
 
 export {
@@ -32,4 +33,5 @@ export {
   Archive,
   Zap, ArrowRight, ArrowLeftRight,
   FlaskConical,
+  GripVertical,
 };

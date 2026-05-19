@@ -4,7 +4,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import * as DocumentPicker from 'expo-document-picker';
-import { ChevronRight, Download, Upload, Trash2, Palette, LayoutGrid, PenLine, BarChart3, Database, ScrollText, List, Grid, Clock, Undo2, Archive, FlaskConical, Home } from '../components/Icon.js';
+import { ChevronRight, Download, Upload, Trash2, Palette, LayoutGrid, PenLine, BarChart3, Database, ScrollText, List, Grid, Clock, Undo2, Archive, FlaskConical, Home, GripVertical } from '../components/Icon.js';
+import { DraggableList } from '../components/DraggableList.js';
 import { useApp } from '../context/AppContext.js';
 import { useTutorial } from '../context/TutorialContext.js';
 import { onWatchReachability } from '../watch/WatchBridge.js';
@@ -30,10 +31,20 @@ function MRow({ label, sub, value, onChange }) {
   );
 }
 
-const APP_VERSION = '1.0.29';
-const APP_BUILD  = 29;
+const APP_VERSION = '1.0.30';
+const APP_BUILD  = 30;
 
 const CHANGELOG = [
+  {
+    version: '1.0.30',
+    changes: [
+      'Watch: filter toolbar icon always white to match settings button; filled variant signals active category',
+      'Settings: Logging Fields and Analytics Sections unified — identical single-row design with circle toggle and drag handle',
+      'Settings: both lists support drag-to-reorder; logging field order persisted in prefs',
+      'Settings: removed separate Reorder Sections sub-modal — drag inline instead',
+      'Settings: no per-type chips in the main list — cleaner, less cluttered',
+    ],
+  },
   {
     version: '1.0.29',
     changes: [
@@ -477,10 +488,8 @@ export default function SettingsScreen({ onNavigate }) {
   const { startTutorial } = useTutorial();
   const insets = useSafeAreaInsets();
   const prefs  = data?.prefs || {};
-  const [modal,           setModal]        = useState(null);
-  const [sectionsEdit,    setSectionsEdit] = useState(false);
-  const [localSectOrder,  setLocalSectOrder] = useState(null);
-  const [tapHint,         setTapHint]      = useState('');
+  const [modal,    setModal]   = useState(null);
+  const [tapHint,  setTapHint] = useState('');
   const [settAlert,       setSettAlert]    = useState(null); // { title, message, buttons }
 
   const tapRef   = useRef(0);
@@ -571,15 +580,11 @@ export default function SettingsScreen({ onNavigate }) {
 
   // ── Analytics section order ──
   const sectionsOrder = prefs.sectionsOrder || DEFAULT_SECTIONS_ORDER;
-  const moveSection = (key, dir) => {
-    const arr  = [...sectionsOrder];
-    const idx  = arr.indexOf(key);
-    if (idx < 0) return;
-    const next = idx + dir;
-    if (next < 0 || next >= arr.length) return;
-    [arr[idx], arr[next]] = [arr[next], arr[idx]];
-    setPrefs({ ...prefs, sectionsOrder: arr });
-  };
+
+  // ── Logging fields order ──
+  const DEFAULT_FIELDS_ORDER = TRACKS.map(([k]) => k);
+  const fieldsOrder   = prefs.fieldsOrder || DEFAULT_FIELDS_ORDER;
+  const orderedTracks = fieldsOrder.map(k => TRACKS.find(([tk]) => tk === k)).filter(Boolean);
 
   const archivedHabits = (data?.habits || []).filter(h => h.archived);
 
@@ -813,161 +818,82 @@ export default function SettingsScreen({ onNavigate }) {
 
       {/* ── Logging Fields Modal ── */}
       {modal === 'fields' && (() => {
-        const shown  = TRACKS.filter(([k]) => prefs.track?.[k] !== false);
-        const hidden = TRACKS.filter(([k]) => prefs.track?.[k] === false);
-        const renderRow = ([k, l]) => {
-          const rawVal  = prefs.track?.[k];
-          const on      = rawVal !== false;
-          const perType = typeof rawVal === 'object' && rawVal !== null;
-          const ts      = perType ? rawVal : { go: true, st: true, ne: true };
-          const toggleField = () =>
-            setPrefs({ ...prefs, track: { ...prefs.track, [k]: on ? false : undefined } });
-          const toggleType = t => {
-            const cur  = perType ? rawVal : { go: true, st: true, ne: true };
-            const next = { ...cur, [t]: !cur[t] };
-            if (!next.go && !next.st && !next.ne) return;
-            setPrefs({ ...prefs, track: { ...prefs.track, [k]: (next.go && next.st && next.ne) ? undefined : next } });
-          };
-          return (
-            <Pressable key={k} onPress={toggleField}
-              style={({ pressed }) => ({
-                flexDirection: 'row', alignItems: 'flex-start', paddingVertical: 12,
-                borderBottomWidth: 1, borderBottomColor: theme.border,
-                opacity: pressed ? 0.7 : on ? 1 : 0.45,
-              })}>
-              <View style={{ width: 22, height: 22, borderRadius: 11, marginRight: 12, marginTop: 1,
-                backgroundColor: on ? theme.accent : 'transparent',
-                borderWidth: on ? 0 : 1.5, borderColor: theme.border,
-                alignItems: 'center', justifyContent: 'center' }}>
-                {on && <Text style={{ fontSize: 13, color: '#fff', fontWeight: '700', lineHeight: 16 }}>✓</Text>}
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 15, fontWeight: '500', color: theme.text }}>{l}</Text>
-                {on && (
-                  <View style={{ flexDirection: 'row', gap: 5, marginTop: 6 }}>
-                    {[['go','Start',theme.typeGo],['st','Stop',theme.typeSt],['ne','Neutral',theme.typeNe]].map(([t, lbl, col]) => {
-                      const active = ts[t] !== false;
-                      return (
-                        <Pressable key={t} onPress={() => toggleType(t)} hitSlop={4}
-                          style={{ paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8,
-                            backgroundColor: active ? col + '22' : theme.surface2,
-                            borderWidth: 1, borderColor: active ? col + '55' : theme.border }}>
-                          <Text style={{ fontSize: 11, fontWeight: '600', color: active ? col : theme.muted }}>{lbl}</Text>
-                        </Pressable>
-                      );
-                    })}
-                  </View>
-                )}
-              </View>
-            </Pressable>
-          );
-        };
+        const fieldsItems = orderedTracks.map(([k, l]) => ({
+          key: k, label: l, on: prefs.track?.[k] !== false,
+        }));
+        const toggleField = k => setPrefs({
+          ...prefs, track: { ...prefs.track, [k]: prefs.track?.[k] !== false ? false : undefined },
+        });
+        const renderRow = item => (
+          <Pressable onPress={() => toggleField(item.key)}
+            style={({ pressed }) => ({
+              flexDirection: 'row', alignItems: 'center', paddingVertical: 12,
+              borderBottomWidth: 1, borderBottomColor: theme.border,
+              opacity: pressed ? 0.7 : item.on ? 1 : 0.45,
+            })}>
+            <View style={{ width: 22, height: 22, borderRadius: 11, marginRight: 12,
+              backgroundColor: item.on ? theme.accent : 'transparent',
+              borderWidth: item.on ? 0 : 1.5, borderColor: theme.border,
+              alignItems: 'center', justifyContent: 'center' }}>
+              {item.on && <Text style={{ fontSize: 13, color: '#fff', fontWeight: '700', lineHeight: 16 }}>✓</Text>}
+            </View>
+            <Text style={{ flex: 1, fontSize: 15, fontWeight: '500', color: theme.text }}>{item.label}</Text>
+            <GripVertical size={16} strokeWidth={2} color={theme.muted} style={{ marginLeft: 8 }} />
+          </Pressable>
+        );
         return (
           <Sheet title="Logging Fields" onClose={() => setModal(null)}>
-            {shown.map(renderRow)}
-            {hidden.length > 0 && (
-              <>
-                <Text style={{ fontSize: 11, fontWeight: '700', color: theme.muted,
-                  textTransform: 'uppercase', letterSpacing: 0.7, paddingTop: 16, paddingBottom: 6 }}>
-                  Hidden
-                </Text>
-                {hidden.map(renderRow)}
-              </>
-            )}
+            <Text style={{ fontSize: 12, color: theme.muted, marginBottom: 12, lineHeight: 18 }}>
+              Tap to show or hide. Drag to reorder.
+            </Text>
+            <DraggableList
+              data={fieldsItems}
+              keyFn={item => item.key}
+              renderRow={renderRow}
+              onReorder={newItems => setPrefs({ ...prefs, fieldsOrder: newItems.map(i => i.key) })}
+              theme={theme}
+            />
           </Sheet>
         );
       })()}
 
       {/* ── Analytics Sections Modal ── */}
-      {modal === 'sections' && !sectionsEdit && (() => {
-        const visible = sectionsOrder.filter(k => prefs.sections?.[k] !== false);
-        const hidden  = sectionsOrder.filter(k => prefs.sections?.[k] === false);
-        const toggleSection = k => setPrefs({ ...prefs, sections: { ...prefs.sections, [k]: !(prefs.sections?.[k] !== false) } });
-        const renderRow = (k, isHidden) => (
-          <Pressable key={k} onPress={() => toggleSection(k)}
+      {modal === 'sections' && (() => {
+        const sectItems = sectionsOrder.map(k => ({
+          key: k, label: SECTIONS_MAP[k] || k, visible: prefs.sections?.[k] !== false,
+        }));
+        const toggleSection = k => setPrefs({
+          ...prefs, sections: { ...prefs.sections, [k]: prefs.sections?.[k] !== false ? false : undefined },
+        });
+        const renderRow = item => (
+          <Pressable onPress={() => toggleSection(item.key)}
             style={({ pressed }) => ({
-              flexDirection:'row', alignItems:'center', paddingVertical:12,
-              borderBottomWidth:1, borderBottomColor:theme.border,
-              opacity: pressed ? 0.7 : isHidden ? 0.45 : 1,
+              flexDirection: 'row', alignItems: 'center', paddingVertical: 12,
+              borderBottomWidth: 1, borderBottomColor: theme.border,
+              opacity: pressed ? 0.7 : item.visible ? 1 : 0.45,
             })}>
-            <View style={{ width:22, height:22, borderRadius:11, marginRight:12,
-              backgroundColor: isHidden ? theme.surface2 : theme.accent,
-              borderWidth: isHidden ? 1.5 : 0, borderColor: theme.border,
-              alignItems:'center', justifyContent:'center' }}>
-              {!isHidden && <Text style={{ fontSize:13, color:'#fff', fontWeight:'700', lineHeight:16 }}>✓</Text>}
+            <View style={{ width: 22, height: 22, borderRadius: 11, marginRight: 12,
+              backgroundColor: item.visible ? theme.accent : 'transparent',
+              borderWidth: item.visible ? 0 : 1.5, borderColor: theme.border,
+              alignItems: 'center', justifyContent: 'center' }}>
+              {item.visible && <Text style={{ fontSize: 13, color: '#fff', fontWeight: '700', lineHeight: 16 }}>✓</Text>}
             </View>
-            <Text style={{ flex:1, fontSize:15, fontWeight:'500', color:theme.text }}>
-              {SECTIONS_MAP[k] || k}
-            </Text>
+            <Text style={{ flex: 1, fontSize: 15, fontWeight: '500', color: theme.text }}>{item.label}</Text>
+            <GripVertical size={16} strokeWidth={2} color={theme.muted} style={{ marginLeft: 8 }} />
           </Pressable>
         );
         return (
           <Sheet title="Analytics Sections" onClose={() => setModal(null)}>
-            {visible.map(k => renderRow(k, false))}
-            {hidden.length > 0 && (
-              <>
-                <Text style={{ fontSize:11, fontWeight:'700', color:theme.muted, textTransform:'uppercase',
-                  letterSpacing:0.7, paddingTop:16, paddingBottom:6 }}>Hidden</Text>
-                {hidden.map(k => renderRow(k, true))}
-              </>
-            )}
-            <Pressable onPress={() => setSectionsEdit(true)}
-              style={({ pressed }) => ({
-                flexDirection:'row', alignItems:'center', justifyContent:'center', gap:8,
-                marginTop:18, paddingVertical:12, borderRadius:14,
-                borderWidth:1, borderColor:theme.border,
-                backgroundColor: pressed ? theme.surface2 : 'transparent',
-              })}>
-              <Text style={{ fontSize:14, fontWeight:'600', color:theme.text }}>Reorder Sections</Text>
-            </Pressable>
-          </Sheet>
-        );
-      })()}
-
-      {/* ── Sections Reorder ── */}
-      {modal === 'sections' && sectionsEdit && (() => {
-        const order = localSectOrder || sectionsOrder;
-        const move = (k, dir) => {
-          const arr = [...order];
-          const idx = arr.indexOf(k);
-          const nxt = idx + dir;
-          if (nxt < 0 || nxt >= arr.length) return;
-          [arr[idx], arr[nxt]] = [arr[nxt], arr[idx]];
-          setLocalSectOrder(arr);
-        };
-        return (
-          <Sheet title="Reorder Sections"
-            onClose={() => { setSectionsEdit(false); setLocalSectOrder(null); }}>
-            {order.map((k, idx) => (
-              <View key={k} style={{ flexDirection:'row', alignItems:'center', paddingVertical:10,
-                borderBottomWidth:1, borderBottomColor:theme.border }}>
-                <Text style={{ flex:1, fontSize:15, fontWeight:'500', color:theme.text }}>
-                  {SECTIONS_MAP[k] || k}
-                </Text>
-                <View style={{ flexDirection:'row', gap:2 }}>
-                  <Pressable onPress={() => move(k, -1)} disabled={idx === 0}
-                    style={{ padding:8, opacity: idx === 0 ? 0.25 : 1 }}>
-                    <Text style={{ fontSize:19, color:theme.text }}>↑</Text>
-                  </Pressable>
-                  <Pressable onPress={() => move(k, 1)} disabled={idx === order.length - 1}
-                    style={{ padding:8, opacity: idx === order.length - 1 ? 0.25 : 1 }}>
-                    <Text style={{ fontSize:19, color:theme.text }}>↓</Text>
-                  </Pressable>
-                </View>
-              </View>
-            ))}
-            <Pressable onPress={() => {
-              setPrefs({ ...prefs, sectionsOrder: order });
-              setSectionsEdit(false);
-              setLocalSectOrder(null);
-            }}
-              style={({ pressed }) => ({
-                marginTop:18, paddingVertical:13, borderRadius:14,
-                backgroundColor: theme.accent, alignItems:'center',
-                opacity: pressed ? 0.85 : 1,
-              })}>
-              <Text style={{ fontSize:14, fontWeight:'700', color:'#fff' }}>Save Order</Text>
-            </Pressable>
+            <Text style={{ fontSize: 12, color: theme.muted, marginBottom: 12, lineHeight: 18 }}>
+              Tap to show or hide. Drag to reorder.
+            </Text>
+            <DraggableList
+              data={sectItems}
+              keyFn={item => item.key}
+              renderRow={renderRow}
+              onReorder={newItems => setPrefs({ ...prefs, sectionsOrder: newItems.map(i => i.key) })}
+              theme={theme}
+            />
           </Sheet>
         );
       })()}
