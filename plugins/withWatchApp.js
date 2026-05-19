@@ -152,7 +152,6 @@ async function copyFiles(cfg) {
     cp(path.join(watchSrc, f), path.join(watchDst, f));
   }
 
-  const bundleId   = cfg.ios?.bundleIdentifier ?? 'sprout.richdmart.in';
   const buildNumber = String(cfg.ios?.buildNumber ?? '1');
   fs.writeFileSync(path.join(watchDst, 'Info.plist'), watchInfoPlist(bundleId, buildNumber));
 
@@ -278,8 +277,6 @@ function modifyProject(cfg) {
 
   // ── STEP 1b: iOS widget extension ─────────────────────────────────────────
   const allTargets = Object.values(project.pbxNativeTargetSection());
-  const bundleId   = cfg.ios?.bundleIdentifier ?? 'sprout.richdmart.in';
-  const teamId     = cfg.ios?.teamId;
 
   if (!allTargets.some(t => t.name === WIDGET_TARGET || t.name === `"${WIDGET_TARGET}"`)) {
     const widgetId     = `${bundleId}.${WIDGET_TARGET}`;
@@ -324,7 +321,6 @@ function modifyProject(cfg) {
   if (!WATCH_READY) return cfg;
 
   // ── STEP 2: Watch target (idempotent via target-name check) ───────────────
-  const allTargets = Object.values(project.pbxNativeTargetSection());
   if (allTargets.some(t => t.name === WATCH_TARGET || t.name === `"${WATCH_TARGET}"`)) return cfg;
 
   const watchTarget = project.addTarget(WATCH_TARGET, 'watch2_app', WATCH_TARGET, watchId);
