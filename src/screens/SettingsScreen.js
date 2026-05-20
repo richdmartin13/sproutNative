@@ -32,10 +32,20 @@ function MRow({ label, sub, value, onChange }) {
   );
 }
 
-const APP_VERSION = '1.0.42';
-const APP_BUILD  = 42;
+const APP_VERSION = '1.0.43';
+const APP_BUILD  = 43;
 
 const CHANGELOG = [
+  {
+    version: '1.0.43',
+    changes: [
+      'Analytics: Paused chip moved to end of categories row — consistent with Home screen behavior',
+      'Analytics: "Show paused habits" toggle in Layout & Behavior — includes time-gated habits in all charts',
+      'Analytics: heatmap key (Less → More color scale) displayed below the activity grid',
+      'Settings: changelog collapses into an accordion; latest version open by default',
+      'Tutorial: action-step guidance pill moves to top of screen, matching the toast banner style',
+    ],
+  },
   {
     version: '1.0.42',
     changes: [
