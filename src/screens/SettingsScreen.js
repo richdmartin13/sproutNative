@@ -33,9 +33,19 @@ function MRow({ label, sub, value, onChange }) {
 }
 
 const APP_VERSION = '1.0.40';
-const APP_BUILD  = 40;
+const APP_BUILD  = 41;
 
 const CHANGELOG = [
+  {
+    version: '1.0.41',
+    changes: [
+      'Home: Paused chip moved to categories row; neutral gray; mutually exclusive with category selection; type chips stay active while Paused is on',
+      'Notifications: import results now appear as a non-blocking toast banner at the top of the screen',
+      'Liquid Glass: all-or-nothing fallback — if any piece of the glass layer fails to load, the entire UI falls back to standard layout',
+      'Settings: Glass Chips merged into the Liquid Glass toggle; Layout & Behavior reordered with Display section at the bottom',
+      'Fix: modal touch intercept in Expo resolved — AppModal no longer leaves ghost touches after dismissal',
+    ],
+  },
   {
     version: '1.0.40',
     changes: [
