@@ -12,7 +12,7 @@ import {
   coOccurrenceFor, resistRate, easeAvgs, timeOfDayBuckets,
   significantCorrelations, stopInfluences,
 } from '../lib/stats.js';
-import { heatColor, TYPE_COLORS } from '../lib/theme.js';
+import { heatColor, TYPE_COLORS, SCHEMES } from '../lib/theme.js';
 import { LiquidGlassView, isLiquidGlassSupported } from '../lib/liquidGlass.js';
 import { FONTS } from '../lib/fonts.js';
 
@@ -117,6 +117,8 @@ function FilterBar({ habits, category, setCategory, types, setTypes, gatedCount 
         style={{ paddingHorizontal:20, marginBottom:6 }} contentContainerStyle={{ paddingRight:18, alignItems:'center' }}>
         {chip('All', !category, null, () => setCategory(''))}
         {cats.map(c => chip(c, category===c, null, () => setCategory(category===c ? '' : c)))}
+        {gatedCount > 0 && chip('Paused', category===GATED_KEY, '#888888',
+          () => setCategory(category===GATED_KEY ? '' : GATED_KEY))}
       </ScrollView>
       <ScrollView horizontal showsHorizontalScrollIndicator={false}
         style={{ paddingHorizontal:18 }} contentContainerStyle={{ paddingRight:18, alignItems:'center' }}>
@@ -126,8 +128,6 @@ function FilterBar({ habits, category, setCategory, types, setTypes, gatedCount 
             if(next.length>0) setTypes(next);
           })
         )}
-        {gatedCount > 0 && chip('Paused', category===GATED_KEY, theme.muted,
-          () => setCategory(category===GATED_KEY ? '' : GATED_KEY))}
       </ScrollView>
     </View>
   );
@@ -172,6 +172,24 @@ function Heatmap({ habits, prefs, onDateClick }) {
         ))}
       </View>
     </ScrollView>
+  );
+}
+
+// ─── Heatmap legend ──────────────────────────────────────────────────────────
+function HeatmapKey({ prefs }) {
+  const { theme } = useApp();
+  const heat = (SCHEMES[prefs?.scheme] || SCHEMES.sprout).heat;
+  // Show 5 evenly-spaced swatches: indices 1, 3, 5, 7, 9
+  const swatches = [1, 3, 5, 7, 9].map(i => heat[i]);
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end',
+      marginTop: 8, gap: 4 }}>
+      <Text style={{ fontSize: 10, color: theme.muted, marginRight: 2 }}>Less</Text>
+      {swatches.map((color, i) => (
+        <View key={i} style={{ width: 12, height: 12, borderRadius: 3, backgroundColor: color }} />
+      ))}
+      <Text style={{ fontSize: 10, color: theme.muted, marginLeft: 2 }}>More</Text>
+    </View>
   );
 }
 
@@ -684,11 +702,13 @@ export default function AnalyticsScreen() {
     return habitsAll.filter(h => h.category && !isCatVisible(h.category, gates));
   }, [habitsAll, prefs.timeGates]);
 
-  // Habits visible under normal time gating (excludes gated by default)
+  // Habits visible under normal time gating. When analyticsShowPaused is on, gated habits
+  // are included in the base set so all data is visible at once.
   const allHabits = useMemo(() => {
+    if (prefs.analyticsShowPaused) return habitsAll;
     const gates = prefs.timeGates || {};
     return habitsAll.filter(h => !h.category || isCatVisible(h.category, gates));
-  }, [habitsAll, prefs.timeGates]);
+  }, [habitsAll, prefs.timeGates, prefs.analyticsShowPaused]);
 
   // Reset category filter if it no longer applies
   useEffect(() => {
@@ -729,6 +749,7 @@ export default function AnalyticsScreen() {
         return (
           <Section key="heatmap" title="Activity Heatmap" subtitle="tap a day to focus it">
             <Heatmap habits={filtered} prefs={prefs} onDateClick={d => { setMode('day'); setDate(d); }} />
+            <HeatmapKey prefs={prefs} />
           </Section>
         );
       case 'hourly':

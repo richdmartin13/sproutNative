@@ -821,6 +821,12 @@ export default function SettingsScreen({ onNavigate }) {
   const prefs  = data?.prefs || {};
   const [modal,    setModal]   = useState(null);
   const [tapHint,  setTapHint] = useState('');
+  const [expandedVersions, setExpandedVersions] = useState(() => new Set([CHANGELOG[0]?.version]));
+  const toggleVersion = v => setExpandedVersions(prev => {
+    const next = new Set(prev);
+    next.has(v) ? next.delete(v) : next.add(v);
+    return next;
+  });
   const [settAlert,       setSettAlert]    = useState(null); // { title, message, buttons }
   const [pendingTutorial, setPendingTutorial] = useState(null);
 
@@ -1058,6 +1064,8 @@ export default function SettingsScreen({ onNavigate }) {
             textTransform:'uppercase', letterSpacing:0.7, paddingTop:18, paddingBottom:4 }}>Analytics</Text>
           <MRow label="Open in Day view" sub="Analytics defaults to Day instead of All-time"
             value={prefs.insDay} onChange={v => setP({ insDay: v })} />
+          <MRow label="Show paused habits" sub="Include time-gated habits in analytics even when their schedule is inactive"
+            value={!!prefs.analyticsShowPaused} onChange={v => setP({ analyticsShowPaused: v })} />
           <Text style={{ fontSize:11, fontWeight:'700', color:theme.muted,
             textTransform:'uppercase', letterSpacing:0.7, paddingTop:18, paddingBottom:4 }}>Display</Text>
           <MRow label="Streak badges" sub="Streak count on start/neutral; days-since on stop"
@@ -1458,20 +1466,32 @@ export default function SettingsScreen({ onNavigate }) {
             </Pressable>
           </View>
 
-          {/* Changelog inline */}
+          {/* Changelog accordion */}
           <View style={{ paddingTop:16 }}>
             <Text style={{ fontSize:11, fontWeight:'700', color:theme.muted,
-              textTransform:'uppercase', letterSpacing:0.7, marginBottom:14 }}>Changelog</Text>
-            {CHANGELOG.map(b => (
-              <View key={b.version} style={{ marginBottom:18 }}>
-                <Text style={{ fontSize:12, fontWeight:'700', color:theme.accent,
-                  marginBottom:6, fontFamily:FONTS.mono }}>{b.version}</Text>
-                {b.changes.map((c, i) => (
-                  <Text key={i} style={{ fontSize:12.5, color:theme.text2, lineHeight:19,
-                    paddingLeft:10, marginBottom:3 }}>· {c}</Text>
-                ))}
-              </View>
-            ))}
+              textTransform:'uppercase', letterSpacing:0.7, marginBottom:8 }}>Changelog</Text>
+            {CHANGELOG.map((b, idx) => {
+              const open = expandedVersions.has(b.version);
+              return (
+                <View key={b.version}>
+                  <Pressable onPress={() => toggleVersion(b.version)}
+                    style={{ flexDirection:'row', alignItems:'center', paddingVertical:11,
+                      borderTopWidth: idx === 0 ? 0 : 1, borderTopColor:theme.border }}>
+                    <Text style={{ flex:1, fontSize:13, fontWeight:'700', color:theme.accent,
+                      fontFamily:FONTS.mono }}>{b.version}</Text>
+                    <Text style={{ fontSize:11, color:theme.muted }}>{open ? '▲' : '▼'}</Text>
+                  </Pressable>
+                  {open && (
+                    <View style={{ paddingBottom:8 }}>
+                      {b.changes.map((c, i) => (
+                        <Text key={i} style={{ fontSize:12.5, color:theme.text2, lineHeight:19,
+                          paddingLeft:10, marginBottom:3 }}>· {c}</Text>
+                      ))}
+                    </View>
+                  )}
+                </View>
+              );
+            })}
           </View>
         </Sheet>
       )}

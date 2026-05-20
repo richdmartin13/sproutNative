@@ -24,9 +24,11 @@ export default function TutorialCard() {
   const insets = useSafeAreaInsets();
   const liquidGlass = theme.liquidGlassOn && isLiquidGlassSupported && LiquidGlassView;
 
-  const slideY   = useRef(new Animated.Value(H)).current;
-  const bgAlpha  = useRef(new Animated.Value(0)).current;
-  const dotPulse = useRef(new Animated.Value(1)).current;
+  const slideY    = useRef(new Animated.Value(H)).current;
+  const bgAlpha   = useRef(new Animated.Value(0)).current;
+  const dotPulse  = useRef(new Animated.Value(1)).current;
+  const pillSlideY  = useRef(new Animated.Value(-150)).current;
+  const pillOpacity = useRef(new Animated.Value(0)).current;
   const prevShowRef = useRef(false);
 
   const isAction = currentStep?.type === 'action';
@@ -47,6 +49,17 @@ export default function TutorialCard() {
     prevShowRef.current = showSheet;
   }, [showSheet, step]);
 
+  // Slide pill in from top when it becomes visible
+  useEffect(() => {
+    if (!showPill) return;
+    pillSlideY.setValue(-150);
+    pillOpacity.setValue(0);
+    Animated.parallel([
+      Animated.spring(pillSlideY, { toValue: 0, tension: 68, friction: 11, useNativeDriver: true }),
+      Animated.timing(pillOpacity, { toValue: 1, duration: 180, useNativeDriver: true }),
+    ]).start();
+  }, [showPill, step]);
+
   // Pulse dot for action step pill
   useEffect(() => {
     if (!showPill) { dotPulse.stopAnimation(); return; }
@@ -64,14 +77,16 @@ export default function TutorialCard() {
 
   const IconComp = ICON_MAP[currentStep.icon];
 
-  // ── Action step: non-blocking floating pill ──────────────────────────────────
+  // ── Action step: non-blocking toast pill at the top ─────────────────────────
   if (showPill) {
     return (
       <View pointerEvents="box-none" style={StyleSheet.absoluteFill}>
-        <View pointerEvents="box-none" style={{
+        <Animated.View pointerEvents="box-none" style={{
           position: 'absolute',
-          bottom: insets.bottom + 112,
+          top: insets.top + 10,
           left: 16, right: 16,
+          transform: [{ translateY: pillSlideY }],
+          opacity: pillOpacity,
         }}>
           <View style={{
             flexDirection: 'row', alignItems: 'center', gap: 12,
@@ -92,7 +107,7 @@ export default function TutorialCard() {
               <Text style={{ fontSize: 13, color: theme.muted, fontWeight: '500' }}>Skip</Text>
             </Pressable>
           </View>
-        </View>
+        </Animated.View>
       </View>
     );
   }
