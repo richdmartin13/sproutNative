@@ -11,7 +11,7 @@ private struct WH: Codable {
     let daysSince: Int?
 }
 
-private struct WatchHabitRow: Identifiable {
+struct WatchHabitRow: Identifiable {
     let id: String   // habit name used as stable ID
     let done: Bool
     var name: String { id }
