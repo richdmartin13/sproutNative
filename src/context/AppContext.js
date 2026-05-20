@@ -14,8 +14,9 @@ export function AppProvider({ children }) {
   const [data, setData] = useState(null);
   const [ready, setReady] = useState(false);
   const [pendingImportUrl, setPendingImportUrl] = useState(null);
-  const [sysAlert, setSysAlert] = useState(null); // { title, message }
-  const clearSysAlert = useCallback(() => setSysAlert(null), []);
+  const [toast, setToast] = useState(null); // { title?, message? }
+  const showToast  = useCallback((t) => setToast(typeof t === 'string' ? { message: t } : t), []);
+  const clearToast = useCallback(() => setToast(null), []);
 
   // Ephemeral test dataset — mutable while useTestData is on, discarded when toggled off
   const [testHabitsState, setTestHabitsState] = useState(null);
@@ -38,12 +39,12 @@ export function AppProvider({ children }) {
         const text = await new ExpoFile(url).text();
         const { data: next, summary } = importJson(text, data);
         setData(next);
-        setSysAlert({
+        showToast({
           title: 'Import complete',
           message: `Added ${summary.newHabits} habit${summary.newHabits !== 1 ? 's' : ''} and ${summary.newLogs} log${summary.newLogs !== 1 ? 's' : ''}.`,
         });
       } catch (e) {
-        setSysAlert({ title: 'Import failed', message: 'The file could not be read or is not valid Sprout data.' });
+        showToast({ title: 'Import failed', message: 'The file could not be read or is not valid Sprout data.' });
       }
     })();
   }, [pendingImportUrl, data, ready]);
@@ -209,7 +210,7 @@ export function AppProvider({ children }) {
   }, []);
 
   return (
-    <Ctx.Provider value={{ data, ready, theme, habits, setPrefs, upsertHabit, deleteHabit, archiveHabit, restoreHabit, addLog, updateLog, deleteLog, setData, sysAlert, clearSysAlert }}>
+    <Ctx.Provider value={{ data, ready, theme, habits, setPrefs, upsertHabit, deleteHabit, archiveHabit, restoreHabit, addLog, updateLog, deleteLog, setData, toast, showToast, clearToast }}>
       {children}
     </Ctx.Provider>
   );

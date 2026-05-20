@@ -1025,7 +1025,21 @@ export default function SettingsScreen({ onNavigate }) {
       {modal === 'behavior' && (
         <Sheet title="Layout & Behavior" onClose={() => setModal(null)}>
           <Text style={{ fontSize:11, fontWeight:'700', color:theme.muted,
-            textTransform:'uppercase', letterSpacing:0.7, paddingBottom:4 }}>Display</Text>
+            textTransform:'uppercase', letterSpacing:0.7, paddingBottom:4 }}>Logging</Text>
+          <MRow label="Quick log" sub="Tap card = instant log; long-press to open detail"
+            value={!!prefs.quickLog} onChange={v => setP({ quickLog: v })} />
+          <MRow label="Repeat last by default" sub="Auto-fill most recent log's details on tap"
+            value={prefs.repeatLastDefault} onChange={v => setP({ repeatLastDefault: v })} />
+          <MRow label="Carry last mood & energy" sub="Copy mood and energy from your most recent log"
+            value={prefs.repeatLastMoodEnergy} onChange={v => setP({ repeatLastMoodEnergy: v })} />
+          <MRow label="Auto-tag recent habits" sub="Add habits logged in the last 5 min as tags"
+            value={prefs.autoTagRecentHabits} onChange={v => setP({ autoTagRecentHabits: v })} />
+          <Text style={{ fontSize:11, fontWeight:'700', color:theme.muted,
+            textTransform:'uppercase', letterSpacing:0.7, paddingTop:18, paddingBottom:4 }}>Analytics</Text>
+          <MRow label="Open in Day view" sub="Analytics defaults to Day instead of All-time"
+            value={prefs.insDay} onChange={v => setP({ insDay: v })} />
+          <Text style={{ fontSize:11, fontWeight:'700', color:theme.muted,
+            textTransform:'uppercase', letterSpacing:0.7, paddingTop:18, paddingBottom:4 }}>Display</Text>
           <MRow label="Streak badges" sub="Streak count on start/neutral; days-since on stop"
             value={prefs.showStreak} onChange={v => setP({ showStreak: v })} />
           <MRow label="Compact cards" sub="Tighter padding on habit cards"
@@ -1075,20 +1089,6 @@ export default function SettingsScreen({ onNavigate }) {
               })}
             </View>
           </View>
-          <Text style={{ fontSize:11, fontWeight:'700', color:theme.muted,
-            textTransform:'uppercase', letterSpacing:0.7, paddingTop:18, paddingBottom:4 }}>Logging</Text>
-          <MRow label="Quick log" sub="Tap card = instant log; long-press to open detail"
-            value={!!prefs.quickLog} onChange={v => setP({ quickLog: v })} />
-          <MRow label="Repeat last by default" sub="Auto-fill most recent log's details on tap"
-            value={prefs.repeatLastDefault} onChange={v => setP({ repeatLastDefault: v })} />
-          <MRow label="Carry last mood & energy" sub="Copy mood and energy from your most recent log"
-            value={prefs.repeatLastMoodEnergy} onChange={v => setP({ repeatLastMoodEnergy: v })} />
-          <MRow label="Auto-tag recent habits" sub="Add habits logged in the last 5 min as tags"
-            value={prefs.autoTagRecentHabits} onChange={v => setP({ autoTagRecentHabits: v })} />
-          <Text style={{ fontSize:11, fontWeight:'700', color:theme.muted,
-            textTransform:'uppercase', letterSpacing:0.7, paddingTop:18, paddingBottom:4 }}>Analytics</Text>
-          <MRow label="Open in Day view" sub="Analytics defaults to Day instead of All-time"
-            value={prefs.insDay} onChange={v => setP({ insDay: v })} />
         </Sheet>
       )}
 
@@ -1344,13 +1344,9 @@ export default function SettingsScreen({ onNavigate }) {
             value={!!prefs.dev?.showIds}
             onChange={v => setDev({ showIds: v })} />
           <MRow label="Liquid Glass"
-            sub="iOS 26+ glass on cards and nav. Install @callstack/liquid-glass and update src/lib/liquidGlass.js to activate."
+            sub="Uses iOS 26 glass on cards, chips, nav, and sheets when supported. Disable to always use the standard layout."
             value={prefs.dev?.liquidGlass !== false}
             onChange={v => setDev({ liquidGlass: v })} />
-          <MRow label="Glass Chips"
-            sub="Apply liquid glass to filter and type chips everywhere"
-            value={prefs.dev?.glassChips !== false}
-            onChange={v => setDev({ glassChips: v })} />
         </Sheet>
       )}
 

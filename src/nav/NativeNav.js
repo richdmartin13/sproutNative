@@ -18,6 +18,7 @@ import AnalyticsScreen from '../screens/AnalyticsScreen.js';
 import SettingsScreen  from '../screens/SettingsScreen.js';
 import BottomNav     from '../components/BottomNav.js';
 import AppModal      from '../components/AppModal.js';
+import Toast         from '../components/Toast.js';
 import TutorialCard  from '../components/TutorialCard.js';
 import HabitSheet    from '../sheets/HabitSheet.js';
 import LogSheet      from '../sheets/LogSheet.js';
@@ -197,7 +198,7 @@ function HomeStack() {
 
 // ─── Root navigator ───────────────────────────────────────────────────────────
 export default function NativeNav() {
-  const { habits, data, theme, ready, sysAlert, clearSysAlert, upsertHabit, deleteHabit, archiveHabit, addLog, updateLog, deleteLog, setPrefs } = useApp();
+  const { habits, data, theme, ready, upsertHabit, deleteHabit, archiveHabit, addLog, updateLog, deleteLog, setPrefs } = useApp();
   const { startTutorial, advanceOnAction } = useTutorial();
   const { width } = useWindowDimensions();
   const isTablet  = width >= 768;
@@ -379,15 +380,6 @@ export default function NativeNav() {
           );
         })()}
 
-        {/* ── System alert (Share Sheet import result) ─────────────────── */}
-        <AppModal
-          visible={!!sysAlert}
-          title={sysAlert?.title}
-          message={sysAlert?.message}
-          buttons={[{ text:'OK', onPress: clearSysAlert }]}
-          onDismiss={clearSysAlert}
-        />
-
         {/* ── Confirm dialog (archive / delete) ────────────────────────── */}
         <AppModal
           visible={!!confirm}
@@ -398,6 +390,7 @@ export default function NativeNav() {
         />
 
         <TutorialCard />
+        <Toast />
       </View>
     </NavCtx.Provider>
   );

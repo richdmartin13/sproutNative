@@ -67,7 +67,7 @@ const GATED_KEY = '__gated__';
 function FilterBar({ habits, category, setCategory, types, setTypes, gatedCount = 0 }) {
   const { theme } = useApp();
   const d = theme.isDark;
-  const glassChips = theme.glassChipsOn && isLiquidGlassSupported && LiquidGlassView;
+  const glassChips = theme.liquidGlassOn && isLiquidGlassSupported && LiquidGlassView;
   const cats = useMemo(() => [...new Set(habits.map(h=>h.category).filter(Boolean))],[habits]);
   const TC = { go:theme.typeGo, st:theme.typeSt, ne:theme.typeNe };
   const chip = (label, active, color, onPress) => {

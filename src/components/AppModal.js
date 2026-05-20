@@ -79,46 +79,47 @@ export default function AppModal({ visible, title, message, buttons = [], onDism
     }
   }, [visible]);
 
-  if (!visible) return null;
-
   const liquidGlass = theme.liquidGlassOn && isLiquidGlassSupported && LiquidGlassView;
   const cancelBtn  = buttons.find(b => b.style === 'cancel');
   const actionBtns = buttons.filter(b => b.style !== 'cancel');
 
+  // Always render Modal so the native layer can properly release touch capture on dismiss.
+  // Guarding with an early `return null` leaves ghost touch interceptors in Expo.
   return (
     <Modal transparent animationType="none" visible={visible} statusBarTranslucent onRequestClose={onDismiss}>
-      <Animated.View style={[StyleSheet.absoluteFill, {
-        backgroundColor: d ? 'rgba(0,0,0,0.65)' : 'rgba(0,0,0,0.42)',
-        opacity: bgAnim,
-        justifyContent: 'center', alignItems: 'center', padding: 28,
-      }]}>
-        <Pressable style={StyleSheet.absoluteFill} onPress={onDismiss} />
+      {visible && (
+        <Animated.View style={[StyleSheet.absoluteFill, {
+          backgroundColor: d ? 'rgba(0,0,0,0.65)' : 'rgba(0,0,0,0.42)',
+          opacity: bgAnim,
+          justifyContent: 'center', alignItems: 'center', padding: 28,
+        }]}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={onDismiss} />
 
-        <Animated.View style={{
-          width: '100%', maxWidth: 340,
-          transform: [{ scale: scaleAnim }],
-          borderRadius: 30,
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: 8 },
-          shadowOpacity: d ? 0.35 : 0.20,
-          shadowRadius: 24,
-          elevation: 20,
-        }}>
-          {/* Card shell — always solid background; liquid glass layered on top */}
-          <View style={{
-            borderRadius: 30, overflow: 'hidden',
-            backgroundColor: d ? theme.solid2 : theme.solid,
-            borderWidth: 1, borderColor: d ? theme.accentBorder : theme.border,
+          <Animated.View style={{
+            width: '100%', maxWidth: 340,
+            transform: [{ scale: scaleAnim }],
+            borderRadius: 30,
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 8 },
+            shadowOpacity: d ? 0.35 : 0.20,
+            shadowRadius: 24,
+            elevation: 20,
           }}>
-            {liquidGlass && (
-              <LiquidGlassView style={{
-                position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderRadius: 30,
-              }} colorScheme={d ? 'dark' : 'light'} />
-            )}
-            <ModalContent d={d} theme={theme} title={title} message={message} actionBtns={actionBtns} cancelBtn={cancelBtn} />
-          </View>
+            <View style={{
+              borderRadius: 30, overflow: 'hidden',
+              backgroundColor: d ? theme.solid2 : theme.solid,
+              borderWidth: 1, borderColor: d ? theme.accentBorder : theme.border,
+            }}>
+              {liquidGlass && (
+                <LiquidGlassView style={{
+                  position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderRadius: 30,
+                }} colorScheme={d ? 'dark' : 'light'} />
+              )}
+              <ModalContent d={d} theme={theme} title={title} message={message} actionBtns={actionBtns} cancelBtn={cancelBtn} />
+            </View>
+          </Animated.View>
         </Animated.View>
-      </Animated.View>
+      )}
     </Modal>
   );
 }

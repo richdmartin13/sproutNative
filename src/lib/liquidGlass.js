@@ -14,9 +14,15 @@ let isLiquidGlassSupported = false;
 if (!isExpoGo && TurboModuleRegistry.get('NativeLiquidGlassModule')) {
   try {
     const lg = require('@callstack/liquid-glass');
-    LiquidGlassView          = lg.LiquidGlassView          ?? null;
-    LiquidGlassContainerView = lg.LiquidGlassContainerView ?? null;
-    isLiquidGlassSupported   = lg.isLiquidGlassSupported   ?? false;
+    const view      = lg.LiquidGlassView          ?? null;
+    const container = lg.LiquidGlassContainerView ?? null;
+    const supported = lg.isLiquidGlassSupported   ?? false;
+    // All three must be present — if any piece is missing, stay with legacy everywhere
+    if (supported && view && container) {
+      LiquidGlassView          = view;
+      LiquidGlassContainerView = container;
+      isLiquidGlassSupported   = true;
+    }
   } catch (_) {
     // Native module present but JS-side failed — stay with null stubs
   }

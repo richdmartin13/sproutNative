@@ -56,7 +56,6 @@ export function getTheme(prefs = {}, systemDark = true) {
     accentGlow: s.glow, grad: s.grad, heat: s.heat,
     shadowsOn,
     liquidGlassOn: prefs?.dev?.liquidGlass !== false,
-    glassChipsOn:  prefs?.dev?.glassChips  !== false,
     typeGo: TYPE_COLORS.go, typeSt: TYPE_COLORS.st, typeNe: TYPE_COLORS.ne,
   };
 }

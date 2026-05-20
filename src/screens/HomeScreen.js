@@ -13,7 +13,7 @@ import { FONTS } from '../lib/fonts.js';
 function Filters({ habits, category, setCategory, types, setTypes, timeGates, paused, setPaused }) {
   const { theme } = useApp();
   const d = theme.isDark;
-  const glassChips = theme.glassChipsOn && isLiquidGlassSupported && LiquidGlassView;
+  const glassChips = theme.liquidGlassOn && isLiquidGlassSupported && LiquidGlassView;
   const cats = useMemo(
     () => [...new Set(habits.map(h => h.category).filter(Boolean))].filter(c => isCatVisible(c, timeGates)),
     [habits, timeGates],
@@ -70,19 +70,18 @@ function Filters({ habits, category, setCategory, types, setTypes, timeGates, pa
         style={{ paddingHorizontal: 20, marginBottom: 6 }}
         contentContainerStyle={{ paddingRight: 18, alignItems: 'center' }}>
         {chip('All', !category, null, () => setCategory(''))}
-        {cats.map(c => chip(c, category === c, null, () => setCategory(category === c ? '' : c)))}
+        {cats.map(c => chip(c, category === c, null, () => { setPaused(false); setCategory(category === c ? '' : c); }))}
+        {gatedCount > 0 && chip('Paused', paused, '#888888', () => { setCategory(''); setPaused(p => !p); })}
       </ScrollView>
       <ScrollView horizontal showsHorizontalScrollIndicator={false}
         style={{ paddingHorizontal: 18 }}
         contentContainerStyle={{ paddingRight: 18, alignItems: 'center' }}>
         {[['go','Start'],['st','Stop'],['ne','Neutral']].map(([t, lbl]) =>
-          chip(lbl, !paused && types.includes(t), TC[t], () => {
-            if (paused) setPaused(false);
+          chip(lbl, types.includes(t), TC[t], () => {
             const next = types.includes(t) ? types.filter(x => x !== t) : [...types, t];
             if (next.length > 0) setTypes(next);
           })
         )}
-        {gatedCount > 0 && chip('Paused', paused, theme.muted, () => setPaused(p => !p))}
       </ScrollView>
     </View>
   );
@@ -255,12 +254,11 @@ export default function HomeScreen({ onOpenHabit, onLongPressHabit, onNewHabit }
     let l = habits.filter(h => !h.archived);
     if (paused) {
       l = l.filter(h => h.category && !isCatVisible(h.category, prefs.timeGates));
-      if (category) l = l.filter(h => h.category === category);
     } else {
       l = l.filter(h => !h.category || isCatVisible(h.category, prefs.timeGates));
-      if (category)     l = l.filter(h => h.category === category);
-      if (types.length) l = l.filter(h => types.includes(h.type));
     }
+    if (category)     l = l.filter(h => h.category === category);
+    if (types.length) l = l.filter(h => types.includes(h.type));
     const sort = prefs.habitsSort || 'mostLogged';
     if (sort === 'name') {
       l = [...l].sort((a,b) => a.name.localeCompare(b.name));
