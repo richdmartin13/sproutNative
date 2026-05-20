@@ -19,6 +19,9 @@ struct WidgetSnap {
     let habits: [WidgetHabit]
     let loggedToday: Int
     let total: Int
+    var pct: Double { total > 0 ? Double(loggedToday) / Double(total) : 0 }
+    var remaining: Int { total - loggedToday }
+    var bestStreak: Int { habits.map(\.streak).max() ?? 0 }
 
     static let placeholder = WidgetSnap(habits: [
         WidgetHabit(id: "1", name: "Morning run",  type: "go", category: "Health", todayCount: 1, streak: 12, daysSince: nil),
@@ -81,36 +84,37 @@ private struct HabitRow: View {
     private var done: Bool { habit.type == "st" ? habit.todayCount == 0 : habit.todayCount > 0 }
     private var badge: String? {
         habit.type == "st"
-            ? (habit.streak > 0 ? "\(habit.streak)d free" : nil)
+            ? (habit.streak > 0 ? "\(habit.streak)d" : nil)
             : (habit.streak > 1 ? "\(habit.streak)d" : nil)
     }
     var body: some View {
         HStack(spacing: 7) {
             Image(systemName: done ? "checkmark.circle.fill" : "circle")
-                .font(.system(size: 11))
-                .foregroundStyle(done ? dotColor(habit.type) : .white.opacity(0.25))
+                .font(.system(size: 12))
+                .foregroundStyle(done ? dotColor(habit.type) : .white.opacity(0.22))
             Text(habit.name)
                 .font(.system(size: 13, weight: .medium))
-                .foregroundStyle(done ? .white : .white.opacity(0.5))
+                .foregroundStyle(done ? .white : .white.opacity(0.45))
                 .lineLimit(1)
             Spacer(minLength: 0)
             if let b = badge {
-                Text(b).font(.system(size: 10)).foregroundStyle(dotColor(habit.type).opacity(0.8))
+                Text(b)
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(dotColor(habit.type).opacity(0.75))
             }
         }
     }
 }
 
-private struct ProgressRing: View {
-    let value: Double  // 0–1
+private struct RingView: View {
+    let pct: Double
     let size: CGFloat
     var body: some View {
         ZStack {
+            Circle().stroke(.white.opacity(0.12), lineWidth: size * 0.10)
             Circle()
-                .stroke(.white.opacity(0.12), lineWidth: size * 0.12)
-            Circle()
-                .trim(from: 0, to: value)
-                .stroke(green, style: StrokeStyle(lineWidth: size * 0.12, lineCap: .round))
+                .trim(from: 0, to: pct)
+                .stroke(green, style: StrokeStyle(lineWidth: size * 0.10, lineCap: .round))
                 .rotationEffect(.degrees(-90))
         }
         .frame(width: size, height: size)
@@ -119,67 +123,66 @@ private struct ProgressRing: View {
 
 // ─────────────────────────────── Widget sizes ────────────────────────────────
 
+// Small: ring + count, lives on the green background from containerBackground
 private struct SmallView: View {
     let snap: WidgetSnap
-    private var pct: Double { snap.total > 0 ? Double(snap.loggedToday) / Double(snap.total) : 0 }
     var body: some View {
-        ZStack {
-            bg
-            VStack(spacing: 6) {
-                ProgressRing(value: pct, size: 52)
-                    .overlay {
-                        VStack(spacing: 0) {
-                            Image(systemName: "leaf.fill")
-                                .font(.system(size: 9, weight: .semibold))
-                                .foregroundStyle(green)
-                            Text("\(snap.loggedToday)")
-                                .font(.system(size: 18, weight: .bold, design: .rounded))
-                                .foregroundStyle(.white)
-                        }
-                    }
-                Text("\(snap.loggedToday) of \(snap.total)")
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundStyle(.white.opacity(0.5))
-                    .lineLimit(1)
+        VStack(spacing: 5) {
+            ZStack {
+                RingView(pct: snap.pct, size: 56)
+                VStack(spacing: 0) {
+                    Image(systemName: "leaf.fill")
+                        .font(.system(size: 8, weight: .bold))
+                        .foregroundStyle(green)
+                    Text("\(snap.loggedToday)")
+                        .font(.system(size: 20, weight: .bold, design: .rounded))
+                        .foregroundStyle(.white)
+                }
             }
+            Text("\(snap.loggedToday) of \(snap.total)")
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(.white.opacity(0.45))
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 
+// Medium: ring + count on left, top habits on right
 private struct MediumView: View {
     let snap: WidgetSnap
     private var topHabits: [WidgetHabit] { Array(snap.habits.prefix(3)) }
-    private var pct: Double { snap.total > 0 ? Double(snap.loggedToday) / Double(snap.total) : 0 }
     var body: some View {
         HStack(spacing: 0) {
-            VStack(spacing: 6) {
-                ProgressRing(value: pct, size: 48)
-                    .overlay {
-                        VStack(spacing: 0) {
-                            Image(systemName: "leaf.fill")
-                                .font(.system(size: 8, weight: .semibold))
-                                .foregroundStyle(green)
-                            Text("\(snap.loggedToday)")
-                                .font(.system(size: 17, weight: .bold, design: .rounded))
-                                .foregroundStyle(.white)
-                        }
+            VStack(spacing: 4) {
+                ZStack {
+                    RingView(pct: snap.pct, size: 46)
+                    VStack(spacing: 0) {
+                        Image(systemName: "leaf.fill")
+                            .font(.system(size: 7, weight: .bold))
+                            .foregroundStyle(green)
+                        Text("\(snap.loggedToday)")
+                            .font(.system(size: 16, weight: .bold, design: .rounded))
+                            .foregroundStyle(.white)
                     }
+                }
                 Text("/\(snap.total)")
                     .font(.system(size: 11, weight: .medium))
-                    .foregroundStyle(.white.opacity(0.4))
+                    .foregroundStyle(.white.opacity(0.35))
             }
-            .frame(width: 80)
+            .frame(width: 76)
             .padding(.vertical, 14)
 
-            Rectangle().fill(.white.opacity(0.1)).frame(width: 1).padding(.vertical, 12)
+            Rectangle()
+                .fill(.white.opacity(0.10))
+                .frame(width: 1)
+                .padding(.vertical, 14)
 
             VStack(alignment: .leading, spacing: 8) {
                 ForEach(topHabits) { h in HabitRow(habit: h) }
                 if snap.habits.count > 3 {
                     Text("+ \(snap.habits.count - 3) more")
                         .font(.system(size: 10))
-                        .foregroundStyle(.white.opacity(0.28))
+                        .foregroundStyle(.white.opacity(0.25))
                 }
                 Spacer(minLength: 0)
             }
@@ -188,54 +191,53 @@ private struct MediumView: View {
             Spacer(minLength: 0)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(bg)
     }
 }
 
+// Large: ring + stats row at top, full habit list below
 private struct LargeView: View {
     let snap: WidgetSnap
-    private var topHabits: [WidgetHabit] { Array(snap.habits.prefix(7)) }
-    private var pct: Double { snap.total > 0 ? Double(snap.loggedToday) / Double(snap.total) : 0 }
+    private var topHabits: [WidgetHabit] { Array(snap.habits.prefix(8)) }
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            // Header
-            HStack(alignment: .center, spacing: 8) {
-                Image(systemName: "leaf.fill")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(green)
-                Text("Sprout")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(.white.opacity(0.6))
-                Spacer()
-                Text("\(snap.loggedToday)/\(snap.total) done")
-                    .font(.system(size: 13, weight: .bold, design: .rounded))
-                    .foregroundStyle(.white)
-            }
-            .padding(.bottom, 10)
-
-            // Progress bar
-            GeometryReader { geo in
-                ZStack(alignment: .leading) {
-                    Capsule().fill(.white.opacity(0.12)).frame(height: 5)
-                    Capsule().fill(green)
-                        .frame(width: max(4, geo.size.width * pct), height: 5)
-                }
-            }
-            .frame(height: 5)
-            .padding(.bottom, 14)
-
-            // Habit list
-            VStack(alignment: .leading, spacing: 9) {
-                ForEach(topHabits) { h in
-                    HabitRow(habit: h)
-                    if h.id != topHabits.last?.id {
-                        Rectangle().fill(.white.opacity(0.06)).frame(height: 0.5)
+        VStack(alignment: .leading, spacing: 14) {
+            // Stats row
+            HStack(spacing: 12) {
+                ZStack {
+                    RingView(pct: snap.pct, size: 54)
+                    VStack(spacing: 0) {
+                        Image(systemName: "leaf.fill")
+                            .font(.system(size: 8, weight: .bold))
+                            .foregroundStyle(green)
+                        Text("\(snap.loggedToday)")
+                            .font(.system(size: 18, weight: .bold, design: .rounded))
+                            .foregroundStyle(.white)
                     }
                 }
-                if snap.habits.count > 7 {
-                    Text("+ \(snap.habits.count - 7) more")
+                VStack(alignment: .leading, spacing: 6) {
+                    statPill(value: "\(snap.remaining) left", icon: "circle")
+                    statPill(value: "\(snap.bestStreak)d streak", icon: "flame.fill")
+                    statPill(value: "\(Int(snap.pct * 100))% done", icon: "chart.bar.fill")
+                }
+                Spacer(minLength: 0)
+            }
+
+            Rectangle()
+                .fill(.white.opacity(0.08))
+                .frame(height: 0.5)
+
+            // Habit list
+            VStack(alignment: .leading, spacing: 0) {
+                ForEach(Array(topHabits.enumerated()), id: \.element.id) { idx, h in
+                    if idx > 0 {
+                        Rectangle().fill(.white.opacity(0.06)).frame(height: 0.5)
+                    }
+                    HabitRow(habit: h).padding(.vertical, 5)
+                }
+                if snap.habits.count > 8 {
+                    Text("+ \(snap.habits.count - 8) more")
                         .font(.system(size: 10))
-                        .foregroundStyle(.white.opacity(0.28))
+                        .foregroundStyle(.white.opacity(0.25))
+                        .padding(.top, 4)
                 }
             }
 
@@ -243,10 +245,21 @@ private struct LargeView: View {
         }
         .padding(16)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .background(bg)
+    }
+
+    private func statPill(value: String, icon: String) -> some View {
+        HStack(spacing: 4) {
+            Image(systemName: icon)
+                .font(.system(size: 9))
+                .foregroundStyle(.white.opacity(0.45))
+            Text(value)
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(.white.opacity(0.75))
+        }
     }
 }
 
+// Lock screen / accessory sizes — system handles rendering style
 private struct CircularView: View {
     let snap: WidgetSnap
     var body: some View {
@@ -315,7 +328,7 @@ private struct WidgetContainerBackground: ViewModifier {
         if #available(iOS 17, *) {
             content.containerBackground(bg, for: .widget)
         } else {
-            content
+            content.background(bg)
         }
     }
 }
