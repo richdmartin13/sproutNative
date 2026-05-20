@@ -45,6 +45,25 @@ RCT_EXPORT_METHOD(sendHabits:(NSString *)habitsJSON prefs:(NSString *)prefsJSON)
     if (shared) {
         [shared setObject:data forKey:@"sprout_habits"];
         [shared setDouble:[NSDate date].timeIntervalSince1970 forKey:@"sprout_updated_at"];
+
+        // Extract accent colour and weekly bars from prefs and cache them for widgets.
+        if (prefsJSON) {
+            NSData *pd = [prefsJSON dataUsingEncoding:NSUTF8StringEncoding];
+            if (pd) {
+                NSDictionary *prefs = [NSJSONSerialization JSONObjectWithData:pd options:0 error:nil];
+                if ([prefs isKindOfClass:[NSDictionary class]]) {
+                    NSString *accentHex = prefs[@"accentHex"];
+                    if (accentHex) [shared setObject:accentHex forKey:@"sprout_accent"];
+
+                    NSArray *weeklyBars = prefs[@"weeklyBars"];
+                    if (weeklyBars) {
+                        NSData *wbData = [NSJSONSerialization dataWithJSONObject:weeklyBars
+                                                                         options:0 error:nil];
+                        if (wbData) [shared setObject:wbData forKey:@"sprout_weekly"];
+                    }
+                }
+            }
+        }
     }
 
     NSMutableDictionary *ctx = [NSMutableDictionary dictionaryWithObject:data forKey:@"habits"];
@@ -56,6 +75,18 @@ RCT_EXPORT_METHOD(sendHabits:(NSString *)habitsJSON prefs:(NSString *)prefsJSON)
     if (WCSession.defaultSession.isReachable) {
         [WCSession.defaultSession sendMessage:ctx replyHandler:nil errorHandler:nil];
     }
+}
+
+/// Read and atomically clear the widget-tap pending log queue from App Group.
+/// Returns an array of { habitId, ts, resist } objects written by WidgetLogIntent.
+RCT_EXPORT_METHOD(readAndClearPendingLogs:(RCTPromiseResolveBlock)resolve
+                  reject:(__unused RCTPromiseRejectBlock)reject) {
+    NSUserDefaults *shared = [[NSUserDefaults alloc] initWithSuiteName:kAppGroup];
+    NSData *raw = [shared dataForKey:@"sprout_pending_logs"];
+    [shared removeObjectForKey:@"sprout_pending_logs"];
+    if (!raw) { resolve(@[]); return; }
+    NSArray *decoded = [NSJSONSerialization JSONObjectWithData:raw options:0 error:nil];
+    resolve([decoded isKindOfClass:[NSArray class]] ? decoded : @[]);
 }
 
 // ── Private helper ─────────────────────────────────────────────────────────────

@@ -1,11 +1,11 @@
 import React, { createContext, useContext, useEffect, useState, useCallback, useMemo } from 'react';
-import { Linking, Platform, useColorScheme } from 'react-native';
+import { AppState, Linking, Platform, useColorScheme } from 'react-native';
 import { File as ExpoFile } from 'expo-file-system';
 import { loadData, saveData, importJson } from '../lib/storage.js';
 import { getTheme } from '../lib/theme.js';
 import { normLog, todayStr } from '../lib/util.js';
 import { useWatchSync } from '../watch/useWatchSync.js';
-import { onWatchPrefUpdate } from '../watch/WatchBridge.js';
+import { onWatchPrefUpdate, readAndClearPendingLogs } from '../watch/WatchBridge.js';
 import { TEST_HABITS } from '../lib/testData.js';
 
 const Ctx = createContext(null);
@@ -208,6 +208,31 @@ export function AppProvider({ children }) {
       setData(d => d ? { ...d, prefs: { ...d.prefs, [key]: value } } : d);
     });
   }, []);
+
+  // Process habit logs queued by interactive widget buttons (App Group pending queue).
+  // Runs on foreground resume and once on mount so no taps are lost.
+  useEffect(() => {
+    if (Platform.OS !== 'ios' || !ready) return;
+    const processPending = async () => {
+      try {
+        const pending = await readAndClearPendingLogs();
+        if (!pending?.length) return;
+        for (const entry of pending) {
+          const date = new Date(entry.ts * 1000).toISOString().slice(0, 10);
+          const ts   = new Date(entry.ts * 1000).toISOString();
+          addLog(entry.habitId, {
+            date, ts, tags: [], notes: '',
+            ...(entry.resist ? { resist: 'yes' } : {}),
+          });
+        }
+      } catch (_) {}
+    };
+    processPending();
+    const sub = AppState.addEventListener('change', state => {
+      if (state === 'active') processPending();
+    });
+    return () => sub.remove();
+  }, [ready, addLog]);
 
   return (
     <Ctx.Provider value={{ data, ready, theme, habits, setPrefs, upsertHabit, deleteHabit, archiveHabit, restoreHabit, addLog, updateLog, deleteLog, setData, toast, showToast, clearToast }}>

@@ -54,6 +54,22 @@ export function useWatchSync(habits, prefs, themeInfo, onLog, onUndo, onResist) 
 
       const categories = [...new Set(active.map(h => h.category).filter(Boolean))].sort();
 
+      // Last 7 days of aggregate progress for the weekly widget (index 0 = 6 days ago, 6 = today)
+      const DAY_LABELS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
+      const weeklyBars = Array.from({ length: 7 }, (_, i) => {
+        const d = new Date();
+        d.setDate(d.getDate() - (6 - i));
+        const dateStr = `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+        const label   = i === 6 ? 'T' : DAY_LABELS[d.getDay()];
+        let done = 0, total = 0;
+        for (const h of active) {
+          total++;
+          const count = h.logs.filter(l => l.date === dateStr).length;
+          if (h.type === 'st' ? count === 0 : count > 0) done++;
+        }
+        return { label, done, total };
+      });
+
       const watchPrefs = {
         dismissDelay:   prefs?.watchDismiss ?? 2,
         haptic:         prefs?.watchHaptic !== false,
@@ -64,6 +80,7 @@ export function useWatchSync(habits, prefs, themeInfo, onLog, onUndo, onResist) 
         hourlyActivity: hourly,
         accentHex:      themeInfo?.accent ?? '#2d6e47',
         isDark:         themeInfo?.isDark ?? true,
+        weeklyBars,
       };
 
       sendHabitsToWatch(payload, watchPrefs);

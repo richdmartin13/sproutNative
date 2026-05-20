@@ -64,7 +64,7 @@ const SWIFT_SOURCES = [
 
 // Widget targets
 const WIDGET_TARGET        = 'SproutWidget';
-const WIDGET_SOURCES       = ['SproutWidget.swift', 'SproutWidgetBundle.swift'];
+const WIDGET_SOURCES       = ['SproutWidget.swift', 'SproutWidgetBundle.swift', 'SproutIntents.swift'];
 const WATCH_WIDGET_TARGET  = 'SproutWatchWidget';
 const WATCH_WIDGET_SOURCES = ['SproutWatchWidget.swift', 'SproutWatchWidgetBundle.swift'];
 

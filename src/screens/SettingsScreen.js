@@ -32,10 +32,20 @@ function MRow({ label, sub, value, onChange }) {
   );
 }
 
-const APP_VERSION = '1.0.40';
-const APP_BUILD  = 41;
+const APP_VERSION = '1.0.42';
+const APP_BUILD  = 42;
 
 const CHANGELOG = [
+  {
+    version: '1.0.42',
+    changes: [
+      'Widgets: interactive "Log Habits" widget (iOS 17+) — tap tiles to log directly from your home screen; 3-column medium and 2-column large layouts',
+      'Widgets: weekly analytics widget shows a 7-day bar chart; small and medium sizes',
+      'Watch: corner and gauge-style complications added; rectangular complication now shows per-habit checkmarks',
+      'Shortcuts: "Check a Habit" and "Get Habit Streak" shortcuts — parameterised with habit picker for Siri and Shortcuts app',
+      'Widgets: taps sync back to the app instantly on next foreground via the App Group pending log queue',
+    ],
+  },
   {
     version: '1.0.41',
     changes: [

@@ -52,3 +52,13 @@ export function onWatchPrefUpdate(callback) {
   const sub = emitter.addListener('WatchPrefUpdate', ({ key, value }) => callback(key, value));
   return () => sub.remove();
 }
+
+/**
+ * Read and atomically clear the pending widget-tap log queue from the App Group.
+ * Returns a promise resolving to an array of { habitId, ts, resist } objects
+ * written by WidgetLogIntent when the user taps a button on an interactive widget.
+ */
+export function readAndClearPendingLogs() {
+  if (Platform.OS !== 'ios' || !SproutWatchBridge) return Promise.resolve([]);
+  return SproutWatchBridge.readAndClearPendingLogs();
+}
