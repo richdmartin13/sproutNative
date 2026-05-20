@@ -32,10 +32,16 @@ function MRow({ label, sub, value, onChange }) {
   );
 }
 
-const APP_VERSION = '1.0.39';
-const APP_BUILD  = 39;
+const APP_VERSION = '1.0.40';
+const APP_BUILD  = 40;
 
 const CHANGELOG = [
+  {
+    version: '1.0.40',
+    changes: [
+      'Watch: watchOS widget extension now enabled — add Sprout complications to your watch face',
+    ],
+  },
   {
     version: '1.0.39',
     changes: [

@@ -16,6 +16,8 @@
 		<string>watch_appstore</string>
 		<key>sprout.richdmart.in.SproutWidget</key>
 		<string>widget_appstore</string>
+		<key>sprout.richdmart.in.watchkitapp.SproutWatchWidget</key>
+		<string>watch_widget_appstore</string>
 	</dict>
 </dict>
 </plist>

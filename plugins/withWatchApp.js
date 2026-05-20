@@ -31,7 +31,7 @@
 const WATCH_READY        = process.env.INCLUDE_WATCH_APP !== 'false';
 // Watch widget profile needs bundle ID sprout.richdmart.in.watchkitapp.SproutWatchWidget
 // Create that App ID + profile in developer.apple.com, then set this to true.
-const WATCH_WIDGET_READY = false;
+const WATCH_WIDGET_READY = true;
 
 const {
   withXcodeProject,
