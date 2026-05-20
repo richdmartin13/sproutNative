@@ -32,10 +32,19 @@ function MRow({ label, sub, value, onChange }) {
   );
 }
 
-const APP_VERSION = '1.0.38';
-const APP_BUILD  = 38;
+const APP_VERSION = '1.0.39';
+const APP_BUILD  = 39;
 
 const CHANGELOG = [
+  {
+    version: '1.0.39',
+    changes: [
+      'Home: "Paused" chip in filter bar — tap to see habits whose schedule is currently inactive; exclusive with Start/Stop/Neutral',
+      'Analytics: Last 30 Days drills into individual habit lines when a category filter is active; reverts to category view for "All"',
+      'Widgets: fill the full widget canvas; new large widget with progress bar + 7 habits; lock screen inline widget added',
+      'Timezone: fixed a subtle UTC/local mismatch in the habit correlation engine',
+    ],
+  },
   {
     version: '1.0.38',
     changes: [

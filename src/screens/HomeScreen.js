@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { View, Text, FlatList, ScrollView, Pressable, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { List, Grid, Flame, Clock } from '../components/Icon.js';
@@ -10,12 +10,16 @@ import { isCatVisible } from '../lib/util.js';
 import { TYPE_COLORS, TYPE_LABELS } from '../lib/theme.js';
 import { FONTS } from '../lib/fonts.js';
 
-function Filters({ habits, category, setCategory, types, setTypes, timeGates }) {
+function Filters({ habits, category, setCategory, types, setTypes, timeGates, paused, setPaused }) {
   const { theme } = useApp();
   const d = theme.isDark;
   const glassChips = theme.glassChipsOn && isLiquidGlassSupported && LiquidGlassView;
   const cats = useMemo(
     () => [...new Set(habits.map(h => h.category).filter(Boolean))].filter(c => isCatVisible(c, timeGates)),
+    [habits, timeGates],
+  );
+  const gatedCount = useMemo(
+    () => habits.filter(h => !h.archived && h.category && !isCatVisible(h.category, timeGates)).length,
     [habits, timeGates],
   );
   const TC = { go: theme.typeGo, st: theme.typeSt, ne: theme.typeNe };
@@ -72,11 +76,13 @@ function Filters({ habits, category, setCategory, types, setTypes, timeGates }) 
         style={{ paddingHorizontal: 18 }}
         contentContainerStyle={{ paddingRight: 18, alignItems: 'center' }}>
         {[['go','Start'],['st','Stop'],['ne','Neutral']].map(([t, lbl]) =>
-          chip(lbl, types.includes(t), TC[t], () => {
+          chip(lbl, !paused && types.includes(t), TC[t], () => {
+            if (paused) setPaused(false);
             const next = types.includes(t) ? types.filter(x => x !== t) : [...types, t];
             if (next.length > 0) setTypes(next);
           })
         )}
+        {gatedCount > 0 && chip('Paused', paused, theme.muted, () => setPaused(p => !p))}
       </ScrollView>
     </View>
   );
@@ -234,13 +240,27 @@ export default function HomeScreen({ onOpenHabit, onLongPressHabit, onNewHabit }
   const prefs  = data?.prefs  || {};
   const [category, setCategory] = useState('');
   const [types,    setTypes]    = useState(['go', 'st', 'ne']);
+  const [paused,   setPaused]   = useState(false);
+
+  const gatedHabits = useMemo(
+    () => habits.filter(h => !h.archived && h.category && !isCatVisible(h.category, prefs.timeGates)),
+    [habits, prefs.timeGates],
+  );
+
+  useEffect(() => {
+    if (paused && gatedHabits.length === 0) setPaused(false);
+  }, [paused, gatedHabits.length]);
 
   const filtered = useMemo(() => {
     let l = habits.filter(h => !h.archived);
-    // Hide habits whose category is hidden or outside its time gate
-    l = l.filter(h => !h.category || isCatVisible(h.category, prefs.timeGates));
-    if (category)     l = l.filter(h => h.category === category);
-    if (types.length) l = l.filter(h => types.includes(h.type));
+    if (paused) {
+      l = l.filter(h => h.category && !isCatVisible(h.category, prefs.timeGates));
+      if (category) l = l.filter(h => h.category === category);
+    } else {
+      l = l.filter(h => !h.category || isCatVisible(h.category, prefs.timeGates));
+      if (category)     l = l.filter(h => h.category === category);
+      if (types.length) l = l.filter(h => types.includes(h.type));
+    }
     const sort = prefs.habitsSort || 'mostLogged';
     if (sort === 'name') {
       l = [...l].sort((a,b) => a.name.localeCompare(b.name));
@@ -257,7 +277,7 @@ export default function HomeScreen({ onOpenHabit, onLongPressHabit, onNewHabit }
       l = [...l].sort((a,b) => totalCountFor(b) - totalCountFor(a));
     }
     return l;
-  }, [habits, category, types, prefs.habitsSort, prefs.timeGates]);
+  }, [habits, category, types, paused, prefs.habitsSort, prefs.timeGates]);
 
   const { width } = useWindowDimensions();
   const isTablet = width >= 768;
@@ -299,7 +319,7 @@ export default function HomeScreen({ onOpenHabit, onLongPressHabit, onNewHabit }
             })}
           </View>
         </View>
-      <Filters habits={habits} category={category} setCategory={setCategory} types={types} setTypes={setTypes} timeGates={prefs.timeGates} />
+      <Filters habits={habits} category={category} setCategory={setCategory} types={types} setTypes={setTypes} timeGates={prefs.timeGates} paused={paused} setPaused={setPaused} />
 
       {filtered.length === 0 ? (
         <GlassCard style={{ margin:20, padding:32, alignItems:'center' }} radius={22}>

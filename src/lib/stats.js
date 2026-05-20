@@ -90,7 +90,7 @@ export function coOccurrenceFor(habit, allHabits) {
 // meaningful for detecting vice correlations where timing differs (morning
 // exercise vs evening drinking). The hourly chart handles time-of-day analysis.
 function _toBlock(ts) {
-  return new Date(ts).toISOString().slice(0, 10);
+  return dateStr(new Date(ts));
 }
 
 function _corrSetup(habits, decayDays = 60) {

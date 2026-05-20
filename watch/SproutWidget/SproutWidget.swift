@@ -24,6 +24,8 @@ struct WidgetSnap {
         WidgetHabit(id: "1", name: "Morning run",  type: "go", category: "Health", todayCount: 1, streak: 12, daysSince: nil),
         WidgetHabit(id: "2", name: "Read 20 min",  type: "go", category: "Mind",   todayCount: 1, streak: 5,  daysSince: nil),
         WidgetHabit(id: "3", name: "No junk food", type: "st", category: "Health", todayCount: 0, streak: 3,  daysSince: 0),
+        WidgetHabit(id: "4", name: "Meditate",     type: "go", category: "Mind",   todayCount: 0, streak: 0,  daysSince: nil),
+        WidgetHabit(id: "5", name: "Limit coffee", type: "st", category: "Health", todayCount: 0, streak: 7,  daysSince: 0),
     ], loggedToday: 5, total: 8)
 }
 
@@ -99,50 +101,75 @@ private struct HabitRow: View {
     }
 }
 
+private struct ProgressRing: View {
+    let value: Double  // 0–1
+    let size: CGFloat
+    var body: some View {
+        ZStack {
+            Circle()
+                .stroke(.white.opacity(0.12), lineWidth: size * 0.12)
+            Circle()
+                .trim(from: 0, to: value)
+                .stroke(green, style: StrokeStyle(lineWidth: size * 0.12, lineCap: .round))
+                .rotationEffect(.degrees(-90))
+        }
+        .frame(width: size, height: size)
+    }
+}
+
 // ─────────────────────────────── Widget sizes ────────────────────────────────
 
 private struct SmallView: View {
     let snap: WidgetSnap
+    private var pct: Double { snap.total > 0 ? Double(snap.loggedToday) / Double(snap.total) : 0 }
     var body: some View {
         ZStack {
             bg
-            VStack(spacing: 4) {
-                Image(systemName: "leaf.fill")
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundStyle(green)
-                HStack(alignment: .lastTextBaseline, spacing: 3) {
-                    Text("\(snap.loggedToday)")
-                        .font(.system(size: 44, weight: .bold, design: .rounded))
-                        .foregroundStyle(.white)
-                    Text("/\(snap.total)")
-                        .font(.system(size: 18, weight: .medium))
-                        .foregroundStyle(.white.opacity(0.45))
-                }
-                Text("today")
+            VStack(spacing: 6) {
+                ProgressRing(value: pct, size: 52)
+                    .overlay {
+                        VStack(spacing: 0) {
+                            Image(systemName: "leaf.fill")
+                                .font(.system(size: 9, weight: .semibold))
+                                .foregroundStyle(green)
+                            Text("\(snap.loggedToday)")
+                                .font(.system(size: 18, weight: .bold, design: .rounded))
+                                .foregroundStyle(.white)
+                        }
+                    }
+                Text("\(snap.loggedToday) of \(snap.total)")
                     .font(.system(size: 11, weight: .medium))
-                    .foregroundStyle(.white.opacity(0.4))
-                    .textCase(.uppercase)
-                    .kerning(1)
+                    .foregroundStyle(.white.opacity(0.5))
+                    .lineLimit(1)
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 
 private struct MediumView: View {
     let snap: WidgetSnap
     private var topHabits: [WidgetHabit] { Array(snap.habits.prefix(3)) }
+    private var pct: Double { snap.total > 0 ? Double(snap.loggedToday) / Double(snap.total) : 0 }
     var body: some View {
         HStack(spacing: 0) {
-            VStack(spacing: 2) {
-                Image(systemName: "leaf.fill").font(.system(size: 16)).foregroundStyle(green)
-                Text("\(snap.loggedToday)")
-                    .font(.system(size: 38, weight: .bold, design: .rounded))
-                    .foregroundStyle(.white)
+            VStack(spacing: 6) {
+                ProgressRing(value: pct, size: 48)
+                    .overlay {
+                        VStack(spacing: 0) {
+                            Image(systemName: "leaf.fill")
+                                .font(.system(size: 8, weight: .semibold))
+                                .foregroundStyle(green)
+                            Text("\(snap.loggedToday)")
+                                .font(.system(size: 17, weight: .bold, design: .rounded))
+                                .foregroundStyle(.white)
+                        }
+                    }
                 Text("/\(snap.total)")
-                    .font(.system(size: 12, weight: .medium))
+                    .font(.system(size: 11, weight: .medium))
                     .foregroundStyle(.white.opacity(0.4))
             }
-            .frame(width: 76)
+            .frame(width: 80)
             .padding(.vertical, 14)
 
             Rectangle().fill(.white.opacity(0.1)).frame(width: 1).padding(.vertical, 12)
@@ -160,6 +187,62 @@ private struct MediumView: View {
 
             Spacer(minLength: 0)
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(bg)
+    }
+}
+
+private struct LargeView: View {
+    let snap: WidgetSnap
+    private var topHabits: [WidgetHabit] { Array(snap.habits.prefix(7)) }
+    private var pct: Double { snap.total > 0 ? Double(snap.loggedToday) / Double(snap.total) : 0 }
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            // Header
+            HStack(alignment: .center, spacing: 8) {
+                Image(systemName: "leaf.fill")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(green)
+                Text("Sprout")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(.white.opacity(0.6))
+                Spacer()
+                Text("\(snap.loggedToday)/\(snap.total) done")
+                    .font(.system(size: 13, weight: .bold, design: .rounded))
+                    .foregroundStyle(.white)
+            }
+            .padding(.bottom, 10)
+
+            // Progress bar
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    Capsule().fill(.white.opacity(0.12)).frame(height: 5)
+                    Capsule().fill(green)
+                        .frame(width: max(4, geo.size.width * pct), height: 5)
+                }
+            }
+            .frame(height: 5)
+            .padding(.bottom, 14)
+
+            // Habit list
+            VStack(alignment: .leading, spacing: 9) {
+                ForEach(topHabits) { h in
+                    HabitRow(habit: h)
+                    if h.id != topHabits.last?.id {
+                        Rectangle().fill(.white.opacity(0.06)).frame(height: 0.5)
+                    }
+                }
+                if snap.habits.count > 7 {
+                    Text("+ \(snap.habits.count - 7) more")
+                        .font(.system(size: 10))
+                        .foregroundStyle(.white.opacity(0.28))
+                }
+            }
+
+            Spacer(minLength: 0)
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(bg)
     }
 }
@@ -199,6 +282,14 @@ private struct RectangularView: View {
     }
 }
 
+private struct InlineView: View {
+    let snap: WidgetSnap
+    var body: some View {
+        Label("\(snap.loggedToday)/\(snap.total) habits today", systemImage: "leaf.fill")
+            .widgetAccentable()
+    }
+}
+
 // ─────────────────────────────── Entry view ──────────────────────────────────
 
 struct SproutWidgetEntryView: View {
@@ -208,8 +299,10 @@ struct SproutWidgetEntryView: View {
         switch family {
         case .systemSmall:          SmallView(snap: entry.snap)
         case .systemMedium:         MediumView(snap: entry.snap)
+        case .systemLarge:          LargeView(snap: entry.snap)
         case .accessoryCircular:    CircularView(snap: entry.snap)
         case .accessoryRectangular: RectangularView(snap: entry.snap)
+        case .accessoryInline:      InlineView(snap: entry.snap)
         default:                    SmallView(snap: entry.snap)
         }
     }
@@ -220,7 +313,7 @@ struct SproutWidgetEntryView: View {
 private struct WidgetContainerBackground: ViewModifier {
     func body(content: Content) -> some View {
         if #available(iOS 17, *) {
-            content.containerBackground(.fill.tertiary, for: .widget)
+            content.containerBackground(bg, for: .widget)
         } else {
             content
         }
@@ -236,6 +329,9 @@ struct SproutWidget: Widget {
         }
         .configurationDisplayName("Sprout")
         .description("Today's habit progress at a glance.")
-        .supportedFamilies([.systemSmall, .systemMedium, .accessoryCircular, .accessoryRectangular])
+        .supportedFamilies([
+            .systemSmall, .systemMedium, .systemLarge,
+            .accessoryCircular, .accessoryRectangular, .accessoryInline,
+        ])
     }
 }

@@ -175,15 +175,19 @@ function Heatmap({ habits, prefs, onDateClick }) {
   );
 }
 
-// ─── Trends (all-time mode) — one line + chip per category ──────────────────
-function TrendsCard({ habits }) {
+// ─── Trends (all-time mode) — one line + chip per category or per habit ──────
+function TrendsCard({ habits, category }) {
   const { theme } = useApp();
   const PALETTE = [theme.accent,'#fb7185','#34d399','#60a5fa','#f59e0b','#a78bfa'];
 
-  // Aggregate per-habit series into per-category daily totals
-  const catSeries = useMemo(() => {
+  const isDrillDown = Boolean(category && category !== GATED_KEY);
+
+  const series = useMemo(() => {
     const perHabit = trendsFor(habits, 30);
     if (!perHabit.length) return [];
+    if (isDrillDown) {
+      return perHabit.map(({ habit, points }) => ({ id: habit.id, label: habit.name, points }));
+    }
     const catMap = new Map();
     for (const { habit, points } of perHabit) {
       const cat = habit.category || '';
@@ -192,24 +196,24 @@ function TrendsCard({ habits }) {
       points.forEach((p, i) => { if (existing[i]) existing[i] = { ...existing[i], count: existing[i].count + p.count }; });
     }
     return [...catMap.entries()]
-      .map(([cat, points]) => ({ cat, points }))
+      .map(([cat, points]) => ({ id: cat, label: cat === '' ? 'Other' : cat, points }))
       .sort((a, b) => b.points.reduce((s, p) => s + p.count, 0) - a.points.reduce((s, p) => s + p.count, 0));
-  }, [habits]);
+  }, [habits, isDrillDown]);
 
-  // disabled-set pattern: new categories are always visible by default
   const [disabled, setDisabled] = useState(() => new Set());
-  const visible = catSeries.filter(s => !disabled.has(s.cat));
+  useEffect(() => { setDisabled(new Set()); }, [category]);
+  const visible = series.filter(s => !disabled.has(s.id));
 
-  if (!catSeries.length) return null;
+  if (!series.length) return null;
   const allPts = visible.flatMap(s => s.points.map(p => p.count));
   const maxV = Math.max(1, ...allPts);
   const H=80, pL=4, pT=6, pB=6, W=300, innerW=W-pL*2, innerH=H-pT-pB;
 
   return (
-    <Section title="Last 30 days">
+    <Section title="Last 30 days" subtitle={isDrillDown ? 'per habit' : 'by category'}>
       <View style={{ height: H, position: 'relative', marginBottom: 14 }}>
         {visible.map(s => {
-          const ci = catSeries.findIndex(c => c.cat === s.cat);
+          const ci = series.findIndex(c => c.id === s.id);
           const color = PALETTE[ci % PALETTE.length];
           const pts = s.points; if (pts.length < 2) return null;
           return pts.slice(0, -1).map((_, pi) => {
@@ -217,26 +221,25 @@ function TrendsCard({ habits }) {
             const x1=pL+(pi/(pts.length-1))*innerW, y1=pT+innerH-(p1.count/maxV)*innerH;
             const x2=pL+((pi+1)/(pts.length-1))*innerW, y2=pT+innerH-(p2.count/maxV)*innerH;
             const dx=x2-x1, dy=y2-y1, len=Math.sqrt(dx*dx+dy*dy), ang=Math.atan2(dy,dx)*180/Math.PI;
-            return <View key={`${s.cat}-${pi}`} style={{ position:'absolute', left:x1, top:y1,
+            return <View key={`${s.id}-${pi}`} style={{ position:'absolute', left:x1, top:y1,
               width:len, height:2, backgroundColor:color,
               transform:[{rotate:`${ang}deg`}], transformOrigin:'0 50%' }} />;
           });
         })}
       </View>
       <View style={{ flexDirection:'row', flexWrap:'wrap', gap:6 }}>
-        {catSeries.map((s, i) => {
-          const on = !disabled.has(s.cat);
+        {series.map((s, i) => {
+          const on = !disabled.has(s.id);
           const color = PALETTE[i % PALETTE.length];
-          const label = s.cat === '' ? 'Other' : s.cat;
           return (
-            <Pressable key={s.cat || '__none__'} onPress={() => {
-              const n = new Set(disabled); on ? n.add(s.cat) : n.delete(s.cat); setDisabled(n);
+            <Pressable key={s.id || '__none__'} onPress={() => {
+              const n = new Set(disabled); on ? n.add(s.id) : n.delete(s.id); setDisabled(n);
             }}
               style={{ flexDirection:'row', alignItems:'center', gap:5, paddingHorizontal:10, paddingVertical:5,
                 borderRadius:12, backgroundColor:on?theme.accentDim:theme.surface2,
                 borderWidth:1, borderColor:on?theme.accentBorder:theme.border }}>
               <View style={{ width:8, height:8, borderRadius:4, backgroundColor:color }} />
-              <Text style={{ fontSize:12, color:on?theme.accent:theme.muted }}>{label}</Text>
+              <Text style={{ fontSize:12, color:on?theme.accent:theme.muted }}>{s.label}</Text>
             </Pressable>
           );
         })}
@@ -733,7 +736,7 @@ export default function AnalyticsScreen() {
         return <HourlySection key="hourly" filtered={filtered} date={date} />;
       case 'trends':
         if (mode !== 'all' || !filtered.length) return null;
-        return <TrendsCard key="trends" habits={filtered} />;
+        return <TrendsCard key="trends" habits={filtered} category={category} />;
       case 'spider':
         if (!totalLogs) return null;
         return <SpiderSection key="spider" filtered={filtered} allHabits={allHabits} dateFilter={df} />;
