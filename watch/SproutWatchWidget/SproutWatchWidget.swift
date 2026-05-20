@@ -80,7 +80,7 @@ struct WatchProvider: TimelineProvider {
 
 // ─────────────────────────────── Colour helper ───────────────────────────────
 
-private func accentColor(_ hex: String) -> Color {
+private func hexToColor(_ hex: String) -> Color {
     var h = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
     if h.count == 3 { h = h.map { "\($0)\($0)" }.joined() }
     guard h.count == 6, let v = UInt64(h, radix: 16) else { return Color.green }
@@ -96,7 +96,7 @@ private func accentColor(_ hex: String) -> Color {
 private struct CircularView: View {
     let snap: WatchWidgetSnap
     var body: some View {
-        let accent = accentColor(snap.accentHex)
+        let accent = hexToColor(snap.accentHex)
         ZStack {
             AccessoryWidgetBackground()
             Gauge(value: Double(snap.loggedToday),
@@ -116,7 +116,7 @@ private struct CircularView: View {
 private struct CornerView: View {
     let snap: WatchWidgetSnap
     var body: some View {
-        let accent = accentColor(snap.accentHex)
+        let accent = hexToColor(snap.accentHex)
         ZStack {
             Gauge(value: Double(snap.loggedToday),
                   in: 0...Double(max(snap.total, 1))) {
