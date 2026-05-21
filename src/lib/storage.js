@@ -10,7 +10,7 @@ export const DEF_PREFS = {
   showStreak: true,
   compact: false,
   insDay: false,
-  repeatLastDefault: false,
+  autoClearDetails: false,
   repeatLastMoodEnergy: false,
   autoTagRecentHabits: false,
   watchDismiss: 2,

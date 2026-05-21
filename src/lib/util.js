@@ -14,6 +14,27 @@ export function dateStr(d) {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
+// Produces an offset-aware ISO string ("YYYY-MM-DDTHH:MM:SS±HH:MM") that
+// embeds the local time and offset so display is timezone-portable.
+export function localISOString(date = new Date()) {
+  const off = -date.getTimezoneOffset();
+  const sign = off >= 0 ? '+' : '-';
+  const absOff = Math.abs(off);
+  const offH = pad(Math.floor(absOff / 60));
+  const offM = pad(absOff % 60);
+  return `${date.getFullYear()}-${pad(date.getMonth()+1)}-${pad(date.getDate())}T` +
+    `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}${sign}${offH}:${offM}`;
+}
+
+// Extract the logged local hour from a ts string.
+// Offset-aware ISO: reads hour directly from string — timezone-portable.
+// Plain UTC ISO: falls back to reader's local hour (best effort for old logs).
+export function localHourFromTs(ts) {
+  if (!ts) return 0;
+  if (/[+-]\d{2}:\d{2}$/.test(ts)) return parseInt(ts.slice(11, 13), 10);
+  return new Date(ts).getHours();
+}
+
 export function parseDate(s) {
   const [y, m, d] = s.split('-').map(Number);
   return new Date(y, m - 1, d);
@@ -34,9 +55,18 @@ export function fmtDateLong(s) {
   return `${DAYS[d.getDay()]}, ${MONTHS[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
 }
 
-export function fmtTime(iso) {
-  if (!iso) return '';
-  const d = new Date(iso);
+export function fmtTime(ts) {
+  if (!ts) return '';
+  // Offset-aware ISO: read H:M directly from string — always shows logged local time.
+  if (/[+-]\d{2}:\d{2}$/.test(ts)) {
+    let h = parseInt(ts.slice(11, 13), 10);
+    const m = ts.slice(14, 16);
+    const ap = h >= 12 ? 'PM' : 'AM';
+    h = h % 12 || 12;
+    return `${h}:${m} ${ap}`;
+  }
+  // UTC ISO fallback for old logs
+  const d = new Date(ts);
   let h = d.getHours();
   const m = pad(d.getMinutes());
   const ap = h >= 12 ? 'PM' : 'AM';
@@ -118,7 +148,7 @@ export function normLog(log) {
   return {
     id: log.id || uid('l'),
     date: log.date || todayStr(),
-    ts: log.ts || new Date().toISOString(),
+    ts: log.ts || localISOString(),
     ease: Number(log.ease) || 0,
     mood: moodKey(log.mood),
     energy: energyKey(log.energy),

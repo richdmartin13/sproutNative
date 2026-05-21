@@ -19,7 +19,7 @@ const TOTAL = 90;
 function daysAgo(n) {
   const d = new Date();
   d.setDate(d.getDate() - n);
-  return d.toISOString().slice(0, 10);
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 }
 
 const ALL_DATES = Array.from({ length: TOTAL }, (_, i) => daysAgo(TOTAL - 1 - i));

@@ -2,13 +2,14 @@ import React, { useState, useRef, useCallback, useMemo } from 'react';
 import { View, Text, Pressable, ScrollView, Animated } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
-import { ChevronLeft, Settings, Undo2, Repeat, MoreHorizontal, Pencil, Trash2, ArrowRight, Minus, Zap } from '../components/Icon.js';
+import { ChevronLeft, Settings, Undo2, MoreHorizontal, Pencil, Trash2, ArrowRight, Minus, X } from '../components/Icon.js';
 import SpiderChart from '../components/SpiderChart.js';
 import GlassCard from '../components/GlassCard.js';
 import AppModal from '../components/AppModal.js';
+import PendingDetailsSheet from '../sheets/PendingDetailsSheet.js';
 import { useApp } from '../context/AppContext.js';
 import { TYPE_COLORS, TYPE_LABELS } from '../lib/theme.js';
-import { todayStr, fmtDateLong, fmtTime, uid, normLog } from '../lib/util.js';
+import { todayStr, fmtDateLong, fmtTime, uid, normLog, localISOString } from '../lib/util.js';
 import {
   todayCountFor, totalCountFor, streakFor, daysSinceLastFor,
   lastLog, lastLogToday, tagFrequencyForHabit, coOccurrenceFor,
@@ -149,8 +150,10 @@ export default function TapScreen({ habit, habits, onBack, onLog, onNewLog, onEd
   const tc        = TYPE_COLORS[habit.type] || theme.accent;
   const scaleAnim  = useRef(new Animated.Value(1)).current;
   const countScale = useRef(new Animated.Value(1)).current;
-  const [spiderMode, setSpiderMode] = useState('tags');
-  const [tapAlert,   setTapAlert]   = useState(null); // { title, message, buttons }
+  const [spiderMode,      setSpiderMode]      = useState('tags');
+  const [tapAlert,        setTapAlert]        = useState(null);
+  const [pendingDetails,  setPendingDetails]  = useState(null);
+  const [showDetailsSheet,setShowDetailsSheet] = useState(false);
 
   const todayCount = todayCountFor(habit);
   const total      = totalCountFor(habit);
@@ -188,10 +191,11 @@ export default function TapScreen({ habit, habits, onBack, onLog, onNewLog, onEd
     ]).start();
 
     const now = new Date();
-    let log = { id:uid('l'), date:todayStr(), ts:now.toISOString(), tags:[], withHabits:[] };
-    if (prefs.repeatLastDefault) {
-      const last = lastLog(habit);
-      if (last) { const {id,date,ts,...copy}=last; log={...log,...copy}; }
+    let log = { id:uid('l'), date:todayStr(), ts:localISOString(now), tags:[], withHabits:[] };
+    if (pendingDetails) {
+      const { tags: dTags = [], ...rest } = pendingDetails;
+      log = { ...log, ...rest, tags: [...dTags] };
+      if (prefs.autoClearDetails) setPendingDetails(null);
     } else if (prefs.repeatLastMoodEnergy) {
       const last = lastLog(habit);
       if (last) { if(last.mood) log.mood=last.mood; if(last.energy) log.energy=last.energy; }
@@ -203,7 +207,7 @@ export default function TapScreen({ habit, habits, onBack, onLog, onNewLog, onEd
     }
     if (habit.type==='st'&&!log.resist) log.resist='no';
     onLog(habit.id, normLog(log));
-  }, [habit,habits,prefs,onLog,scaleAnim,countScale]);
+  }, [habit,habits,prefs,onLog,scaleAnim,countScale,pendingDetails]);
 
   const doUndo = useCallback(async () => {
     try { await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } catch (_) {}
@@ -212,19 +216,9 @@ export default function TapScreen({ habit, habits, onBack, onLog, onNewLog, onEd
     onDeleteLog(habit.id, tl[0].id);
   }, [habit.logs,onDeleteLog,habit.id]);
 
-  const doRepeat = useCallback(async () => {
-    try { await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } catch (_) {}
-    const last = lastLog(habit);
-    if (!last) { setTapAlert({ title:'Nothing to repeat', message:'No previous taps yet.', buttons:[{ text:'OK', onPress:()=>setTapAlert(null) }] }); return; }
-    const {id,date,ts,...copy} = last;
-    onLog(habit.id, normLog({...copy, id:uid('l'), date:todayStr(), ts:new Date().toISOString()}));
-  }, [habit,onLog]);
-
   const doDetails = useCallback(() => {
-    const log = normLog({ id:uid('l'), date:todayStr(), ts:new Date().toISOString(),
-      ...(habit.type==='st'?{resist:'no'}:{}) });
-    onNewLog(habit, log);
-  }, [habit,onNewLog]);
+    setShowDetailsSheet(true);
+  }, []);
 
   const SPIDER_PLACEHOLDER_HINTS = {
     tags:'Log with tags to see your tag pattern here.',
@@ -277,9 +271,9 @@ export default function TapScreen({ habit, habits, onBack, onLog, onNewLog, onEd
               backgroundColor:theme.solid,
               ...(theme.shadowsOn ? { shadowColor:tc, shadowOffset:{width:0,height:0}, shadowOpacity: theme.isDark ? 0.45 : 0.22, shadowRadius:20, elevation:10 } : {}),
             }}>
-              <Text style={{ fontSize:13, fontWeight:'700', color:theme.muted,
+              <Text style={{ fontSize:13, fontWeight:'700', color:pendingDetails ? tc : theme.muted,
                 letterSpacing:0.2, textTransform:'uppercase' }}>
-                Tap to log
+                {pendingDetails ? 'Tap to log with details' : 'Tap to log'}
               </Text>
               <Animated.Text style={{ fontSize:84, fontWeight:'800', color:tc,
                 letterSpacing:-0.06, lineHeight:96, marginVertical:14,
@@ -292,6 +286,33 @@ export default function TapScreen({ habit, habits, onBack, onLog, onNewLog, onEd
               <Text style={{ fontSize:11, color:theme.muted, marginTop:8 }}>
                 {fmtDateLong(todayStr())}
               </Text>
+              {/* Pending details preview */}
+              {pendingDetails && (() => {
+                const pills = [];
+                if (pendingDetails.ease > 0)   pills.push(`${pendingDetails.ease}★`);
+                if (pendingDetails.mood)        pills.push(pendingDetails.mood);
+                if (pendingDetails.energy)      pills.push(pendingDetails.energy);
+                if (pendingDetails.duration > 0) pills.push(`${pendingDetails.duration}m`);
+                if (pendingDetails.resist === 'yes')     pills.push('Resisted');
+                else if (pendingDetails.resist === 'partial') pills.push('Partial');
+                (pendingDetails.tags || []).forEach(t => pills.push(`#${t}`));
+                return (
+                  <View style={{ flexDirection:'row', flexWrap:'wrap', gap:5, marginTop:12,
+                    justifyContent:'center', alignItems:'center' }}>
+                    {pills.map((p,i) => (
+                      <View key={i} style={{ paddingHorizontal:9, paddingVertical:4, borderRadius:10,
+                        backgroundColor: tc + '22', borderWidth:1, borderColor: tc + '55' }}>
+                        <Text style={{ fontSize:11, fontWeight:'600', color:tc }}>{p}</Text>
+                      </View>
+                    ))}
+                    <Pressable onPress={() => setPendingDetails(null)}
+                      style={{ paddingHorizontal:7, paddingVertical:4, borderRadius:10,
+                        backgroundColor:theme.solid3, borderWidth:1, borderColor:theme.border }}>
+                      <X size={12} strokeWidth={2.5} color={theme.muted} />
+                    </Pressable>
+                  </View>
+                );
+              })()}
             </View>
           </Pressable>
         </Animated.View>
@@ -300,7 +321,6 @@ export default function TapScreen({ habit, habits, onBack, onLog, onNewLog, onEd
         <View style={{ flexDirection:'row', gap:8 }}>
           {[
             { IconComp:Undo2,          label:'Undo',      onPress:doUndo,    off:todayCount===0 },
-            { IconComp:Repeat,         label:'Repeat',    onPress:doRepeat,  off:habit.logs.length===0 },
             { IconComp:MoreHorizontal, label:'+ Details', onPress:doDetails, off:false },
           ].map(({IconComp,label,onPress,off})=>(
             <Pressable key={label} onPress={onPress} disabled={off}
@@ -462,6 +482,15 @@ export default function TapScreen({ habit, habits, onBack, onLog, onNewLog, onEd
         buttons={tapAlert?.buttons ?? []}
         onDismiss={() => setTapAlert(null)}
       />
+
+      {showDetailsSheet && (
+        <PendingDetailsSheet
+          habit={habit}
+          initial={pendingDetails || {}}
+          onClose={() => setShowDetailsSheet(false)}
+          onSet={(details) => { setPendingDetails(details); setShowDetailsSheet(false); }}
+        />
+      )}
     </View>
   );
 }

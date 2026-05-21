@@ -179,7 +179,6 @@ function TapScreenWrapper({ navigation, route }) {
       onBack={() => navigation.goBack()}
       onLog={(id, log) => { addLog(id, log); return log; }}
       onEditLog={(h, l) => ctx.setSheet({ kind:'log', habit:h, log:l })}
-      onNewLog={(h, l) => ctx.setSheet({ kind:'log', habit:h, log:l, isNew:true })}
       onDeleteLog={(id, lid) => deleteLog(id, lid)}
       onOptions={() => ctx.onOptions(habitWithPrefs, () => navigation.goBack())}
     />
@@ -297,7 +296,7 @@ export default function NativeNav() {
         )}
         {sheet?.kind === 'log' && sheet.habit && sheet.log && (
           <LogSheet habit={habits.find(h => h.id === sheet.habit.id) ?? sheet.habit}
-            log={sheet.log} allHabits={habits}
+            log={sheet.log}
             onClose={() => setSheet(null)}
             onSave={next => {
               sheet.isNew ? addLog(sheet.habit.id, next) : updateLog(sheet.habit.id, next);

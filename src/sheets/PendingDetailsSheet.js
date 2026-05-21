@@ -1,12 +1,10 @@
 import React, { useState, useMemo } from 'react';
 import { View, Text, Pressable, TextInput } from 'react-native';
-import { DateWheelPicker, TimeWheelPicker } from '../components/WheelPicker.js';
 import { Star, X } from '../components/Icon.js';
 import Sheet from './Sheet.js';
 import { Field, TInput, Btn } from '../components/Themed.js';
 import { useApp } from '../context/AppContext.js';
-import { MOOD_OPTS, ENERGY_OPTS, parseTags, pad, normLog, localISOString, dateStr, parseDate } from '../lib/util.js';
-import { FONTS } from '../lib/fonts.js';
+import { MOOD_OPTS, ENERGY_OPTS, parseTags } from '../lib/util.js';
 
 const COMMON_TAGS = [
   'morning','evening','work','home','outdoor','social','solo',
@@ -14,20 +12,7 @@ const COMMON_TAGS = [
   'gym','walk','weekend','routine','spontaneous','mindful','distracted',
 ];
 
-function fmtDateDisplay(dateVal) {
-  const d = parseDate(dateVal);
-  const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  const DAYS   = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-  return `${DAYS[d.getDay()]}, ${MONTHS[d.getMonth()]} ${d.getDate()}`;
-}
-
-function fmtTimeDisplay(hhmm) {
-  const [h, m] = hhmm.split(':').map(Number);
-  const ap = h >= 12 ? 'PM' : 'AM';
-  return `${h % 12 || 12}:${pad(m)} ${ap}`;
-}
-
-export default function LogSheet({ habit, log, onClose, onSave }) {
+export default function PendingDetailsSheet({ habit, initial = {}, onClose, onSet }) {
   const { theme, data } = useApp();
   const rawTrack = data?.prefs?.track || {};
   const ht = habit.type;
@@ -41,29 +26,20 @@ export default function LogSheet({ habit, log, onClose, onSave }) {
     ['ease','mood','energy','duration','trigger','resist','context','tags','notes'].map(k => [k, tr(k)])
   );
 
-  // Extract local date/time from ts — offset-aware ISO reads from string, legacy UTC uses Date object.
-  const tsHasOffset = log.ts && /[+-]\d{2}:\d{2}$/.test(log.ts);
-  const ts0 = tsHasOffset ? null : (log.ts ? new Date(log.ts) : new Date());
-  const [dateVal, setDateVal] = useState(tsHasOffset ? log.ts.slice(0, 10) : dateStr(ts0));
-  const [timeVal, setTimeVal] = useState(tsHasOffset ? log.ts.slice(11, 16) : `${pad(ts0.getHours())}:${pad(ts0.getMinutes())}`);
-
-  const [showDatePicker, setShowDatePicker] = useState(false);
-  const [showTimePicker, setShowTimePicker] = useState(false);
-
-  const [ease,    setEase]    = useState(log.ease    || 0);
-  const [mood,    setMood]    = useState(log.mood    || '');
-  const [energy,  setEnergy]  = useState(log.energy  || '');
-  const [dur,     setDur]     = useState(String(log.duration || ''));
-  const [trigger, setTrig]    = useState(log.trigger || '');
-  const [resist,  setResist]  = useState(log.resist  || (habit.type === 'st' ? 'no' : ''));
-  const [ctx,     setCtx]     = useState(log.context || '');
-  const [tags,    setTags]    = useState(log.tags    || []);
+  const [ease,    setEase]    = useState(initial.ease    || 0);
+  const [mood,    setMood]    = useState(initial.mood    || '');
+  const [energy,  setEnergy]  = useState(initial.energy  || '');
+  const [dur,     setDur]     = useState(String(initial.duration || ''));
+  const [trigger, setTrig]    = useState(initial.trigger || '');
+  const [resist,  setResist]  = useState(initial.resist  || (habit.type === 'st' ? 'no' : ''));
+  const [ctx,     setCtx]     = useState(initial.context || '');
+  const [tags,    setTags]    = useState(initial.tags    || []);
   const [draft,   setDraft]   = useState('');
-  const [notes,   setNotes]   = useState(log.notes   || '');
+  const [notes,   setNotes]   = useState(initial.notes   || '');
 
   const suggested = useMemo(() => {
-    const ht = new Set((habit.logs||[]).flatMap(l => l.tags||[]));
-    const all = [...ht, ...COMMON_TAGS];
+    const existing = new Set((habit.logs||[]).flatMap(l => l.tags||[]));
+    const all = [...existing, ...COMMON_TAGS];
     const seen = new Set();
     return all.filter(t => { if (seen.has(t)||tags.includes(t)) return false; seen.add(t); return true; }).slice(0,12);
   }, [habit.logs, tags]);
@@ -77,7 +53,7 @@ export default function LogSheet({ habit, log, onClose, onSave }) {
   const PickRow = ({ items, value, onChange }) => (
     <View style={{ flexDirection:'row', flexWrap:'wrap', gap:6 }}>
       {items.map(([k,lbl,c]) => (
-        <Pressable key={k} onPress={() => onChange(value===k ? '' : k)}
+        <Pressable key={k} onPress={() => onChange(value===k?'':k)}
           style={{ flex:1, minWidth:'28%', paddingVertical:11, paddingHorizontal:8, borderRadius:12, alignItems:'center',
             backgroundColor: value===k ? (c||theme.accent) : theme.solid2,
             borderWidth:1, borderColor: value===k ? (c||theme.accent) : theme.border }}>
@@ -87,53 +63,23 @@ export default function LogSheet({ habit, log, onClose, onSave }) {
     </View>
   );
 
-  const pickerBtnStyle = (active) => ({
-    flex:1, paddingVertical:11, paddingHorizontal:14, borderRadius:12,
-    backgroundColor: active ? theme.accentDim : theme.solid2,
-    borderWidth:1, borderColor: active ? theme.accent : theme.border,
-    alignItems:'center',
-  });
-  const pickerTextStyle = (active) => ({ fontSize:14, fontWeight:'500', color: active ? theme.accent : theme.text });
-
-  const save = () => {
+  const apply = () => {
     const pending = parseTags(draft).filter(t => !tags.includes(t));
-    const [hh, mm] = timeVal.split(':').map(Number);
-    const [y, mo, d] = dateVal.split('-').map(Number);
-    onSave(normLog({
-      ...log,
-      date: `${y}-${pad(mo)}-${pad(d)}`,
-      ts: localISOString(new Date(y, mo-1, d, hh||0, mm||0)),
-      ease:     track.ease     ? ease              : 0,
-      mood:     track.mood     ? mood              : '',
-      energy:   track.energy   ? energy            : '',
-      duration: track.duration ? Number(dur)||0    : 0,
-      trigger:  track.trigger  ? trigger.trim()    : '',
-      resist:   track.resist   ? resist            : '',
-      context:  track.context  ? ctx.trim()        : '',
+    onSet({
+      ease:     track.ease     ? ease                 : 0,
+      mood:     track.mood     ? mood                 : '',
+      energy:   track.energy   ? energy               : '',
+      duration: track.duration ? Number(dur)||0       : 0,
+      trigger:  track.trigger  ? trigger.trim()       : '',
+      resist:   track.resist   ? resist               : '',
+      context:  track.context  ? ctx.trim()           : '',
       tags:     track.tags     ? [...tags,...pending] : [],
-      notes:    track.notes    ? notes             : '',
-      withHabits: [],
-    }));
+      notes:    track.notes    ? notes                : '',
+    });
   };
 
   return (
-    <Sheet title="Log details" subtitle={habit.name} onClose={onClose}>
-
-      {/* When */}
-      <Field label="When">
-        <View style={{ flexDirection:'row', gap:8 }}>
-          <Pressable onPress={() => { setShowTimePicker(false); setShowDatePicker(v => !v); }}
-            style={pickerBtnStyle(showDatePicker)}>
-            <Text style={pickerTextStyle(showDatePicker)}>{fmtDateDisplay(dateVal)}</Text>
-          </Pressable>
-          <Pressable onPress={() => { setShowDatePicker(false); setShowTimePicker(v => !v); }}
-            style={pickerBtnStyle(showTimePicker)}>
-            <Text style={pickerTextStyle(showTimePicker)}>{fmtTimeDisplay(timeVal)}</Text>
-          </Pressable>
-        </View>
-        {showDatePicker && <DateWheelPicker dateVal={dateVal} onDateChange={setDateVal} />}
-        {showTimePicker && <TimeWheelPicker timeVal={timeVal} onTimeChange={setTimeVal} />}
-      </Field>
+    <Sheet title="Set details" subtitle={`Will be applied on next tap of ${habit.name}`} onClose={onClose}>
 
       {track.ease !== false && (
         <Field label="Ease">
@@ -239,7 +185,7 @@ export default function LogSheet({ habit, log, onClose, onSave }) {
 
       <View style={{ flexDirection:'row', gap:8, marginTop:8 }}>
         <Btn label="Cancel" onPress={onClose} />
-        <Btn label="Save" onPress={save} primary />
+        <Btn label="Set Details" onPress={apply} primary />
       </View>
     </Sheet>
   );

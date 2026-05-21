@@ -1,4 +1,4 @@
-import { todayStr, dateStr, parseDate, shiftDate } from './util.js';
+import { todayStr, dateStr, parseDate, shiftDate, localHourFromTs } from './util.js';
 
 export function todayCountFor(h) {
   const t = todayStr();
@@ -90,6 +90,7 @@ export function coOccurrenceFor(habit, allHabits) {
 // meaningful for detecting vice correlations where timing differs (morning
 // exercise vs evening drinking). The hourly chart handles time-of-day analysis.
 function _toBlock(ts) {
+  if (/[+-]\d{2}:\d{2}$/.test(ts)) return ts.slice(0, 10);
   return dateStr(new Date(ts));
 }
 
@@ -300,7 +301,7 @@ export function hourlyBucketsFor(habits, date) {
   for (const h of habits) {
     for (const l of h.logs) {
       if (l.date !== date) continue;
-      const hr = new Date(l.ts).getHours();
+      const hr = localHourFromTs(l.ts);
       out[hr][h.type]++;
     }
   }
@@ -379,7 +380,7 @@ export function timeOfDayBuckets(habits, dateFilter = null) {
   const b = { Night: 0, Morning: 0, Afternoon: 0, Evening: 0 };
   for (const h of habits) for (const l of h.logs) {
     if (dateFilter && l.date !== dateFilter) continue;
-    const hr = new Date(l.ts).getHours();
+    const hr = localHourFromTs(l.ts);
     if (hr < 6) b.Night++;
     else if (hr < 12) b.Morning++;
     else if (hr < 18) b.Afternoon++;

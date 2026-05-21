@@ -32,10 +32,30 @@ function MRow({ label, sub, value, onChange }) {
   );
 }
 
-const APP_VERSION = '1.0.43';
-const APP_BUILD  = 43;
+const APP_VERSION = '1.0.45';
+const APP_BUILD  = 45;
 
 const CHANGELOG = [
+  {
+    version: '1.0.45',
+    changes: [
+      'Details are now staged on the tap button as pills and persist until cleared — tap as many times as you want with the same details',
+      '"Repeat" button removed; replaced by persistent staged details',
+      'New setting: "Auto-clear details after tap" (off by default) to restore clear-on-tap behavior',
+      'Log edit sheet: date and time now use inline scroll-wheel pickers instead of text fields',
+      '"Along with" section removed from log sheet',
+      'Fix: all timestamps now store the logged local time with UTC offset — display is always timezone-portable',
+      'Fix: logs, streaks, and heatmap use local calendar days consistently across timezones',
+    ],
+  },
+  {
+    version: '1.0.44',
+    changes: [
+      'Fix: logs near midnight no longer appear on the wrong day — all date strings now use local time',
+      'Fix: streak counter and heatmap now correctly reflect local calendar days',
+      'Fix: time-gated category schedules now evaluate against local time as intended',
+    ],
+  },
   {
     version: '1.0.43',
     changes: [
@@ -1064,8 +1084,8 @@ export default function SettingsScreen({ onNavigate }) {
             textTransform:'uppercase', letterSpacing:0.7, paddingBottom:4 }}>Logging</Text>
           <MRow label="Quick log" sub="Tap card = instant log; long-press to open detail"
             value={!!prefs.quickLog} onChange={v => setP({ quickLog: v })} />
-          <MRow label="Repeat last by default" sub="Auto-fill most recent log's details on tap"
-            value={prefs.repeatLastDefault} onChange={v => setP({ repeatLastDefault: v })} />
+          <MRow label="Auto-clear details after tap" sub="Clear staged details after each log; off = they persist until you clear them manually"
+            value={!!prefs.autoClearDetails} onChange={v => setP({ autoClearDetails: v })} />
           <MRow label="Carry last mood & energy" sub="Copy mood and energy from your most recent log"
             value={prefs.repeatLastMoodEnergy} onChange={v => setP({ repeatLastMoodEnergy: v })} />
           <MRow label="Auto-tag recent habits" sub="Add habits logged in the last 5 min as tags"

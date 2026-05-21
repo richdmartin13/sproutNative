@@ -5,7 +5,7 @@ import { Field, TInput, Btn } from '../components/Themed.js';
 import { useApp } from '../context/AppContext.js';
 import { TYPE_COLORS, TYPE_LABELS } from '../lib/theme.js';
 import { TrendingUp, TrendingDown, Minus } from '../components/Icon.js';
-import { uid } from '../lib/util.js';
+import { uid, todayStr } from '../lib/util.js';
 import { FONTS } from '../lib/fonts.js';
 
 export default function HabitSheet({ habit, allHabits, onClose, onSave }) {
@@ -28,7 +28,7 @@ export default function HabitSheet({ habit, allHabits, onClose, onSave }) {
       name:     name.trim().slice(0,40),
       category: category.trim().slice(0,30),
       type,
-      created:  habit?.created || new Date().toISOString().slice(0,10),
+      created:  habit?.created || todayStr(),
       logs:     habit?.logs    || [],
     });
   };

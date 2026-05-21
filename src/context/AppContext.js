@@ -3,7 +3,7 @@ import { AppState, Linking, Platform, useColorScheme } from 'react-native';
 import { File as ExpoFile } from 'expo-file-system';
 import { loadData, saveData, importJson } from '../lib/storage.js';
 import { getTheme } from '../lib/theme.js';
-import { normLog, todayStr, dateStr } from '../lib/util.js';
+import { normLog, todayStr, dateStr, localISOString } from '../lib/util.js';
 import { useWatchSync } from '../watch/useWatchSync.js';
 import { onWatchPrefUpdate, readAndClearPendingLogs } from '../watch/WatchBridge.js';
 import { TEST_HABITS } from '../lib/testData.js';
@@ -128,7 +128,7 @@ export function AppProvider({ children }) {
       const log = {
         id: `test_log_${Date.now()}`,
         date: todayStr(),
-        ts: new Date().toISOString(),
+        ts: localISOString(),
         tags: [], notes: '',
       };
       setTestHabitsState(hs => hs
@@ -146,7 +146,7 @@ export function AppProvider({ children }) {
       const log = {
         id: `test_log_${Date.now()}`,
         date: todayStr(),
-        ts: new Date().toISOString(),
+        ts: localISOString(),
         tags: [], notes: '', resist: 'yes',
       };
       setTestHabitsState(hs => hs
@@ -220,7 +220,7 @@ export function AppProvider({ children }) {
         for (const entry of pending) {
           const localDate = new Date(entry.ts * 1000);
           const date = dateStr(localDate);
-          const ts   = localDate.toISOString();
+          const ts   = localISOString(localDate);
           addLog(entry.habitId, {
             date, ts, tags: [], notes: '',
             ...(entry.resist ? { resist: 'yes' } : {}),

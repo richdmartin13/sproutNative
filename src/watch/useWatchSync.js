@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { sendHabitsToWatch, onWatchLog, onWatchUndo, onWatchResist } from './WatchBridge.js';
-import { isCatVisible, shiftDate } from '../lib/util.js';
+import { isCatVisible, shiftDate, localHourFromTs } from '../lib/util.js';
 
 /**
  * Keeps the Apple Watch in sync with the current habits state.
@@ -46,7 +46,7 @@ export function useWatchSync(habits, prefs, themeInfo, onLog, onUndo, onResist) 
       for (const h of active) {
         for (const log of h.logs) {
           if (log.date === today && log.ts) {
-            const hour = new Date(log.ts).getHours();
+            const hour = localHourFromTs(log.ts);
             if (hour >= 0 && hour < 24) hourly[hour]++;
           }
         }
