@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { sendHabitsToWatch, onWatchLog, onWatchUndo, onWatchResist } from './WatchBridge.js';
-import { isCatVisible } from '../lib/util.js';
+import { isCatVisible, shiftDate } from '../lib/util.js';
 
 /**
  * Keeps the Apple Watch in sync with the current habits state.
@@ -99,8 +99,6 @@ function todayStr() {
   return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`;
 }
 function p(n) { return String(n).padStart(2, '0'); }
-function prevDay(dateStr) {
-  const d = new Date(dateStr);
-  d.setDate(d.getDate() - 1);
-  return d.toISOString().slice(0, 10);
+function prevDay(s) {
+  return shiftDate(s, -1);
 }

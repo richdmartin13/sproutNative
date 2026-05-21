@@ -5,7 +5,7 @@ import { Clock, InfinityIcon, ChevronLeft, ChevronRight, ArrowRight, ArrowLeftRi
 import SpiderChart from '../components/SpiderChart.js';
 import GlassCard from '../components/GlassCard.js';
 import { useApp } from '../context/AppContext.js';
-import { todayStr, fmtDateLong, shiftDate, isCatVisible } from '../lib/util.js';
+import { todayStr, fmtDateLong, shiftDate, isCatVisible, dateStr } from '../lib/util.js';
 import {
   totalCountFor, tagFrequency, dayOfWeekBuckets, trendsFor,
   moodCounts, energyCounts, hourlyBucketsFor, tagFrequencyForHabit,
@@ -149,7 +149,7 @@ function Heatmap({ habits, prefs, onDateClick }) {
       const col=[];
       for (let d=0;d<7;d++) {
         const day=new Date(end); day.setDate(day.getDate()-(w*7+(6-d)));
-        const ds=day.toISOString().slice(0,10);
+        const ds=dateStr(day);
         col.push({date:ds,count:counts.get(ds)||0,today:ds===tStr,future:day>today});
       }
       cols.push(col);

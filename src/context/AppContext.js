@@ -3,7 +3,7 @@ import { AppState, Linking, Platform, useColorScheme } from 'react-native';
 import { File as ExpoFile } from 'expo-file-system';
 import { loadData, saveData, importJson } from '../lib/storage.js';
 import { getTheme } from '../lib/theme.js';
-import { normLog, todayStr } from '../lib/util.js';
+import { normLog, todayStr, dateStr } from '../lib/util.js';
 import { useWatchSync } from '../watch/useWatchSync.js';
 import { onWatchPrefUpdate, readAndClearPendingLogs } from '../watch/WatchBridge.js';
 import { TEST_HABITS } from '../lib/testData.js';
@@ -218,8 +218,9 @@ export function AppProvider({ children }) {
         const pending = await readAndClearPendingLogs();
         if (!pending?.length) return;
         for (const entry of pending) {
-          const date = new Date(entry.ts * 1000).toISOString().slice(0, 10);
-          const ts   = new Date(entry.ts * 1000).toISOString();
+          const localDate = new Date(entry.ts * 1000);
+          const date = dateStr(localDate);
+          const ts   = localDate.toISOString();
           addLog(entry.habitId, {
             date, ts, tags: [], notes: '',
             ...(entry.resist ? { resist: 'yes' } : {}),
