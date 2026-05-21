@@ -144,7 +144,7 @@ function LogRowNative({ log, habit, onEdit, onDelete }) {
 }
 
 export default function TapScreen({ habit, habits, onBack, onLog, onNewLog, onEditLog, onDeleteLog, onOptions }) {
-  const { theme, data } = useApp();
+  const { theme, data, setPrefs } = useApp();
   const insets = useSafeAreaInsets();
   const prefs     = data?.prefs || {};
   const tc        = TYPE_COLORS[habit.type] || theme.accent;
@@ -152,8 +152,19 @@ export default function TapScreen({ habit, habits, onBack, onLog, onNewLog, onEd
   const countScale = useRef(new Animated.Value(1)).current;
   const [spiderMode,      setSpiderMode]      = useState('tags');
   const [tapAlert,        setTapAlert]        = useState(null);
-  const [pendingDetails,  setPendingDetails]  = useState(null);
+  const [pendingDetails,  setPendingDetails]  = useState(() => prefs.pendingDetails?.[habit.id] || null);
   const [showDetailsSheet,setShowDetailsSheet] = useState(false);
+
+  const savePendingDetails = useCallback((details) => {
+    setPendingDetails(details);
+    setPrefs({ ...prefs, pendingDetails: { ...prefs.pendingDetails, [habit.id]: details } });
+  }, [prefs, habit.id, setPrefs]);
+
+  const clearPendingDetails = useCallback(() => {
+    setPendingDetails(null);
+    const { [habit.id]: _, ...rest } = prefs.pendingDetails || {};
+    setPrefs({ ...prefs, pendingDetails: rest });
+  }, [prefs, habit.id, setPrefs]);
 
   const todayCount = todayCountFor(habit);
   const total      = totalCountFor(habit);
@@ -179,8 +190,8 @@ export default function TapScreen({ habit, habits, onBack, onLog, onNewLog, onEd
   const middleLabel = habit.type==='st' ? 'Days Since' : 'Streak';
   const middleValue = habit.type==='st' ? (daysSince===null?'—':`${daysSince}`) : (streak||'—');
 
-  const doTap = useCallback(async () => {
-    try { await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); } catch (_) {}
+  const doTap = useCallback(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
     Animated.sequence([
       Animated.timing(scaleAnim,  { toValue:0.93, duration:45, useNativeDriver:true }),
       Animated.spring(scaleAnim,  { toValue:1, tension:380, friction:14, useNativeDriver:true }),
@@ -195,7 +206,7 @@ export default function TapScreen({ habit, habits, onBack, onLog, onNewLog, onEd
     if (pendingDetails) {
       const { tags: dTags = [], ...rest } = pendingDetails;
       log = { ...log, ...rest, tags: [...dTags] };
-      if (prefs.autoClearDetails) setPendingDetails(null);
+      if (prefs.autoClearDetails) clearPendingDetails();
     } else if (prefs.repeatLastMoodEnergy) {
       const last = lastLog(habit);
       if (last) { if(last.mood) log.mood=last.mood; if(last.energy) log.energy=last.energy; }
@@ -207,7 +218,7 @@ export default function TapScreen({ habit, habits, onBack, onLog, onNewLog, onEd
     }
     if (habit.type==='st'&&!log.resist) log.resist='no';
     onLog(habit.id, normLog(log));
-  }, [habit,habits,prefs,onLog,scaleAnim,countScale,pendingDetails]);
+  }, [habit,habits,prefs,onLog,scaleAnim,countScale,pendingDetails,clearPendingDetails]);
 
   const doUndo = useCallback(async () => {
     try { await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } catch (_) {}
@@ -305,7 +316,7 @@ export default function TapScreen({ habit, habits, onBack, onLog, onNewLog, onEd
                         <Text style={{ fontSize:11, fontWeight:'600', color:tc }}>{p}</Text>
                       </View>
                     ))}
-                    <Pressable onPress={() => setPendingDetails(null)}
+                    <Pressable onPress={clearPendingDetails}
                       style={{ paddingHorizontal:7, paddingVertical:4, borderRadius:10,
                         backgroundColor:theme.solid3, borderWidth:1, borderColor:theme.border }}>
                       <X size={12} strokeWidth={2.5} color={theme.muted} />
@@ -488,7 +499,7 @@ export default function TapScreen({ habit, habits, onBack, onLog, onNewLog, onEd
           habit={habit}
           initial={pendingDetails || {}}
           onClose={() => setShowDetailsSheet(false)}
-          onSet={(details) => { setPendingDetails(details); setShowDetailsSheet(false); }}
+          onSet={(details) => { savePendingDetails(details); setShowDetailsSheet(false); }}
         />
       )}
     </View>

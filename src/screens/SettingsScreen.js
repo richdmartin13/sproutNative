@@ -32,10 +32,17 @@ function MRow({ label, sub, value, onChange }) {
   );
 }
 
-const APP_VERSION = '1.0.45';
-const APP_BUILD  = 45;
+const APP_VERSION = '1.0.46';
+const APP_BUILD  = 46;
 
 const CHANGELOG = [
+  {
+    version: '1.0.46',
+    changes: [
+      'Fix: taps now log reliably — removed async/await from the tap handler that was silently swallowing errors',
+      'Fix: staged details now persist per habit — navigate away and back and your pending details are still there',
+    ],
+  },
   {
     version: '1.0.45',
     changes: [
